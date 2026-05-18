@@ -93,6 +93,422 @@ const marketplace = [
   { title: "Drone Delivery", route: "drone-delivery", icon: "plane", desc: "Pilot route launching soon in selected zones." },
 ];
 
+const serviceDetails = {
+  "medicine-delivery": {
+    title: "Medicine Delivery",
+    icon: "truck",
+    subtitle: "Order prescription medicines from verified pharmacies with realistic delivery status.",
+    stats: [
+      { label: "ETA", value: "42", unit: "mins", trend: "Nearest partner pharmacy", icon: "timer" },
+      { label: "Discount", value: "18", unit: "%", trend: "On chronic refills", icon: "badge-percent" },
+      { label: "Orders", value: "3", unit: "Active", trend: "1 arriving today", icon: "package" },
+      { label: "Safety", value: "Rx", unit: "Verified", trend: "Prescription required", icon: "shield-check" },
+    ],
+    panels: [
+      { title: "Current Cart", icon: "shopping-bag", lines: ["Paracetamol 650mg - 10 tablets", "ORS sachets - 4 packs", "Digital prescription attached"] },
+      { title: "Delivery Partner", icon: "bike", lines: ["MediFast Pharmacy, 1.8 km away", "Cold-chain capable", "Cashless and UPI accepted"] },
+    ],
+    listTitle: "Recent Medicine Orders",
+    list: ["May 16 - Fever care kit delivered", "May 02 - BP medicine refill delivered", "Apr 20 - Vitamin D3 delivered"],
+  },
+  "lab-tests": {
+    title: "Lab Tests",
+    icon: "flask-conical",
+    subtitle: "Book diagnostics, compare packages, and schedule home sample collection.",
+    stats: [
+      { label: "Packages", value: "24", unit: "Live", trend: "NABL partner labs", icon: "test-tube" },
+      { label: "Earliest Slot", value: "8", unit: "AM", trend: "Tomorrow", icon: "calendar-clock" },
+      { label: "Reports", value: "6", unit: "hrs", trend: "Average TAT", icon: "file-heart" },
+      { label: "Savings", value: "22", unit: "%", trend: "On full body checkup", icon: "badge-percent" },
+    ],
+    panels: [
+      { title: "Popular Tests", icon: "clipboard-list", lines: ["CBC with ESR", "HbA1c and fasting glucose", "Thyroid profile and vitamin D"] },
+      { title: "Preparation Notes", icon: "info", lines: ["Fasting needed for glucose package", "Keep ABHA card ready", "Reports auto-sync to locker"] },
+    ],
+    listTitle: "Booked Tests",
+    list: ["Full body checkup - Tomorrow 8:00 AM", "HbA1c - May 26, 2026", "Lipid profile - Completed May 04, 2026"],
+  },
+  insurance: {
+    title: "Insurance",
+    icon: "shield-check",
+    subtitle: "Manage policy details, claims, cashless eligibility, and renewal reminders.",
+    stats: [
+      { label: "Coverage", value: "5L", unit: "INR", trend: "Family floater", icon: "umbrella" },
+      { label: "Claims", value: "1", unit: "Open", trend: "Under review", icon: "file-check" },
+      { label: "Renewal", value: "42", unit: "days", trend: "Auto reminder active", icon: "calendar" },
+      { label: "Network", value: "84", unit: "Hospitals", trend: "Within city", icon: "building-2" },
+    ],
+    panels: [
+      { title: "Policy Summary", icon: "scroll-text", lines: ["Care Shield Plus - Gold", "Cashless eligible at 84 hospitals", "Room rent limit: single private room"] },
+      { title: "Claim Tracker", icon: "route", lines: ["OPD reimbursement submitted", "Documents verified", "Expected decision: May 21, 2026"] },
+    ],
+    listTitle: "Insurance Documents",
+    list: ["Policy card - active", "Claim receipt - OPD May 2026", "Pre-authorization form - sample"],
+  },
+  training: {
+    title: "Training & Courses",
+    icon: "graduation-cap",
+    subtitle: "Health awareness, CPR basics, caregiver training, and certificates.",
+    stats: [
+      { label: "Courses", value: "18", unit: "Open", trend: "Self-paced modules", icon: "book-open" },
+      { label: "Progress", value: "64", unit: "%", trend: "CPR basics", icon: "activity" },
+      { label: "Credits", value: "6", unit: "Earned", trend: "Wellness learning", icon: "award" },
+      { label: "Webinars", value: "2", unit: "This week", trend: "Doctor-led", icon: "presentation" },
+    ],
+    panels: [
+      { title: "Recommended Learning", icon: "sparkles", lines: ["CPR basics for families", "Diabetes food planning", "First aid for fever and dehydration"] },
+      { title: "Certificate Status", icon: "badge-check", lines: ["CPR module in progress", "Preventive care completed", "Download available after assessment"] },
+    ],
+    listTitle: "Upcoming Sessions",
+    list: ["May 20 - Heart health Q&A", "May 22 - Elder care at home", "May 25 - Nutrition for busy teams"],
+  },
+  hospitals: {
+    title: "Hospitals",
+    icon: "building-2",
+    subtitle: "Find nearby hospitals, departments, network support, and care availability.",
+    stats: [
+      { label: "Nearby", value: "12", unit: "Hospitals", trend: "Within 8 km", icon: "map-pin" },
+      { label: "Beds", value: "38", unit: "Open", trend: "General and ICU", icon: "bed" },
+      { label: "Cashless", value: "7", unit: "Network", trend: "Insurance supported", icon: "wallet-cards" },
+      { label: "ER Wait", value: "14", unit: "mins", trend: "City median", icon: "siren" },
+    ],
+    panels: [
+      { title: "Recommended Hospitals", icon: "hospital", lines: ["CityCare Hospital - 2.4 km", "Aarogya Multi-speciality - 4.1 km", "Metro Heart Institute - 6.8 km"] },
+      { title: "Available Departments", icon: "stethoscope", lines: ["General medicine", "Cardiology", "Diagnostics and emergency"] },
+    ],
+    listTitle: "Recent Hospital Activity",
+    list: ["CityCare OPD booked for May 22", "Cashless eligibility checked", "Emergency contacts updated"],
+  },
+  "blood-bank": {
+    title: "Blood Bank",
+    icon: "droplet",
+    subtitle: "Search blood availability, raise donor requests, and contact verified blood banks.",
+    stats: [
+      { label: "O+", value: "18", unit: "Units", trend: "Nearby stock", icon: "droplet" },
+      { label: "B+", value: "9", unit: "Units", trend: "Within 5 km", icon: "droplets" },
+      { label: "Donors", value: "42", unit: "Active", trend: "City network", icon: "users" },
+      { label: "Requests", value: "2", unit: "Open", trend: "Matched", icon: "hand-heart" },
+    ],
+    panels: [
+      { title: "Nearest Banks", icon: "map-pin", lines: ["LifeLine Blood Centre - 1.9 km", "RedCare Bank - 3.2 km", "Metro Hospital Blood Bank - 5.1 km"] },
+      { title: "Request Checklist", icon: "clipboard-check", lines: ["Doctor note or hospital request", "Patient blood group", "Attendant contact details"] },
+    ],
+    listTitle: "Recent Requests",
+    list: ["O+ platelets matched - May 12", "B+ donor request closed - Apr 28", "Emergency stock alert subscribed"],
+  },
+  "organ-donation": {
+    title: "Organ Donation",
+    icon: "heart-handshake",
+    subtitle: "Register a pledge and review organ donation eligibility education.",
+    stats: [
+      { label: "Pledge", value: "Draft", unit: "Ready", trend: "Needs confirmation", icon: "file-signature" },
+      { label: "Organs", value: "5", unit: "Selected", trend: "Editable anytime", icon: "heart" },
+      { label: "Witnesses", value: "1", unit: "Added", trend: "1 pending", icon: "users" },
+      { label: "Guide", value: "7", unit: "mins", trend: "Education module", icon: "book-open" },
+    ],
+    panels: [
+      { title: "Pledge Details", icon: "heart-plus", lines: ["Kidney, liver, heart, cornea, lungs selected", "Family notification pending", "Digital consent draft saved"] },
+      { title: "Education", icon: "info", lines: ["Donation is consent-led", "Medical suitability is assessed later", "Pledge can be changed anytime"] },
+    ],
+    listTitle: "Donation Resources",
+    list: ["Eligibility basics", "Family conversation guide", "Legal consent overview"],
+  },
+  "qr-scanner": {
+    title: "QR Scanner",
+    icon: "qr-code",
+    subtitle: "Scan ABHA QR, prescriptions, lab invoices, and hospital registration codes.",
+    stats: [
+      { label: "Scans", value: "14", unit: "This month", trend: "All verified", icon: "scan-line" },
+      { label: "ABHA QR", value: "On", unit: "Ready", trend: "Identity linked", icon: "id-card" },
+      { label: "Uploads", value: "5", unit: "Files", trend: "Sent to locker", icon: "upload" },
+      { label: "Safety", value: "100", unit: "%", trend: "Trusted QR only", icon: "shield-check" },
+    ],
+    panels: [
+      { title: "Scanner Demo", icon: "scan", lines: ["Point camera at hospital QR", "Verify service name", "Save result to Digital Locker"] },
+      { title: "Recent Scan Types", icon: "history", lines: ["Prescription QR", "ABHA card QR", "Lab invoice QR"] },
+    ],
+    listTitle: "Recent Scans",
+    list: ["Prescription verified - May 17", "ABHA QR used at CityCare", "Lab invoice saved to locker"],
+  },
+  "abha-card": {
+    title: "Create ABHA Card",
+    icon: "id-card",
+    subtitle: "Create or manage an ABHA health card with demo identity verification.",
+    stats: [
+      { label: "Status", value: "Ready", unit: "To create", trend: "Mobile verified", icon: "badge-check" },
+      { label: "Steps", value: "2", unit: "Left", trend: "KYC and consent", icon: "list-checks" },
+      { label: "Linked", value: "4", unit: "Records", trend: "Available after sync", icon: "link" },
+      { label: "Privacy", value: "DPDP", unit: "Ready", trend: "Consent managed", icon: "lock" },
+    ],
+    panels: [
+      { title: "Identity Details", icon: "user-check", lines: ["Name: Ananya Verma", "Mobile ending 4207", "Address verification pending"] },
+      { title: "After Creation", icon: "share-2", lines: ["Use QR at hospitals", "Link lab reports", "Share records with consent"] },
+    ],
+    listTitle: "ABHA Actions",
+    list: ["Create ABHA number", "Download card PDF", "Link existing health records"],
+  },
+  "home-sample": {
+    title: "Home Sample Collection",
+    icon: "test-tube",
+    subtitle: "Schedule a home collection slot with phlebotomist details and preparation notes.",
+    stats: [
+      { label: "Slot", value: "8", unit: "AM", trend: "Tomorrow", icon: "calendar-clock" },
+      { label: "Collector", value: "4.8", unit: "Rating", trend: "Verified staff", icon: "user-round-check" },
+      { label: "Tests", value: "3", unit: "Selected", trend: "CBC, thyroid, glucose", icon: "flask-conical" },
+      { label: "Reports", value: "6", unit: "hrs", trend: "Auto-sync", icon: "file-heart" },
+    ],
+    panels: [
+      { title: "Visit Details", icon: "home", lines: ["Address: Sector 21, New Delhi", "Collector: Ravi Kumar", "OTP verification required"] },
+      { title: "Preparation", icon: "info", lines: ["Fasting 8 hours for glucose", "Keep water intake normal", "Keep ABHA card ready"] },
+    ],
+    listTitle: "Collection History",
+    list: ["May 12 - CBC sample collected", "Apr 25 - Thyroid profile collected", "Apr 11 - Vitamin D collected"],
+  },
+  equipment: {
+    title: "Medical Equipment",
+    icon: "stethoscope",
+    subtitle: "Rent or buy medical equipment with service support and installation status.",
+    stats: [
+      { label: "Devices", value: "32", unit: "Listed", trend: "Verified sellers", icon: "monitor" },
+      { label: "Rental", value: "24", unit: "hrs", trend: "Fastest setup", icon: "clock" },
+      { label: "Support", value: "7", unit: "Days", trend: "Technician available", icon: "headphones" },
+      { label: "Orders", value: "1", unit: "Active", trend: "BP monitor rental", icon: "package-check" },
+    ],
+    panels: [
+      { title: "Popular Equipment", icon: "shopping-cart", lines: ["Oxygen concentrator", "BP monitor", "Wheelchair and hospital bed"] },
+      { title: "Installation Support", icon: "wrench", lines: ["Technician visit available", "Demo on delivery", "Deposit handled digitally"] },
+    ],
+    listTitle: "Recent Equipment Requests",
+    list: ["BP monitor rental - active", "Wheelchair quote - shared", "Nebulizer purchase - delivered"],
+  },
+  ambulance: {
+    title: "Ambulance Booking",
+    icon: "ambulance",
+    subtitle: "Book emergency or planned ambulance transport with live crew assignment.",
+    stats: [
+      { label: "ETA", value: "9", unit: "mins", trend: "Nearest BLS unit", icon: "timer" },
+      { label: "Types", value: "3", unit: "Available", trend: "BLS, ALS, transport", icon: "ambulance" },
+      { label: "Crew", value: "2", unit: "Assigned", trend: "Paramedic and driver", icon: "users" },
+      { label: "Hospitals", value: "5", unit: "Nearby", trend: "ER notified", icon: "hospital" },
+    ],
+    panels: [
+      { title: "Booking Mode", icon: "siren", lines: ["Emergency pickup", "Planned transfer", "Intercity patient transport"] },
+      { title: "Patient Details", icon: "clipboard-plus", lines: ["Adult patient", "Oxygen support optional", "Attendant seat available"] },
+    ],
+    listTitle: "Ambulance History",
+    list: ["Demo ALS booking - May 01", "Planned discharge transfer - Apr 12", "Emergency contacts verified"],
+  },
+  "drone-delivery": {
+    title: "Drone Delivery",
+    icon: "plane",
+    subtitle: "Preview upcoming drone routes for urgent medicines and diagnostic samples.",
+    stats: [
+      { label: "Status", value: "Pilot", unit: "Soon", trend: "Selected zones", icon: "radio-tower" },
+      { label: "Payload", value: "2", unit: "kg", trend: "Medicine and samples", icon: "package" },
+      { label: "Route", value: "8", unit: "km", trend: "Testing corridor", icon: "route" },
+      { label: "ETA", value: "15", unit: "mins", trend: "Projected", icon: "timer" },
+    ],
+    panels: [
+      { title: "Pilot Coverage", icon: "map", lines: ["Hospital to lab corridor", "Urgent sample movement", "Temperature-tracked payload"] },
+      { title: "Launch Checklist", icon: "clipboard-check", lines: ["Regulatory approval pending", "Partner labs onboarded", "Patient opt-in required"] },
+    ],
+    listTitle: "Pilot Updates",
+    list: ["Route simulation complete", "Cold-chain pod tested", "User waitlist opened"],
+  },
+  "medicolegal-support": {
+    title: "Medicolegal Support",
+    icon: "scale",
+    subtitle: "Case documentation, expert review, and secure legal-health handoff support.",
+    stats: [
+      { label: "Cases", value: "2", unit: "Drafts", trend: "Not submitted", icon: "folder-open" },
+      { label: "Experts", value: "6", unit: "Online", trend: "Medical law panel", icon: "users" },
+      { label: "SLA", value: "24", unit: "hrs", trend: "First review", icon: "clock" },
+      { label: "Vault", value: "On", unit: "Secure", trend: "Encrypted docs", icon: "lock" },
+    ],
+    panels: [
+      { title: "Case Packet", icon: "briefcase-medical", lines: ["Incident note", "Treatment timeline", "Supporting records and consent"] },
+      { title: "Expert Review", icon: "user-check", lines: ["Doctor summary", "Legal checklist", "Recommended next action"] },
+    ],
+    listTitle: "Medicolegal Tasks",
+    list: ["Consent packet generated", "Treatment timeline drafted", "Expert review not submitted"],
+  },
+  "consent-forms": {
+    title: "Digital Consent Forms",
+    icon: "file-check",
+    subtitle: "Capture patient consent with audit trails and digital sharing controls.",
+    stats: [
+      { label: "Forms", value: "9", unit: "Templates", trend: "Clinic and telemedicine", icon: "files" },
+      { label: "Signed", value: "3", unit: "Active", trend: "Valid this month", icon: "pen-line" },
+      { label: "Expiry", value: "2", unit: "Soon", trend: "Needs renewal", icon: "calendar-clock" },
+      { label: "Audit", value: "On", unit: "Logged", trend: "Time and IP captured", icon: "shield-check" },
+    ],
+    panels: [
+      { title: "Consent Templates", icon: "file-text", lines: ["Telemedicine consent", "Record sharing consent", "Lab sample collection consent"] },
+      { title: "Sharing Controls", icon: "sliders-horizontal", lines: ["Doctor-specific access", "Time-bound permission", "Revoke anytime"] },
+    ],
+    listTitle: "Recent Consent",
+    list: ["Record sharing - Dr. Priya Sharma", "Lab collection - CityCare Diagnostics", "Telemedicine consent - active"],
+  },
+  "prescription-verification": {
+    title: "Prescription Verification",
+    icon: "file-text",
+    subtitle: "Validate doctor signature, prescription expiry, medicine safety, and pharmacy acceptance.",
+    stats: [
+      { label: "Verified", value: "7", unit: "Rx", trend: "This month", icon: "badge-check" },
+      { label: "Expiry", value: "1", unit: "Soon", trend: "Refill needed", icon: "calendar-clock" },
+      { label: "Pharmacy", value: "12", unit: "Partners", trend: "Accept digital Rx", icon: "store" },
+      { label: "Safety", value: "2", unit: "Flags", trend: "Dose reminders", icon: "shield-alert" },
+    ],
+    panels: [
+      { title: "Latest Prescription", icon: "clipboard-check", lines: ["Dr. Priya Sharma", "Issued May 10, 2026", "Valid until June 09, 2026"] },
+      { title: "Verification Checks", icon: "scan-search", lines: ["Doctor registration matched", "Digital signature valid", "Medicine list readable"] },
+    ],
+    listTitle: "Prescription History",
+    list: ["Fever care prescription - verified", "BP refill prescription - verified", "Skin care prescription - expired"],
+  },
+  "telemedicine-compliance": {
+    title: "Telemedicine Compliance",
+    icon: "shield-check",
+    subtitle: "Review consent, prescription, doctor identity, and teleconsultation compliance status.",
+    stats: [
+      { label: "Sessions", value: "4", unit: "Compliant", trend: "This month", icon: "video" },
+      { label: "Consent", value: "100", unit: "%", trend: "Captured", icon: "file-check" },
+      { label: "Doctor ID", value: "On", unit: "Verified", trend: "Registry matched", icon: "badge-check" },
+      { label: "Audit", value: "30", unit: "days", trend: "Log retention", icon: "database" },
+    ],
+    panels: [
+      { title: "Compliance Checklist", icon: "list-checks", lines: ["Patient consent captured", "Doctor profile visible", "Prescription synced after consult"] },
+      { title: "Session Logs", icon: "history", lines: ["Start and end time", "Mode: video/audio", "Care summary attached"] },
+    ],
+    listTitle: "Recent Compliance Events",
+    list: ["Video consult log saved", "Prescription verification complete", "Consent renewed for Dr. Priya"],
+  },
+  "legal-vault": {
+    title: "Legal Docs Vault",
+    icon: "lock",
+    subtitle: "Encrypted legal healthcare document storage with patient-controlled sharing.",
+    stats: [
+      { label: "Docs", value: "11", unit: "Stored", trend: "Encrypted", icon: "folder-lock" },
+      { label: "Shared", value: "2", unit: "Active", trend: "Expires soon", icon: "share-2" },
+      { label: "Audit", value: "On", unit: "Live", trend: "Access tracked", icon: "shield-check" },
+      { label: "Backup", value: "2", unit: "Copies", trend: "Cloud + local escrow", icon: "database-backup" },
+    ],
+    panels: [
+      { title: "Vault Folders", icon: "folder", lines: ["Consent forms", "Medicolegal packets", "Insurance legal documents"] },
+      { title: "Access Control", icon: "key-round", lines: ["OTP gated access", "Time-bound sharing", "Download watermarking"] },
+    ],
+    listTitle: "Vault Activity",
+    list: ["Consent PDF uploaded", "Legal note shared with hospital", "Insurance form access expired"],
+  },
+  "health-tips": {
+    title: "Health Tips",
+    icon: "sparkles",
+    subtitle: "Daily wellness tips personalized from vitals, appointments, and care history.",
+    stats: [
+      { label: "Tips", value: "5", unit: "Today", trend: "Personalized", icon: "lightbulb" },
+      { label: "Streak", value: "12", unit: "Days", trend: "Wellness habit", icon: "flame" },
+      { label: "Focus", value: "Sleep", unit: "Tonight", trend: "Based on activity", icon: "moon" },
+      { label: "Saved", value: "18", unit: "Tips", trend: "In library", icon: "bookmark" },
+    ],
+    panels: [
+      { title: "Today Suggestions", icon: "sun", lines: ["Walk 15 minutes after dinner", "Drink water before evening commute", "Avoid caffeine after 6 PM"] },
+      { title: "Why These Tips", icon: "brain", lines: ["Activity is below weekly average", "Hydration reminders were missed", "Sleep consistency can improve"] },
+    ],
+    listTitle: "Saved Tips",
+    list: ["How to read BP readings", "Balanced breakfast ideas", "Desk stretch routine"],
+  },
+  "appointment-reminders": {
+    title: "Appointment Reminders",
+    icon: "calendar-clock",
+    subtitle: "Smart reminders for consultations, lab bookings, medicine refills, and follow-ups.",
+    stats: [
+      { label: "Upcoming", value: "3", unit: "Events", trend: "Next 7 days", icon: "calendar" },
+      { label: "Reminders", value: "9", unit: "Active", trend: "SMS and app", icon: "bell" },
+      { label: "Refills", value: "2", unit: "Due", trend: "This week", icon: "pill" },
+      { label: "Missed", value: "0", unit: "Today", trend: "All clear", icon: "check-circle-2" },
+    ],
+    panels: [
+      { title: "Next Reminder", icon: "bell-ring", lines: ["Video consult today 4:30 PM", "Join link opens 10 minutes before", "Prescription locker will sync after visit"] },
+      { title: "Reminder Channels", icon: "send", lines: ["App notification enabled", "SMS enabled", "Email summary weekly"] },
+    ],
+    listTitle: "Reminder Timeline",
+    list: ["Today 4:20 PM - Join consultation", "Tomorrow 7:00 AM - Fasting lab reminder", "May 22 - Cardiology follow-up"],
+  },
+  "preventive-care": {
+    title: "Preventive Care",
+    icon: "shield-plus",
+    subtitle: "Preventive screenings, vaccination reminders, risk scores, and care plans.",
+    stats: [
+      { label: "Score", value: "82", unit: "/100", trend: "Good", icon: "gauge" },
+      { label: "Screenings", value: "2", unit: "Due", trend: "This quarter", icon: "clipboard-check" },
+      { label: "Vaccines", value: "1", unit: "Pending", trend: "Flu shot", icon: "syringe" },
+      { label: "Habits", value: "4", unit: "Tracked", trend: "Sleep, steps, water, BP", icon: "activity" },
+    ],
+    panels: [
+      { title: "Recommended Screenings", icon: "calendar-plus", lines: ["Annual eye check", "HbA1c repeat in June", "Dental checkup due"] },
+      { title: "Prevention Plan", icon: "target", lines: ["6,000 step daily target", "Weekly BP log", "Nutrition consultation suggestion"] },
+    ],
+    listTitle: "Preventive History",
+    list: ["Full body checkup - Jan 2026", "Flu vaccine - Oct 2025", "Eye screening - pending"],
+  },
+  "chronic-care": {
+    title: "Chronic Disease Programs",
+    icon: "heart-pulse",
+    subtitle: "Structured care programs for diabetes, hypertension, asthma, and heart health.",
+    stats: [
+      { label: "Program", value: "BP", unit: "Care", trend: "Active", icon: "heart-pulse" },
+      { label: "Adherence", value: "91", unit: "%", trend: "Medicine reminders", icon: "pill" },
+      { label: "Coach", value: "1", unit: "Assigned", trend: "Weekly check-in", icon: "user-round" },
+      { label: "Risk", value: "Low", unit: "Now", trend: "Vitals stable", icon: "shield-check" },
+    ],
+    panels: [
+      { title: "Care Program", icon: "clipboard-check", lines: ["Hypertension tracking", "Weekly BP review", "Monthly doctor follow-up"] },
+      { title: "Coaching Notes", icon: "message-circle", lines: ["Salt intake reminder", "Evening walk plan", "Refill due in 5 days"] },
+    ],
+    listTitle: "Program Timeline",
+    list: ["May 18 - BP stable", "May 15 - Coach check-in complete", "May 12 - Medication adherence logged"],
+  },
+  "ai-assistant": {
+    title: "AI Health Assistant",
+    icon: "brain-circuit",
+    subtitle: "A smart companion for health summaries, questions, nudges, and care navigation.",
+    stats: [
+      { label: "Summaries", value: "6", unit: "Ready", trend: "Reports and vitals", icon: "file-search" },
+      { label: "Alerts", value: "2", unit: "New", trend: "Hydration and test due", icon: "bell" },
+      { label: "Tasks", value: "4", unit: "Suggested", trend: "Care next steps", icon: "list-checks" },
+      { label: "Privacy", value: "On", unit: "Consent", trend: "Patient controlled", icon: "lock" },
+    ],
+    panels: [
+      { title: "Assistant Summary", icon: "sparkles", lines: ["Vitals stable for 14 days", "Lab follow-up due this month", "No urgent warning signs in demo data"] },
+      { title: "Suggested Questions", icon: "message-circle-question", lines: ["What does my CBC report mean?", "When is my next medicine refill?", "Find a cardiologist near me"] },
+    ],
+    listTitle: "Recent AI Activity",
+    list: ["Summarized CBC report", "Created hydration reminder", "Suggested preventive care checklist"],
+  },
+};
+
+const searchableServices = [
+  { title: "Health", route: "health", icon: "heart-pulse", desc: "Vitals, care plan, and AI health summary." },
+  { title: "Appointments", route: "appointments", icon: "calendar", desc: "Consultations, lab visits, and reminders." },
+  { title: "Records", route: "records", icon: "file-text", desc: "Reports, prescriptions, and health files." },
+  { title: "Book Appointment", route: "book-consultation", icon: "users", desc: "Doctor selection and appointment booking." },
+  { title: "Health ATM", route: "health-atm", icon: "monitor", desc: "Kiosk tests, vitals, and screening reports." },
+  { title: "Digital Locker", route: "digital-locker", icon: "folder-lock", desc: "Secure records, consent, and file sharing." },
+  { title: "Live Health Dashboard", route: "live-dashboard", icon: "activity", desc: "Live vitals and connected-device metrics." },
+  { title: "Telemedicine", route: "telemedicine", icon: "video", desc: "Video consults and waiting room." },
+  { title: "Marketplace", route: "marketplace", icon: "store", desc: "Medicine, labs, equipment, ambulance services." },
+  { title: "Medicolegal & Compliance", route: "compliance", icon: "scale", desc: "Consent, legal vault, and compliance checks." },
+  { title: "Health Insights & Education", route: "insights", icon: "book-open", desc: "Tips, reminders, programs, and assistant." },
+  ...services,
+  ...marketplace,
+  ...Object.values(serviceDetails).map((item) => ({
+    title: item.title,
+    route: Object.keys(serviceDetails).find((key) => serviceDetails[key] === item),
+    icon: item.icon,
+    desc: item.subtitle,
+  })),
+].filter((item, index, list) => index === list.findIndex((candidate) => candidate.route === item.route));
+
 let contentRoot;
 let homeMarkup = "";
 
@@ -123,6 +539,7 @@ function initApp() {
 
   wireHome();
   wireChrome();
+  setupSearch();
   window.addEventListener("hashchange", renderCurrentRoute);
   renderCurrentRoute();
 }
@@ -148,6 +565,77 @@ function wireChrome() {
     if (!route) return;
     event.preventDefault();
     navigate(route);
+  });
+}
+
+function setupSearch() {
+  const searchInput = document.querySelector("#service-search");
+  const suggestions = document.querySelector("#search-suggestions");
+  if (!searchInput || !suggestions) return;
+
+  function closeSuggestions() {
+    suggestions.innerHTML = "";
+    suggestions.classList.remove("is-open");
+  }
+
+  function openSuggestions(matches) {
+    if (!matches.length) {
+      suggestions.innerHTML = `<div class="suggestion-empty">No matching services found</div>`;
+      suggestions.classList.add("is-open");
+      return;
+    }
+
+    suggestions.innerHTML = matches.map((item) => `
+      <button type="button" class="suggestion-item" data-route="${item.route}" role="option">
+        ${icon(item.icon || "search", "small-icon")}
+        <span><strong>${item.title}</strong><small>${item.desc}</small></span>
+      </button>
+    `).join("");
+    suggestions.classList.add("is-open");
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function updateSuggestions() {
+    const query = searchInput.value.trim().toLowerCase();
+    if (!query) {
+      closeSuggestions();
+      return;
+    }
+
+    const matches = searchableServices
+      .filter((item) => `${item.title} ${item.desc}`.toLowerCase().includes(query))
+      .slice(0, 7);
+    openSuggestions(matches);
+  }
+
+  searchInput.addEventListener("input", updateSuggestions);
+  searchInput.addEventListener("focus", updateSuggestions);
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const first = suggestions.querySelector("[data-route]");
+      if (first) {
+        event.preventDefault();
+        searchInput.value = "";
+        closeSuggestions();
+        navigate(first.dataset.route);
+      }
+    }
+
+    if (event.key === "Escape") {
+      closeSuggestions();
+      searchInput.blur();
+    }
+  });
+
+  suggestions.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-route]");
+    if (!item) return;
+    searchInput.value = "";
+    closeSuggestions();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".global-search")) closeSuggestions();
   });
 }
 
@@ -238,6 +726,7 @@ function renderRoute(route) {
   };
 
   if (renderers[route]) return renderers[route]();
+  if (serviceDetails[route]) return renderServicePage(route);
   return renderGenericService(route);
 }
 
@@ -473,6 +962,21 @@ function renderGenericService(route) {
   `;
 }
 
+function renderServicePage(route) {
+  const service = serviceDetails[route];
+  return `
+    ${pageHeader(service.title, service.subtitle)}
+    <section class="route-grid metrics-grid">
+      ${service.stats.map(metricCard).join("")}
+    </section>
+    <section class="route-grid two-col">
+      ${service.panels.map((item) => panel(item.title, item.lines, item.icon)).join("")}
+    </section>
+    ${listSection(service.listTitle, service.list)}
+    ${renderServiceRequestForm(service.title)}
+  `;
+}
+
 function renderServiceDirectory(title, items) {
   return `
     ${pageHeader(title, "Open any service below. Each card links to its own realistic dummy workflow.")}
@@ -563,6 +1067,21 @@ function renderBookForm(title) {
         <label>Symptoms<input value="Fever, fatigue, mild cough"></label>
       </div>
       <button class="primary-action">Confirm Demo Booking</button>
+    </section>
+  `;
+}
+
+function renderServiceRequestForm(title) {
+  return `
+    <section class="form-panel">
+      <h3>${title} Request</h3>
+      <div class="form-grid">
+        <label>Patient Name<input value="Ananya Verma"></label>
+        <label>Mobile Number<input value="+91 98765 42070"></label>
+        <label>Preferred Date<input value="May 20, 2026"></label>
+        <label>Location<input value="Sector 21, New Delhi"></label>
+      </div>
+      <button class="primary-action">Submit Demo Request</button>
     </section>
   `;
 }
