@@ -1,0 +1,18 @@
+{
+  "navigation": {
+    "home": "Home",
+    "health": "Health",
+    "appointments": "Appointments",
+    "records": "Records",
+    "more": "More"
+  },
+  "header": {
+    "search": "Search services, records, doctors..."
+  },
+  "actions": {
+    "viewAll": "View All",
+    "open": "Open",
+    "submit": "Submit Demo Request",
+    "bookAppointment": "Book Appointment"
+  }
+}

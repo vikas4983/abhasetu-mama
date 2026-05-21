@@ -1,0 +1,18 @@
+{
+  "navigation": {
+    "home": "होम",
+    "health": "स्वास्थ्य",
+    "appointments": "अपॉइंटमेंट",
+    "records": "रिकॉर्ड",
+    "more": "अधिक"
+  },
+  "header": {
+    "search": "सेवाएं, रिकॉर्ड, डॉक्टर खोजें..."
+  },
+  "actions": {
+    "viewAll": "सभी देखें",
+    "open": "खोलें",
+    "submit": "डेमो अनुरोध भेजें",
+    "bookAppointment": "अपॉइंटमेंट बुक करें"
+  }
+}
