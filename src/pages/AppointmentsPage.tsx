@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import { PageHeader } from '@components/ui/PageHeader';
 import { ServiceRequestForm } from '@components/forms/ServiceRequestForm';
 import { appointments } from '@/constants/data';
@@ -16,7 +16,10 @@ export default function AppointmentsPage() {
             <h3>{appointment.title}</h3>
             <p>{appointment.doctor}</p>
             <div className="pill-row"><span>{appointment.meta}</span><span>{appointment.status}</span></div>
-            <Link to="/appointments">View details</Link>
+            <Link className="card-link" to="/appointments">
+              View details
+              <ChevronRight className="small-icon" aria-hidden="true" />
+            </Link>
           </article>
         ))}
       </section>

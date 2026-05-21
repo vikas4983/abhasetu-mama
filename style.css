@@ -50,6 +50,11 @@ button {
   font: inherit;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 img,
 svg {
   display: block;
@@ -459,11 +464,25 @@ svg {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 2px;
-  color: var(--text-secondary);
+  gap: 4px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--accent-teal);
   font-size: 12px;
   font-weight: 650;
   text-decoration: none;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.view-all:hover,
+.view-all:focus-visible {
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--text-primary);
+  outline: none;
 }
 
 .view-icon {
@@ -1083,7 +1102,8 @@ svg {
 
 .back-link,
 .primary-action,
-.route-card a {
+.card-link,
+.table-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1098,6 +1118,13 @@ svg {
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
+  line-height: 1;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
 }
 
 .primary-action {
@@ -1105,6 +1132,35 @@ svg {
   background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
   color: #ffffff;
   cursor: pointer;
+  box-shadow: 0 12px 24px rgba(0, 180, 216, 0.18);
+}
+
+.card-link,
+.table-action {
+  margin-top: auto;
+}
+
+.back-link:hover,
+.back-link:focus-visible,
+.card-link:hover,
+.card-link:focus-visible,
+.table-action:hover,
+.table-action:focus-visible {
+  border-color: rgba(0, 212, 170, 0.72);
+  background: rgba(0, 212, 170, 0.18);
+  box-shadow: 0 10px 24px rgba(0, 212, 170, 0.12);
+  color: #ffffff;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.primary-action:hover,
+.primary-action:focus-visible {
+  background: linear-gradient(135deg, #13e6bd, #16c4e7);
+  box-shadow: 0 16px 30px rgba(0, 180, 216, 0.26);
+  color: #ffffff;
+  outline: none;
+  transform: translateY(-1px);
 }
 
 .small-icon {
@@ -1281,13 +1337,6 @@ svg {
 .table-row span:first-child {
   color: var(--text-primary);
   font-weight: 800;
-}
-
-.table-row a {
-  color: var(--accent-teal);
-  font-size: 12px;
-  font-weight: 800;
-  text-decoration: none;
 }
 
 .table-head {

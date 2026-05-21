@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 import { records } from '@/constants/data';
 
 export function RecordTable() {
@@ -17,7 +18,10 @@ export function RecordTable() {
           <span>{record.type}</span>
           <span>{record.date}</span>
           <span>{record.source}</span>
-          <Link to="/digital-locker">View</Link>
+          <Link className="table-action" to="/digital-locker">
+            <Eye className="small-icon" aria-hidden="true" />
+            View
+          </Link>
         </div>
       ))}
     </section>
