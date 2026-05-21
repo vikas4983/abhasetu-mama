@@ -37,7 +37,7 @@ export function ProfileMenu({ anchorEl, onClose }: ProfileMenuProps) {
           <Moon className="small-icon" /> Theme Settings
         </MenuItem>
         <MenuItem onClick={() => changeLanguage(language === 'en' ? 'hi' : 'en')}>
-          <Languages className="small-icon" /> {language === 'en' ? 'हिन्दी' : 'English'}
+          <Languages className="small-icon" /> {language === 'en' ? 'Hindi' : 'English'}
         </MenuItem>
         <MenuItem onClick={() => { dispatch(logout()); onClose(); }}>
           <LogOut className="small-icon" /> Logout

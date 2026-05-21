@@ -13,6 +13,41 @@
     "viewAll": "View All",
     "open": "Open",
     "submit": "Submit Demo Request",
-    "bookAppointment": "Book Appointment"
+    "bookAppointment": "Book Appointment",
+    "consultNow": "Consult Now",
+    "download": "Download",
+    "retry": "Retry"
+  },
+  "pages": {
+    "home": {
+      "hero": "Your Digital Healthcare Ecosystem",
+      "quickAccess": "Quick Access",
+      "liveDashboard": "Live Health Dashboard",
+      "telemedicine": "Telemedicine",
+      "marketplace": "Marketplace",
+      "compliance": "Medicolegal & Compliance",
+      "insights": "Health Insights & Education"
+    },
+    "about": {
+      "title": "About ABHA SETU",
+      "vision": "Vision",
+      "mission": "Mission"
+    },
+    "contact": {
+      "title": "Get In Touch",
+      "email": "Email",
+      "mobile": "Mobile Number",
+      "query": "Query / Proposal"
+    },
+    "abdm": {
+      "title": "ABDM V3 Workflows",
+      "ready": "Ready for secure ABDM V3 sandbox simulation."
+    }
+  },
+  "validation": {
+    "contact": "Enter a valid email, mobile number, and at least 10 characters in the query."
+  },
+  "toasts": {
+    "contact": "Thanks. Your proposal has been captured for the AbhaSetu team."
   }
 }

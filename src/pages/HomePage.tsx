@@ -1,5 +1,8 @@
 import { BrainCircuit, ChevronRight, Lock, Monitor, Smartphone, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { FacilitiesSection } from '@components/sections/FacilitiesSection';
+import { StatsSection } from '@components/sections/StatsSection';
+import { Seo } from '@components/seo/Seo';
 import { appointments, complianceServices, insightServices, marketplaceServices, quickAccessServices, vitals } from '@/constants/data';
 
 function SectionHeader({ title, to }: { title: string; to: string }) {
@@ -16,6 +19,7 @@ function SectionHeader({ title, to }: { title: string; to: string }) {
 export default function HomePage() {
   return (
     <>
+      <Seo title="Digital Health Bridge" description="ABHA SETU premium ABDM-ready healthcare SaaS for identity, telemedicine, records, insights, and QR care workflows." />
       <section className="hero">
         <div className="hero-content">
           <h2>
@@ -36,6 +40,8 @@ export default function HomePage() {
           <Link className="hero-btn" to="/digital-locker"><Lock className="btn-icon" /> <span>Digital Locker</span></Link>
         </div>
       </section>
+
+      <StatsSection />
 
       <section className="section">
         <SectionHeader title="Quick Access" to="/quick-access" />
@@ -118,6 +124,8 @@ export default function HomePage() {
           })}
         </div>
       </section>
+
+      <FacilitiesSection />
 
       <section className="section section-last">
         <SectionHeader title="Health Insights & Education" to="/insights" />

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620">
+  <rect width="900" height="620" fill="#f6fbfc"/>
+  <rect x="34" y="34" width="832" height="552" rx="28" fill="#ffffff" stroke="#00a88a" stroke-width="4"/>
+  <text x="450" y="118" text-anchor="middle" font-family="Arial" font-size="38" font-weight="700" fill="#093044">ABDM Approved Certificate</text>
+  <text x="450" y="184" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#006b5b">DR.YOGYATA MUKHRAIYA</text>
+  <text x="450" y="236" text-anchor="middle" font-family="Arial" font-size="22" fill="#263f4f">BHMS</text>
+  <text x="450" y="292" text-anchor="middle" font-family="Arial" font-size="20" fill="#526878">Residential Medical Officer</text>
+  <text x="450" y="340" text-anchor="middle" font-family="Arial" font-size="20" fill="#526878">Chronic diseases and female health care expertise</text>
+  <path d="M320 430h260" stroke="#00a88a" stroke-width="3"/>
+  <text x="450" y="476" text-anchor="middle" font-family="Arial" font-size="18" fill="#093044">Static sandbox preview for AbhaSetu demo</text>
+</svg>

@@ -3,8 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ABHA SETU digital healthcare dashboard" />
+    <meta name="description" content="ABHA SETU premium ABDM-ready digital healthcare ecosystem for ABHA identity, telemedicine, records, QR care, and health insights." />
+    <meta name="theme-color" content="#071521" />
+    <meta property="og:title" content="ABHA SETU - Digital Health Bridge" />
+    <meta property="og:description" content="Premium ABDM-ready healthcare SaaS experience." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://abhasetu.com/" />
     <title>ABHA SETU - Digital Health Bridge</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('abha-setu-theme-mode') || 'dark';
+          document.documentElement.dataset.theme = theme;
+        } catch (error) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -76,6 +76,52 @@ body[data-theme='light'] {
   place-items: center;
 }
 
+.page-loader {
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.abha-loader {
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  background: rgba(0, 212, 170, 0.1);
+  box-shadow: 0 20px 48px rgba(0, 212, 170, 0.15);
+}
+
+.abha-loader svg {
+  width: 100%;
+  height: 100%;
+  animation: loader-float 1.8s ease-in-out infinite;
+}
+
+.abha-loader circle {
+  fill: none;
+  stroke: rgba(0, 212, 170, 0.24);
+  stroke-width: 8;
+}
+
+.abha-loader path {
+  fill: none;
+  stroke: var(--accent-teal);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7;
+}
+
+@keyframes loader-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
 .field-error {
   color: var(--danger);
   font-size: 11px;

@@ -1,26 +1,28 @@
 # ABHA SETU Healthcare App UI Replication
 
-ABHA SETU is a React-based healthcare app interface inspired by Ayushman Bharat Digital Mission (ABDM) workflows. The app presents a polished patient-facing experience for ABHA-linked services such as appointments, digital locker records, health ATM reports, notifications, telemedicine, QR scanning, and service discovery.
+ABHA SETU is a premium React and TypeScript healthcare platform UI for ABDM-ready digital care journeys. It models a production-grade healthcare SaaS experience for ABHA identity, telemedicine, QR-assisted onboarding, digital locker records, health insights, facilities, contact workflows, and policy pages.
 
-This repository is a frontend UI replication/demo. It uses mock data in the client today and is structured so real ABDM sandbox APIs can be connected through the service layer later.
+The current implementation uses static JSON and mock APIs. The architecture keeps ABDM, QR, contact, certificates, and backend boundaries isolated so they can be replaced by real services, databases, and certified ABDM integrations later.
 
-## About ABHA SETU
+Official ABDM reference: [ABDM Sandbox V3 Documentation](https://sandbox.abdm.gov.in/sandbox/v3/new-documentation)
 
-ABHA SETU is designed as a bridge between citizens and digital health services in the ABDM ecosystem. ABHA, or Ayushman Bharat Health Account, gives a person a digital health identity that can be used to access services and link health records. In the ABDM model, health records should move through secure, consent-based workflows across healthcare providers, patient apps, registries, and other approved systems.
+## What Is AbhaSetu?
 
-The UI demonstrates common journeys an ABDM-enabled app may need:
+AbhaSetu is a digital healthcare bridge for patients, providers, and care services. It is designed around the ABDM ecosystem, where ABHA identity, consent, verified records, and interoperable health services can reduce repeated paperwork and make care more connected.
 
-- ABHA-linked patient profile and identity status
-- Digital locker for prescriptions, reports, and consent documents
-- Appointment booking and telemedicine touchpoints
-- Health ATM and vitals dashboards
-- QR-based service entry points
-- Notifications for record sync, appointment updates, and care activity
-- Service directory for healthcare, diagnostics, compliance, and support workflows
+This repository demonstrates:
 
-Official ABDM sandbox reference: [ABDM Sandbox V3 Documentation](https://sandbox.abdm.gov.in/sandbox/v3/new-documentation)
+- ABHA and ABDM Milestone 1 ready frontend workflows
+- Aadhaar OTP, mobile OTP, ABHA number, ABHA address, ABHA card, and facility QR mock flows
+- Certificate-backed telemedicine doctor profiles
+- Health Insights, Education, and Skin Care sections
+- Contact, About, Terms, and Privacy pages
+- Theme and language architecture
+- SEO, accessibility, security, and mock backend scaffolding
 
 ## Tech Stack
+
+Frontend:
 
 - React 18
 - TypeScript
@@ -31,110 +33,224 @@ Official ABDM sandbox reference: [ABDM Sandbox V3 Documentation](https://sandbox
 - Material UI
 - Lucide React icons
 - i18next
-- Axios
+- CSS variable design system with motion-ready classes
 
-## Prerequisites
+Backend:
 
-Install these before running the project:
+- Temporary Node.js mock backend in `server/`
+- Backend-agnostic frontend service boundary
+- ABDM V3 proxy placeholder for future migration
 
-- Node.js 18 or newer
-- npm 9 or newer
+## Setup
 
-## Setup Guide
+Install dependencies:
 
-1. Install dependencies:
+```bash
+npm install
+```
 
-   ```bash
-   npm install
-   ```
+Create environment config:
 
-2. Create a local environment file if you want to point the app at an API backend:
+```powershell
+Copy-Item .env.example .env
+```
 
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-   If `.env.example` is not present, create `.env` manually:
-
-   ```env
-   VITE_API_BASE_URL=/api
-   VITE_APP_VERSION=1.0.0
-   ```
-
-3. Start the local development server:
-
-   ```bash
-   npm run dev
-   ```
-
-4. Open the local URL printed by Vite, usually:
-
-   ```text
-   http://127.0.0.1:5173
-   ```
-
-## ABDM Sandbox Integration Notes
-
-Use the official ABDM sandbox documentation as the source of truth for API registration, credentials, endpoint behavior, headers, encryption requirements, and milestone validation. For a real integration, keep sensitive ABDM credentials on a backend service and never expose client secrets, private keys, Aadhaar data, OTPs, or production tokens in this frontend.
-
-Recommended integration flow:
-
-1. Register and configure the application in the ABDM sandbox portal.
-2. Keep ABDM client credentials in a secure backend environment.
-3. Use the backend to request gateway/session tokens and proxy protected API calls.
-4. Implement required ABDM headers such as request identifiers, timestamps, authorization tokens, and environment identifiers according to the current sandbox docs.
-5. Encrypt sensitive payload fields exactly as required by the V3 documentation.
-6. Connect frontend modules through `src/services/api/healthcareApi.ts` or new service modules.
-7. Validate each ABDM milestone in sandbox before using production endpoints.
-
-## Available Scripts
+Run the frontend:
 
 ```bash
 npm run dev
 ```
 
-Runs the Vite development server.
+Open:
 
-```bash
-npm run build
+```text
+http://127.0.0.1:5173
 ```
 
-Type-checks the project and creates a production build in `dist/`.
+Run the temporary mock backend:
 
 ```bash
-npm run preview
+node server/mock-server.js
 ```
 
-Serves the production build locally for review.
+Backend health check:
 
-```bash
-npm run lint
+```text
+http://127.0.0.1:8787/health
 ```
 
-Runs ESLint across TypeScript and React files.
+## Environment Variables
 
-```bash
-npm run storybook
+Frontend:
+
+```env
+VITE_API_BASE_URL=/api
+VITE_APP_VERSION=1.0.0
 ```
 
-Starts Storybook for component-level review.
+Mock backend:
 
-## Project Structure
+```env
+PORT=8787
+CORS_ORIGIN=http://127.0.0.1:5173
+```
+
+## ABDM Sandbox Setup
+
+Use only the current ABDM V3 documentation as the source of truth.
+
+Recommended implementation path:
+
+1. Register the application in ABDM sandbox.
+2. Store client credentials, private keys, and secrets only on the backend.
+3. Proxy ABDM requests through a backend service.
+4. Add required request IDs, timestamps, authorization, environment headers, and encryption exactly as the ABDM V3 docs require.
+5. Implement Milestone 1 flows: Aadhaar OTP, OTP verification, ABHA creation, ABHA number verification, ABHA address verification, ABHA card download, mobile verification, returning patient flow, and facility QR flow.
+6. Persist audit, consent, and transaction metadata in a database before production.
+7. Complete sandbox entry, exit, and milestone validation before production usage.
+
+Frontend mock files:
+
+- `src/pages/AbdmPage.tsx`
+- `src/features/abdm/abdmMockApi.ts`
+- `src/pages/QrScannerPage.tsx`
+
+## QR Scanner Setup
+
+The QR scanner uses `navigator.mediaDevices.getUserMedia`.
+
+Requirements:
+
+- HTTPS or localhost
+- Mobile/tablet browser for environment camera
+- Camera permission allowed
+- Backend validation before any real ABDM transaction
+
+The current scanner is a secure UI and permission-flow mock. Production scanning should add a QR decoding library, payload validation, replay protection, and backend consent logging.
+
+## Theme System
+
+Theme state lives in Redux and persists to local storage.
+
+Files:
+
+- `src/app/store/preferencesSlice.ts`
+- `src/app/layouts/AppLayout.tsx`
+- `src/assets/styles/design-system.css`
+- `style.css`
+- `index.html` no-flicker theme bootstrap
+
+The app uses CSS variables so navbar, cards, footer, forms, modals, loaders, scanner, and policy pages can synchronize between dark and light modes.
+
+## Translation System
+
+i18n is configured with English and Hindi resources.
+
+Files:
+
+- `src/i18n/index.ts`
+- `src/i18n/locales/en/common.json`
+- `src/i18n/locales/hi/common.json`
+
+New product text should be added through namespace-ready JSON keys instead of hardcoding. Hindi strings are stored with Unicode escape sequences to keep files editor-safe.
+
+## Folder Structure
 
 ```text
 src/
-  app/                 App providers, layouts, router, and store
+  app/                 Providers, layout, router, Redux store
   assets/styles/       Global design system entrypoint
-  components/          Shared UI, navigation, feedback, and form components
-  config/              Runtime environment configuration
-  constants/           Mock app data and constants
-  features/            Feature slices and composed feature UI
+  components/          Shared UI, SEO, feedback, sections, navigation
+  constants/           Mock data, enterprise data, app constants
+  features/            Feature-specific services and slices
+  i18n/                English and Hindi translation resources
   pages/               Route-level screens
-  services/            Axios client, mock APIs, and query helpers
+  services/            API client, mock APIs, query helpers
   theme/               Theme tokens and MUI theme
   types/               Domain types
+server/                Temporary secure mock backend boundary
+public/                Certificates, robots.txt, sitemap.xml
 ```
 
-## Production Notes
+## Security Notes
 
-Before production use, replace mock healthcare data with audited backend APIs, add real authentication, complete ABDM compliance checks, review consent and privacy flows, and validate accessibility and responsive behavior across supported devices.
+Frontend:
+
+- React escaping prevents most direct output XSS when avoiding unsafe HTML.
+- Inputs are validated before mock submission.
+- Sensitive data must not be stored in local storage.
+- Token handling is centralized in the Axios client for future hardening.
+- CSP, robots, sitemap, and secure meta foundations are included.
+
+Backend mock:
+
+- Security headers
+- CORS allow-listing
+- Masked generic responses
+- ABDM V3 proxy placeholder
+
+Production healthcare security must add encryption, audit logs, consent ledgers, rate limiting, structured validation, secret management, and monitoring.
+
+## Accessibility
+
+Implemented foundations:
+
+- Skip navigation
+- Semantic sections and forms
+- Accessible modal role and Escape close
+- Visible button semantics for link actions
+- `aria-live` toast/status regions
+- Reduced motion support
+- Focusable controls and keyboard-friendly filters
+
+Run a final manual keyboard and screen reader pass before launch.
+
+## SEO
+
+Implemented foundations:
+
+- Dynamic meta helper
+- Open Graph and Twitter card tags
+- Canonical URL support
+- Schema.org `MedicalOrganization`
+- `robots.txt`
+- `sitemap.xml`
+- Lazy-loaded images
+- Route-level headings
+
+## Available Scripts
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+npm run storybook
+```
+
+## Deployment
+
+Frontend:
+
+1. Run `npm run build`.
+2. Deploy `dist/` to a static host or CDN.
+3. Configure SPA fallback to `index.html`.
+4. Set security headers at the hosting layer.
+
+Backend:
+
+1. Replace `server/mock-server.js` with a production API service.
+2. Store secrets in managed secret storage.
+3. Add database persistence for users, consents, QR scans, transactions, audit logs, and documents.
+4. Complete ABDM certification, security review, and privacy/legal review.
+
+## Production Readiness Checklist
+
+- Replace static mock data with typed APIs.
+- Add real auth and consent management.
+- Add certified ABDM V3 backend integration.
+- Add QR decoding and backend verification.
+- Add database migrations and audit tables.
+- Run Lighthouse, axe, keyboard, and screen reader checks.
+- Run security testing, dependency scanning, and API rate-limit testing.
+- Finalize Terms and Privacy with legal counsel.

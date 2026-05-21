@@ -1,0 +1,5 @@
+import PolicyPage from './PolicyPage';
+
+export default function PrivacyPage() {
+  return <PolicyPage type="privacy" />;
+}

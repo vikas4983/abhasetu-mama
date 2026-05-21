@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="520" viewBox="0 0 860 520">
+  <rect width="860" height="520" rx="32" fill="#062033"/>
+  <rect x="32" y="32" width="796" height="456" rx="26" fill="#0d3448" stroke="#00d4aa"/>
+  <text x="72" y="112" font-family="Arial" font-size="34" font-weight="700" fill="#ffffff">ABHA SETU</text>
+  <text x="72" y="164" font-family="Arial" font-size="22" fill="#a7f5e4">Sample ABHA Card - Sandbox</text>
+  <text x="72" y="250" font-family="Arial" font-size="30" font-weight="700" fill="#ffffff">Ananya Verma</text>
+  <text x="72" y="304" font-family="Arial" font-size="22" fill="#b8ccd9">ABHA Address: ananya@abdm</text>
+  <text x="72" y="352" font-family="Arial" font-size="22" fill="#b8ccd9">ABHA Number: 91-xxxx-xxxx-1207</text>
+  <rect x="620" y="164" width="140" height="140" fill="#ffffff"/>
+  <path d="M642 186h32v32h-32zM706 186h32v32h-32zM642 250h32v32h-32zM690 230h20v20h-20zM722 262h16v16h-16z" fill="#062033"/>
+</svg>

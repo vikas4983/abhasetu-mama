@@ -1,14 +1,18 @@
 import { Badge } from '@mui/material';
 import { Bell, ChevronDown, Plus } from 'lucide-react';
 import { MouseEvent, memo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ServiceSearch } from './ServiceSearch';
 import { NotificationPanel } from '@features/notifications/NotificationPanel';
 import { ProfileMenu } from '@features/profile/ProfileMenu';
 import { APP_NAME, APP_TAGLINE, profileImageUrl } from '@/constants/app';
-import { useAppSelector } from '@app/store/hooks';
+import { setLanguage } from '@app/store/preferencesSlice';
+import { useAppDispatch, useAppSelector } from '@app/store/hooks';
 
 export const AppHeader = memo(function AppHeader() {
+  const dispatch = useAppDispatch();
+  const { i18n } = useTranslation();
   const unreadCount = useAppSelector((state) => state.notifications.items.filter((item) => item.unread).length);
   const language = useAppSelector((state) => state.preferences.language);
   const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null);
@@ -27,7 +31,16 @@ export const AppHeader = memo(function AppHeader() {
       </Link>
       <ServiceSearch />
       <div className="header-actions">
-        <button className="lang-selector" type="button" aria-label="Current language">
+        <button
+          className="lang-selector"
+          type="button"
+          aria-label="Toggle language"
+          onClick={() => {
+            const nextLanguage = language === 'en' ? 'hi' : 'en';
+            dispatch(setLanguage(nextLanguage));
+            void i18n.changeLanguage(nextLanguage);
+          }}
+        >
           <span>{language.toUpperCase()}</span>
           <ChevronDown className="chevron-icon" aria-hidden="true" />
         </button>
