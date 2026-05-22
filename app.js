@@ -68,6 +68,7 @@ const doctors = [
     photo: "assets/doctors/dr-ayesha-ali.jpeg",
     badge: "ABDM Ready",
     certificate: "ABDM participation certificate preview",
+    slug: "doctor-ayesha-ali",
   },
   {
     name: "Dr. Yogyata Mukhraiya",
@@ -81,6 +82,7 @@ const doctors = [
     photo: "assets/doctors/dr-yogyata-mukhraiya.jpeg",
     badge: "Verified",
     certificate: "Provider credential certificate preview",
+    slug: "doctor-yogyata-mukhraiya",
   },
   {
     name: "Amitendu Giradonia",
@@ -94,18 +96,19 @@ const doctors = [
     photo: "",
     badge: "Telemedicine",
     certificate: "Professional registration certificate preview",
+    slug: "doctor-amitendu-giradonia",
   },
 ];
 
 const appointments = [
-  { title: "Video consultation", doctor: "Dr. Priya Sharma", meta: "Today, 4:30 PM", status: "Confirmed" },
+  { title: "Video consultation", doctor: "Dr. Ayesha Ali", meta: "Today, 4:30 PM", status: "Confirmed" },
   { title: "Blood test package", doctor: "CityCare Diagnostics", meta: "Tomorrow, 8:00 AM", status: "Sample pickup" },
-  { title: "Cardiology follow-up", doctor: "Dr. Arjun Mehta", meta: "May 22, 11:30 AM", status: "Upcoming" },
+  { title: "Chronic care follow-up", doctor: "Dr. Yogyata Mukhraiya", meta: "May 22, 11:30 AM", status: "Upcoming" },
 ];
 
 const records = [
   { name: "CBC Blood Report", type: "Lab Report", date: "May 14, 2026", source: "Apollo Diagnostics" },
-  { name: "Prescription - Fever Care", type: "Prescription", date: "May 10, 2026", source: "Dr. Priya Sharma" },
+  { name: "Prescription - Fever Care", type: "Prescription", date: "May 10, 2026", source: "Dr. Ayesha Ali" },
   { name: "Health ATM Screening", type: "Vitals", date: "May 08, 2026", source: "ABHA SETU Kiosk" },
   { name: "Insurance Policy Card", type: "Insurance", date: "Apr 29, 2026", source: "Care Shield Plus" },
 ];
@@ -322,7 +325,7 @@ const serviceDetails = {
       { label: "Privacy", value: "DPDP", unit: "Ready", trend: "Consent managed", icon: "lock" },
     ],
     panels: [
-      { title: "Identity Details", icon: "user-check", lines: ["Name: Ananya Verma", "Mobile ending 4207", "Address verification pending"] },
+      { title: "Identity Details", icon: "user-check", lines: ["Name: Demo Patient", "Mobile ending 4207", "Address verification pending"] },
       { title: "After Creation", icon: "share-2", lines: ["Use QR at hospitals", "Link lab reports", "Share records with consent"] },
     ],
     listTitle: "ABHA Actions",
@@ -428,7 +431,7 @@ const serviceDetails = {
       { title: "Sharing Controls", icon: "sliders-horizontal", lines: ["Doctor-specific access", "Time-bound permission", "Revoke anytime"] },
     ],
     listTitle: "Recent Consent",
-    list: ["Record sharing - Dr. Priya Sharma", "Lab collection - CityCare Diagnostics", "Telemedicine consent - active"],
+    list: ["Record sharing - Dr. Ayesha Ali", "Lab collection - CityCare Diagnostics", "Telemedicine consent - active"],
   },
   "prescription-verification": {
     title: "Prescription Verification",
@@ -441,7 +444,7 @@ const serviceDetails = {
       { label: "Safety", value: "2", unit: "Flags", trend: "Dose reminders", icon: "shield-alert" },
     ],
     panels: [
-      { title: "Latest Prescription", icon: "clipboard-check", lines: ["Dr. Priya Sharma", "Issued May 10, 2026", "Valid until June 09, 2026"] },
+      { title: "Latest Prescription", icon: "clipboard-check", lines: ["Dr. Ayesha Ali", "Issued May 10, 2026", "Valid until June 09, 2026"] },
       { title: "Verification Checks", icon: "scan-search", lines: ["Doctor registration matched", "Digital signature valid", "Medicine list readable"] },
     ],
     listTitle: "Prescription History",
@@ -462,7 +465,7 @@ const serviceDetails = {
       { title: "Session Logs", icon: "history", lines: ["Start and end time", "Mode: video/audio", "Care summary attached"] },
     ],
     listTitle: "Recent Compliance Events",
-    list: ["Video consult log saved", "Prescription verification complete", "Consent renewed for Dr. Priya"],
+    list: ["Video consult log saved", "Prescription verification complete", "Consent renewed for Dr. Ayesha Ali"],
   },
   "legal-vault": {
     title: "Legal Docs Vault",

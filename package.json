@@ -1,0 +1,23 @@
+{
+  "name": "abhasetu-platform",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Enterprise ABDM-ready healthcare SaaS platform migrated from the approved AbhaSetu HTML/CSS template.",
+  "workspaces": [
+    "apps/web",
+    "apps/server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:server": "npm run start:dev --workspace apps/server",
+    "build": "npm run build --workspace apps/web && npm run build --workspace apps/server",
+    "lint": "npm run lint --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/web && npm run typecheck --workspace apps/server",
+    "prisma:generate": "npm run prisma:generate --workspace apps/server",
+    "prisma:migrate": "npm run prisma:migrate --workspace apps/server"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}

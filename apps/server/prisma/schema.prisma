@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  phone        String?
+  status       String        @default("ACTIVE")
+  role         String
+  abhaProfiles AbhaProfile[]
+  consultations Consultation[] @relation("PatientConsultations")
+  notifications Notification[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model RolePermission {
+  id            String   @id @default(uuid())
+  role          String
+  permissionKey String
+  scope         String
+  createdAt     DateTime @default(now())
+}
+
+model AbhaProfile {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  abhaNumber   String?
+  abhaAddress  String?
+  kycStatus    String   @default("PENDING")
+  consentState String   @default("NONE")
+  createdAt    DateTime @default(now())
+}
+
+model Doctor {
+  id              String         @id @default(uuid())
+  name            String
+  degree          String
+  speciality      String
+  experienceYears Int
+  photoUrl        String?
+  certificateUrl  String?
+  abdmBadge       String?
+  consultations   Consultation[]
+}
+
+model Facility {
+  id              String      @id @default(uuid())
+  hfrId           String?
+  type            String
+  name            String
+  address         String
+  qrPayloadSchema Json?
+  status          String      @default("ACTIVE")
+  qrSessions      QrSession[]
+}
+
+model QrSession {
+  id          String    @id @default(uuid())
+  facilityId  String?
+  facility    Facility? @relation(fields: [facilityId], references: [id])
+  payloadType String
+  payloadHash String
+  status      String    @default("OPEN")
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+}
+
+model Consultation {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     User     @relation("PatientConsultations", fields: [patientId], references: [id])
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  mode        String
+  scheduledAt DateTime
+  status      String   @default("SCHEDULED")
+  notesRef    String?
+}
+
+model HealthRecord {
+  id                String   @id @default(uuid())
+  patientId         String
+  recordType        String
+  source            String
+  documentRef       String
+  consentArtifactId String?
+  createdAt         DateTime @default(now())
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  tenantId  String
+  key       String
+  value     Json
+  encrypted Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model Translation {
+  id        String   @id @default(uuid())
+  namespace String
+  locale    String
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  channel     String
+  templateKey String
+  status      String
+  sentAt      DateTime?
+}
