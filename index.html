@@ -3,18 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="ABHA SETU is an ABDM-ready healthcare platform for ABHA workflows, telemedicine, QR scanning, connected facilities, and secure healthcare dashboards.">
-  <meta property="og:title" content="ABHA SETU - Digital Health Bridge">
-  <meta property="og:description" content="ABDM-ready healthcare platform for ABHA workflows, telemedicine, QR scanning, and connected facilities.">
+  <meta name="description" content="ABHA SETU - An ABDM-ready, digital health bridge for seamless Ayushman Bharat patient journeys, instant HFR hospital queue registrations, secure e-prescriptions locker, and virtual telemedicine consultations.">
+  <meta name="keywords" content="ABDM, ABHA Card, Ayushman Bharat, Digital Health Locker, HFR Hospital check-in, Telemedicine India, Health ATM, Vitals Sync, Organ Pledge, Blood Bank, India Digital Health, HIPAA Secure">
+  <meta name="author" content="ABHA Setu Consortium">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Canonical & Alternate URLs -->
+  <link rel="canonical" href="https://abhasetu.com/">
+  
+  <!-- Theme Color Meta Tags -->
+  <meta name="theme-color" content="#13283b">
+  <meta name="msapplication-TileColor" content="#13283b">
+  
+  <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://abhasetu.com/">
+  <meta property="og:title" content="ABHA SETU - ABDM-Ready Interoperable Digital Health Bridge">
+  <meta property="og:description" content="Connect physical clinics with digital records under Ayushman Bharat Digital Mission guidelines. Experience instant check-in, oximeter-sync health dashboard, and secure e-prescriptions.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=1200">
+  <meta property="og:site_name" content="ABHA SETU">
+  
+  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <title>ABHA SETU - Digital Health Bridge</title>
+  <meta name="twitter:site" content="@AbhaSetuBridge">
+  <meta name="twitter:creator" content="@AbhaSetuBridge">
+  <meta name="twitter:url" content="https://abhasetu.com/">
+  <meta name="twitter:title" content="ABHA SETU - ABDM-Ready Interoperable Digital Health Bridge">
+  <meta name="twitter:description" content="Connect physical clinics with digital records under Ayushman Bharat Digital Mission guidelines. Experience instant check-in, oximeter-sync health dashboard, and secure e-prescriptions.">
+  <meta name="twitter:image" content="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=1200">
+
+  <title>ABHA SETU - Interoperable Digital Health Bridge</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
+  <script>
+    // Synchronously apply theme to body immediately on load to prevent flickering
+    (function() {
+      try {
+        const state = JSON.parse(localStorage.getItem("setu_state"));
+        if (state && state.theme && state.theme !== "dark-teal") {
+          document.body.classList.add('theme-' + state.theme);
+        }
+        if (state && state.accessibility) {
+          if (state.accessibility.largeFont) document.body.classList.add('accessibility-large-font');
+          if (state.accessibility.highContrast) document.body.classList.add('accessibility-high-contrast');
+        }
+      } catch(e) {}
+    })();
+  </script>
   <div class="app">
     <!-- Header -->
     <header class="header">
@@ -33,17 +72,50 @@
         <div class="search-suggestions" id="search-suggestions" role="listbox"></div>
       </div>
       <div class="header-actions">
-        <div class="lang-selector">
+        <div class="lang-selector" role="button" aria-label="Select Language" tabindex="0">
           <span>EN</span>
           <i data-lucide="chevron-down" class="chevron-icon"></i>
         </div>
-        <div class="notification">
+        <div class="notification" role="button" aria-label="Notifications" tabindex="0">
           <i data-lucide="bell" class="bell-icon"></i>
           <span class="notification-badge">1</span>
         </div>
-        <div class="avatar">
-          <img src="https://csspicker.dev/api/image/?q=doctor+portrait&image_type=photo" alt="User Avatar">
-          <span class="avatar-status"></span>
+        <div class="profile-menu-container">
+          <div class="avatar" role="button" aria-label="User Menu" tabindex="0" aria-haspopup="true" aria-expanded="false" id="avatar-btn">
+            <img src="assets/doctors/dr-ayesha-ali.jpeg" alt="User Avatar" id="header-avatar-img">
+            <span class="avatar-status"></span>
+          </div>
+          <div class="profile-dropdown" role="menu" id="profile-dropdown">
+            <a href="#/profile" data-route="profile" class="dropdown-item" role="menuitem">
+              <i data-lucide="user" class="small-icon"></i>
+              <span>Profile Settings</span>
+            </a>
+            <a href="#/settings" data-route="settings" class="dropdown-item" role="menuitem">
+              <i data-lucide="palette" class="small-icon"></i>
+              <span>Theme Settings</span>
+            </a>
+            <a href="#/settings" data-route="settings" class="dropdown-item" role="menuitem">
+              <i data-lucide="languages" class="small-icon"></i>
+              <span>Language Preferences</span>
+            </a>
+            <a href="#/notifications" data-route="notifications" class="dropdown-item" role="menuitem">
+              <i data-lucide="bell" class="small-icon"></i>
+              <span>Notification Settings</span>
+            </a>
+            <a href="#/settings" data-route="settings" class="dropdown-item" role="menuitem">
+              <i data-lucide="accessibility" class="small-icon"></i>
+              <span>Accessibility Settings</span>
+            </a>
+            <a href="#/security" data-route="security" class="dropdown-item" role="menuitem">
+              <i data-lucide="shield-check" class="small-icon"></i>
+              <span>Security Settings</span>
+            </a>
+            <hr class="dropdown-divider">
+            <button class="dropdown-item logout-btn" onclick="handlePlatformLogout()" role="menuitem" style="border:0; background:transparent; width:100%; text-align:left; cursor:pointer;">
+              <i data-lucide="log-out" class="small-icon" style="color:var(--danger);"></i>
+              <span style="color:var(--danger);">Logout</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -197,15 +269,15 @@
             <span class="tele-title">Video / Audio Consultation</span>
             <span class="tele-subtitle">Connect with doctors instantly</span>
             <div class="tele-doctor">
-              <img src="https://csspicker.dev/api/image/?q=female+doctor&image_type=photo" alt="Dr. Priya Sharma">
+              <img src="assets/doctors/dr-ayesha-ali.jpeg" alt="Dr. Ayesha Ali">
               <div>
-                <span class="doctor-name">Dr. Priya Sharma</span>
-                <span class="doctor-role">General Physician</span>
+                <span class="doctor-name">Dr. Ayesha Ali</span>
+                <span class="doctor-role">Senior Homeopathy Consultant</span>
               </div>
             </div>
             <button class="join-btn">Join Now</button>
           </div>
-          <img src="https://csspicker.dev/api/image/?q=female+doctor+smiling&image_type=photo" alt="Doctor" class="tele-img">
+          <img src="assets/doctors/dr-ayesha-ali.jpeg" alt="Doctor" class="tele-img">
         </div>
         <div class="tele-card">
           <span class="tele-title">Waiting Room</span>
@@ -346,13 +418,13 @@
         <i data-lucide="heart-pulse" class="nav-icon"></i>
         <span>Health</span>
       </a>
+      <a href="#/qr-scanner" class="nav-item fab-scan" aria-label="Scan ABDM QR" data-route="qr-scanner">
+        <i data-lucide="qr-code"></i>
+        <span>Scan</span>
+      </a>
       <a href="#" class="nav-item">
         <i data-lucide="calendar" class="nav-icon"></i>
         <span>Appointments</span>
-      </a>
-      <a href="#" class="nav-item">
-        <i data-lucide="file-text" class="nav-icon"></i>
-        <span>Records</span>
       </a>
       <a href="#" class="nav-item">
         <i data-lucide="grid-3x3" class="nav-icon"></i>
