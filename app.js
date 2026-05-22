@@ -1131,10 +1131,16 @@ function renderFooter() {
           <a href="#/terms" data-route="terms">Terms</a>
           <a href="#/privacy" data-route="privacy">Privacy</a>
         </section>
+        <section>
+          <h3>Contact</h3>
+          <a href="mailto:contact@abhasetu.com"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="mail" aria-hidden="true" class="lucide lucide-mail small-icon"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"></path><rect x="2" y="4" width="20" height="16" rx="2"></rect></svg> contact@abhasetu.com</a>
+          <a href="tel:+919981057765"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="phone" aria-hidden="true" class="lucide lucide-phone small-icon"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path></svg> +91-9981057765</a>
+          <p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="map-pin" aria-hidden="true" class="lucide lucide-map-pin small-icon"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg> Madar Gate, Panchampura, Katangi, Jabalpur, Madhya Pradesh 483105</p>
+        </section>
       </div>
       <div class="footer-bottom">
         <span>© ${year} ABHA SETU. All rights reserved.</span>
-        <span>Simulated Sandbox Environment under ABDM Milestone 1 Guidelines.</span>
+        <span>Healthcare workflows shown in demo mode. Live ABDM use requires approved sandbox or production credentials.</span>
       </div>
     </footer>
   `;
