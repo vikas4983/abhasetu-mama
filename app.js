@@ -43,12 +43,58 @@ const featureRoutes = {
   "Preventive Care": "preventive-care",
   "Chronic Disease Programs": "chronic-care",
   "AI Health Assistant": "ai-assistant",
+  "Skin Care": "skin-care",
+  "ABDM Services": "abdm-services",
+  "Connected Facilities": "connected-facilities",
+  Security: "security",
+  Reports: "reports",
+  Settings: "settings",
+  Contact: "contact",
+  About: "about",
+  "Terms & Conditions": "terms",
+  "Privacy Policy": "privacy",
 };
 
 const doctors = [
-  { name: "Dr. Priya Sharma", role: "General Physician", time: "Today, 4:30 PM", fee: "Rs 499", rating: "4.9" },
-  { name: "Dr. Arjun Mehta", role: "Cardiologist", time: "Tomorrow, 10:00 AM", fee: "Rs 899", rating: "4.8" },
-  { name: "Dr. Neha Kapoor", role: "Dermatologist", time: "May 20, 6:15 PM", fee: "Rs 699", rating: "4.7" },
+  {
+    name: "Dr. Ayesha Ali",
+    role: "Senior Homeopathy Consultant",
+    degree: "DHMS, BSC, LLB, M.D HOMEO",
+    time: "Today, 4:30 PM",
+    fee: "Rs 899",
+    rating: "4.9",
+    experience: "35 years experience",
+    description: "Former Registrar, Madhya Pradesh. Chronic care, women-led family health, long-term case review, and second opinions.",
+    photo: "assets/doctors/dr-ayesha-ali.jpeg",
+    badge: "ABDM Ready",
+    certificate: "ABDM participation certificate preview",
+  },
+  {
+    name: "Dr. Yogyata Mukhraiya",
+    role: "Chronic Diseases and Female Problems",
+    degree: "BHMS",
+    time: "Tomorrow, 10:00 AM",
+    fee: "Rs 699",
+    rating: "4.8",
+    experience: "Expertise in chronic diseases and female problems",
+    description: "Focused on female health, infertility concerns, skin care, and chronic condition follow-ups.",
+    photo: "assets/doctors/dr-yogyata-mukhraiya.jpeg",
+    badge: "Verified",
+    certificate: "Provider credential certificate preview",
+  },
+  {
+    name: "Amitendu Giradonia",
+    role: "Homeopathy and Primary Care",
+    degree: "BHMS",
+    time: "May 24, 6:15 PM",
+    fee: "Rs 599",
+    rating: "4.7",
+    experience: "18 years experience",
+    description: "Family care, chronic follow-up, preventive plans, and medication reviews.",
+    photo: "",
+    badge: "Telemedicine",
+    certificate: "Professional registration certificate preview",
+  },
 ];
 
 const appointments = [
@@ -69,6 +115,41 @@ const vitals = [
   { label: "SpO2", value: "98", unit: "%", trend: "Normal", icon: "heart-pulse" },
   { label: "Glucose", value: "98", unit: "mg/dL", trend: "In range", icon: "droplets" },
   { label: "Heart Rate", value: "72", unit: "BPM", trend: "Resting", icon: "heart" },
+  { label: "BMI", value: "22.4", unit: "kg/m2", trend: "Healthy", icon: "scale" },
+  { label: "Wellness Tracking", value: "84", unit: "%", trend: "Good", icon: "sparkles" },
+  { label: "Skin Care", value: "3", unit: "tips", trend: "Updated", icon: "scan-face" },
+  { label: "AI Health Insights", value: "2", unit: "alerts", trend: "Review", icon: "brain-circuit" },
+];
+
+const abdmWorkflows = [
+  { title: "Create ABHA using Aadhaar OTP", icon: "id-card", desc: "Fetch public certificate, encrypt Aadhaar, request OTP, verify OTP, create ABHA profile and address." },
+  { title: "Verify ABHA Number", icon: "badge-check", desc: "Request login OTP, verify selected auth mode, fetch profile, QR, and ABHA card token." },
+  { title: "Verify ABHA Address", icon: "at-sign", desc: "Search ABHA address, verify OTP, and return patient identity token for returning flows." },
+  { title: "Mobile ABHA Search", icon: "smartphone", desc: "Search mobile-linked ABHA profiles and support account selection." },
+  { title: "Facility QR Scanning", icon: "building-2", desc: "Scan-and-share facility journey with patient profile handoff architecture." },
+  { title: "Driving License Support", icon: "file-badge", desc: "Document enrolment route prepared for V3 assisted KYC architecture." },
+];
+
+const connectedFacilities = [
+  { title: "Hospitals", route: "hospitals", icon: "hospital", desc: "HFR-ready registration, OPD queues, emergency routing, and Scan and Share." },
+  { title: "Clinics", route: "connected-facilities", icon: "stethoscope", desc: "ABHA verification, returning patient flow, and digital prescription support." },
+  { title: "Labs", route: "lab-tests", icon: "flask-conical", desc: "Bookings, report sync, QR invoices, and consent-aware record links." },
+  { title: "Pharmacies", route: "medicine-delivery", icon: "pill", desc: "Prescription verification, refill reminders, and medicine delivery tracking." },
+  { title: "Telemedicine", route: "telemedicine", icon: "video", desc: "Virtual consults, waiting room, doctor certificates, and secure notes." },
+  { title: "Diagnostic Centers", route: "connected-facilities", icon: "scan-line", desc: "Radiology slots, imaging reports, and facility QR registration." },
+];
+
+const abdmEndpoints = [
+  "POST /api/hiecm/gateway/v3/sessions",
+  "GET /v3/profile/public/certificate",
+  "POST /v3/enrollment/request/otp",
+  "POST /v3/enrollment/enrol/byAadhaar",
+  "POST /v3/enrollment/enrol/byDocument",
+  "POST /v3/enrollment/enrol/abha-address",
+  "POST /v3/profile/login/request/otp",
+  "POST /v3/profile/login/verify",
+  "GET /v3/profile/account/qrCode",
+  "GET /v3/profile/account/abha-card",
 ];
 
 const services = [
@@ -499,6 +580,15 @@ const searchableServices = [
   { title: "Marketplace", route: "marketplace", icon: "store", desc: "Medicine, labs, equipment, ambulance services." },
   { title: "Medicolegal & Compliance", route: "compliance", icon: "scale", desc: "Consent, legal vault, and compliance checks." },
   { title: "Health Insights & Education", route: "insights", icon: "book-open", desc: "Tips, reminders, programs, and assistant." },
+  { title: "ABDM Services", route: "abdm-services", icon: "id-card", desc: "ABHA creation, verification, card download, OTP, QR, and returning patient flows." },
+  { title: "Connected Facilities", route: "connected-facilities", icon: "building-2", desc: "Hospitals, clinics, labs, pharmacies, telemedicine, and diagnostics." },
+  { title: "Security", route: "security", icon: "shield-check", desc: "Auth, XSS, CSRF, rate limiting, token handling, and secure logging." },
+  { title: "Reports", route: "reports", icon: "bar-chart-3", desc: "Database schema, operational views, and healthcare reporting." },
+  { title: "Settings", route: "settings", icon: "settings", desc: "Theme, language, session, and accessibility settings." },
+  { title: "Contact", route: "contact", icon: "mail", desc: "Email, phone, and address." },
+  { title: "About", route: "about", icon: "info", desc: "Vision, mission, ABDM role, timeline, and story." },
+  { title: "Terms & Conditions", route: "terms", icon: "scroll-text", desc: "Healthcare SaaS terms, consent, and ABDM usage references." },
+  { title: "Privacy Policy", route: "privacy", icon: "file-lock-2", desc: "Healthcare privacy, consent, and sensitive data handling structure." },
   ...services,
   ...marketplace,
   ...Object.values(serviceDetails).map((item) => ({
@@ -559,6 +649,12 @@ function wireChrome() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const actionTarget = event.target.closest("[data-action]");
+    if (actionTarget) {
+      handleAction(actionTarget, event);
+      return;
+    }
+
     const target = event.target.closest("[data-route]");
     if (!target) return;
     const route = target.dataset.route;
@@ -678,6 +774,68 @@ function navigate(route) {
   window.location.hash = routePath(route);
 }
 
+function handleAction(target, event) {
+  const action = target.dataset.action;
+  if (action === "start-scanner") {
+    event.preventDefault();
+    startQrScanner();
+  }
+}
+
+function startQrScanner() {
+  const status = document.querySelector("#scanner-status");
+  const reader = document.querySelector("#qr-reader");
+  if (!status || !reader) return;
+
+  if (!window.Html5Qrcode) {
+    status.textContent = "QR scanner library is unavailable. Check CDN access or bundle html5-qrcode locally for production.";
+    return;
+  }
+
+  status.textContent = "Requesting camera permission...";
+  reader.innerHTML = "";
+  const scanner = new Html5Qrcode("qr-reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 240, height: 240 } },
+    (decodedText) => {
+      status.textContent = classifyQrPayload(decodedText);
+      scanner.stop().catch(() => {});
+    },
+    () => {}
+  ).catch((error) => {
+    status.textContent = `Camera permission or scanner error: ${error}. Use HTTPS or localhost for camera access.`;
+  });
+}
+
+function classifyQrPayload(payload) {
+  if (/abha|phr|healthid/i.test(payload)) return "ABHA QR detected. Returning patient verification flow can continue.";
+  if (/facility|hfr|hip|scan.*share/i.test(payload)) return "Facility QR detected. Scan-and-share registration flow can continue.";
+  return "Healthcare QR decoded. Payload captured for validation.";
+}
+
+async function encryptForAbdm(plainText, publicKeyPem) {
+  const body = publicKeyPem.replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\s/g, "");
+  const binaryDer = Uint8Array.from(atob(body), (char) => char.charCodeAt(0));
+  const key = await crypto.subtle.importKey("spki", binaryDer, { name: "RSA-OAEP", hash: "SHA-1" }, false, ["encrypt"]);
+  const encrypted = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, new TextEncoder().encode(plainText));
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+}
+
+async function abdmRequest(path, options = {}) {
+  const baseUrl = "https://dev.abdm.gov.in";
+  const headers = {
+    "Content-Type": "application/json",
+    "REQUEST-ID": crypto.randomUUID(),
+    "TIMESTAMP": new Date().toISOString(),
+    "X-CM-ID": "sbx",
+    ...(options.headers || {}),
+  };
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
+  if (!response.ok) throw new Error(`ABDM API failed with ${response.status}`);
+  return response.headers.get("content-type")?.includes("json") ? response.json() : response.blob();
+}
+
 function renderCurrentRoute() {
   const route = window.location.hash.replace(/^#\/?/, "") || "home";
   if (route === "home") {
@@ -715,7 +873,17 @@ function renderRoute(route) {
     "live-dashboard": renderLiveDashboard,
     telemedicine: renderTelemedicine,
     "telemedicine-room": renderTelemedicineRoom,
+    "qr-scanner": renderQrScanner,
     marketplace: () => renderServiceDirectory("Marketplace", marketplace),
+    "abdm-services": renderAbdmServices,
+    "connected-facilities": renderConnectedFacilities,
+    security: renderSecurity,
+    reports: renderReports,
+    settings: renderSettings,
+    contact: renderContact,
+    about: renderAbout,
+    terms: renderTerms,
+    privacy: renderPrivacy,
     compliance: renderCompliance,
     insights: renderInsights,
     notifications: renderNotifications,
@@ -786,7 +954,19 @@ function renderRecords() {
 function renderMore() {
   return `
     ${pageHeader("More", "Explore every service, support workflow, compliance tool, and marketplace option.")}
-    ${serviceGrid([...services, ...marketplace], "route-grid service-grid")}
+    ${serviceGrid([
+      { title: "ABDM Services", route: "abdm-services", icon: "id-card", desc: "Create and verify ABHA, ABHA address, QR, OTP, and card workflows." },
+      { title: "Connected Facilities", route: "connected-facilities", icon: "building-2", desc: "Hospitals, clinics, labs, pharmacies, telemedicine, and diagnostics." },
+      { title: "Security", route: "security", icon: "shield-check", desc: "Authentication, authorization, encryption, and secure API policies." },
+      { title: "Reports", route: "reports", icon: "bar-chart-3", desc: "Healthcare database schema and operations reporting." },
+      { title: "Settings", route: "settings", icon: "settings", desc: "Theme, language, accessibility, and session settings." },
+      { title: "Contact", route: "contact", icon: "mail", desc: "Contact AbhaSetu support." },
+      { title: "About", route: "about", icon: "info", desc: "Vision, mission, ABDM role, and company story." },
+      { title: "Terms & Conditions", route: "terms", icon: "scroll-text", desc: "Healthcare SaaS terms, consent, and ABDM references." },
+      { title: "Privacy Policy", route: "privacy", icon: "file-lock-2", desc: "Consent, privacy, and sensitive data handling." },
+      ...services,
+      ...marketplace
+    ], "route-grid service-grid")}
   `;
 }
 
@@ -845,12 +1025,12 @@ function renderLiveDashboard() {
 
 function renderTelemedicine() {
   return `
-    ${pageHeader("Telemedicine", "Video, audio, waiting-room, and multi-doctor consultation workflows.")}
+    ${pageHeader("Telemedicine", "Video, audio, waiting-room, certificates, and multi-doctor consultation workflows.")}
     <section class="route-grid two-col">
       ${panel("Live Waiting Room", ["3 patients ahead", "Estimated wait: 8 minutes", "Consultation mode: Video"], "video")}
-      ${panel("Care Team", ["General Physician assigned", "Cardiologist available on request", "Prescription will sync to locker"], "users")}
+      ${panel("Consultation Quality", ["No overlapping controls", "Equal-height doctor cards", "ABDM badge and certificate preview", "Responsive mobile layout"], "badge-check")}
     </section>
-    <section class="route-grid doctor-grid">${doctors.map((doctor) => appointmentCard({ title: doctor.name, doctor: doctor.role, meta: doctor.time, status: doctor.fee })).join("")}</section>
+    <section class="route-grid doctor-grid">${doctors.map(doctorProfileCard).join("")}</section>
   `;
 }
 
@@ -865,6 +1045,137 @@ function renderTelemedicineRoom() {
         <button>${icon("phone-off", "small-icon")} End</button>
       </div>
     </section>
+  `;
+}
+
+function renderQrScanner() {
+  return `
+    ${pageHeader("QR Scanner", "Mobile and web QR scanner for ABDM QR, Facility QR, ABHA QR, prescriptions, and registration codes.", `<button class="primary-action" data-action="start-scanner">${icon("camera", "small-icon")} Open Camera</button>`)}
+    <section class="scanner-panel">
+      <div class="scanner-frame" id="qr-reader">
+        <div class="scan-line"></div>
+        ${icon("qr-code", "scanner-icon")}
+      </div>
+      <div class="route-card">
+        <h3>Scanner Status</h3>
+        <p id="scanner-status">Camera is idle. Use Open Camera to request permission and start scanning.</p>
+        <ul>
+          <li>Classifies ABHA QR, Facility QR, and generic healthcare QR payloads.</li>
+          <li>Includes permission, retry, and fallback states.</li>
+          <li>Works best on HTTPS or localhost because browsers restrict camera access.</li>
+        </ul>
+        <button class="primary-action" data-action="start-scanner">${icon("refresh-cw", "small-icon")} Retry Scanner</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderAbdmServices() {
+  return `
+    ${pageHeader("ABDM Services", "Milestone 1 V3 workflows for ABHA creation, verification, QR, and returning patient journeys.")}
+    ${serviceGrid(abdmWorkflows.map((item) => ({ ...item, route: "abdm-services" })), "route-grid service-grid")}
+    <section class="route-grid two-col">
+      ${panel("Sandbox Authentication", ["Generate access token using ABDM_CLIENT_ID and ABDM_CLIENT_SECRET", "Refresh token through backend proxy", "Add REQUEST-ID, TIMESTAMP, and X-CM-ID headers"], "key-round")}
+      ${panel("RSA Encryption", ["RSA/ECB/OAEPWithSHA-1AndMGF1Padding", "Encrypt Aadhaar, mobile, and OTP payloads", "Fetch ABDM public certificate before encryption"], "lock-keyhole")}
+    </section>
+    ${listSection("ABDM V3 Endpoint Map", abdmEndpoints)}
+    ${renderServiceRequestForm("ABDM Milestone 1")}
+  `;
+}
+
+function renderConnectedFacilities() {
+  return `
+    ${pageHeader("Connected Facilities", "Hospitals, clinics, labs, pharmacies, telemedicine, and diagnostic centers in one ABDM ecosystem.")}
+    ${serviceGrid(connectedFacilities, "route-grid service-grid")}
+    <section class="route-grid two-col">
+      ${panel("Facility QR Flow", ["Scan facility QR", "Share patient profile after consent", "Create OPD token and queue entry"], "qr-code")}
+      ${panel("Dynamic Rendering", ["JSON-driven cards", "Equal-height layout", "Ready for facilities database table"], "database")}
+    </section>
+  `;
+}
+
+function renderSecurity() {
+  return `
+    ${pageHeader("Security", "Authentication, authorization, encrypted ABDM payloads, and healthcare-safe defaults.")}
+    <section class="route-grid service-grid">
+      ${[
+        { title: "Role Guards", icon: "shield-check", desc: "Admin, Doctor, Patient, and Operator route permissions." },
+        { title: "JWT Ready", icon: "key-round", desc: "Access-token and refresh-token architecture for backend migration." },
+        { title: "XSS Prevention", icon: "shield-alert", desc: "Avoid user HTML injection and sanitize API strings." },
+        { title: "CSRF Protection", icon: "cookie", desc: "Use SameSite secure cookies for refresh tokens in production." },
+        { title: "Rate Limiting", icon: "timer-reset", desc: "Throttle login, OTP, QR, and ABDM proxy endpoints." },
+        { title: "Secure Logging", icon: "file-lock-2", desc: "Redact Aadhaar, ABHA, OTP, tokens, mobile, and health identifiers." },
+      ].map((item) => `<article class="route-card">${icon(item.icon)}<h3>${item.title}</h3><p>${item.desc}</p></article>`).join("")}
+    </section>
+  `;
+}
+
+function renderReports() {
+  return `
+    ${pageHeader("Reports", "Enterprise database schema and healthcare reporting blueprint.")}
+    ${listSection("Database Tables", [
+      "users: identity, contact, role, status, login metadata",
+      "roles_permissions: permission key, scope, role mapping",
+      "abha_profiles: ABHA number, ABHA address, KYC state, consent state",
+      "doctors: profile, degree, speciality, experience, photo, certificate",
+      "facilities: HFR ID, type, address, QR payload schema",
+      "qr_sessions: payload type, hash, status, expiry",
+      "consultations: patient, doctor, mode, schedule, status",
+      "health_records: record type, source, secure document reference",
+      "translations, settings, notifications"
+    ])}
+  `;
+}
+
+function renderSettings() {
+  return `
+    ${pageHeader("Settings", "Theme, language, session, and accessibility controls without changing the current visual theme.")}
+    <section class="route-grid service-grid">
+      ${[
+        { title: "Current Theme", icon: "palette", desc: "Preserved dark teal AbhaSetu theme." },
+        { title: "Language", icon: "languages", desc: "English and Hindi translation architecture." },
+        { title: "Accessibility", icon: "accessibility", desc: "Keyboard, focus, screen-reader, contrast, and reduced motion support." },
+        { title: "Session", icon: "clock-alert", desc: "Static demo session today; JWT refresh-token-ready migration path." },
+      ].map((item) => `<article class="route-card">${icon(item.icon)}<h3>${item.title}</h3><p>${item.desc}</p></article>`).join("")}
+    </section>
+  `;
+}
+
+function renderContact() {
+  return `
+    ${pageHeader("Contact", "Reach the AbhaSetu team for healthcare platform support.")}
+    <section class="route-grid three-col">
+      ${panel("Email", ["contact@abhasetu.com"], "mail")}
+      ${panel("Phone", ["+91-9981057765"], "phone")}
+      ${panel("Address", ["Madar Gate, Panchampura, Katangi, Jabalpur, Madhya Pradesh 483105"], "map-pin")}
+    </section>
+  `;
+}
+
+function renderAbout() {
+  return `
+    ${pageHeader("About", "Vision, mission, ABDM role, healthcare transformation, timeline, and company story.")}
+    <section class="route-grid two-col">
+      ${panel("Vision", ["Build a trusted digital bridge between patients, doctors, facilities, and health records."], "eye")}
+      ${panel("Mission", ["Deliver secure ABHA, QR, telemedicine, and connected facility journeys for Indian healthcare."], "target")}
+      ${panel("Role of ABDM", ["Identity, registries, consent-led exchange, and interoperable digital health rails."], "network")}
+      ${panel("Timeline", ["Milestone 1 today: ABHA creation and verification. Next: HIP/HIU and consent manager integrations."], "calendar-clock")}
+    </section>
+    ${listSection("Company Story", ["AbhaSetu is shaped as a practical healthcare SaaS platform for clinics, hospitals, operators, doctors, and patients preparing for ABDM adoption."])}
+  `;
+}
+
+function renderTerms() {
+  return `
+    ${pageHeader("Terms & Conditions", "Healthcare-compliant platform usage structure.")}
+    ${listSection("Terms", ["Demo workflows do not create real ABHA records without valid ABDM sandbox or production credentials.", "Users must capture consent before handling health data.", "Facilities must validate identity, prescriptions, and clinical records before acting on them."])}
+  `;
+}
+
+function renderPrivacy() {
+  return `
+    ${pageHeader("Privacy Policy", "Consent-aware healthcare privacy structure.")}
+    ${listSection("Privacy", ["Aadhaar, mobile, and OTP values must be encrypted for ABDM transmission where required.", "Health records should be stored as secure references, not public URLs.", "Access must be purpose-bound, role-based, logged, and revocable."])}
   `;
 }
 
@@ -883,8 +1194,11 @@ function renderCompliance() {
 function renderInsights() {
   return `
     ${pageHeader("Health Insights & Education", "Health learning, prevention nudges, reminders, and AI-powered education.")}
+    <section class="route-grid metrics-grid">
+      ${vitals.map(metricCard).join("")}
+    </section>
     <section class="route-grid service-grid">
-      ${["Health Tips", "Appointment Reminders", "Preventive Care", "Chronic Disease Programs", "AI Health Assistant"].map((title) => `
+      ${["Health Tips", "Skin Care", "Appointment Reminders", "Preventive Care", "Chronic Disease Programs", "AI Health Assistant"].map((title) => `
         <article class="route-card" data-route="${featureRoutes[title]}">
           <h3>${title}</h3>
           <p>${genericCopy(featureRoutes[title])}</p>
@@ -1026,6 +1340,32 @@ function appointmentCard(item) {
       <p>${item.doctor}</p>
       <div class="pill-row"><span>${item.meta}</span><span>${item.status}</span></div>
       <a href="#/appointments" data-route="appointments">View details</a>
+    </article>
+  `;
+}
+
+function doctorProfileCard(doctor) {
+  const photo = doctor.photo
+    ? `<img class="doctor-photo" src="${doctor.photo}" alt="${doctor.name} photograph">`
+    : `<div class="doctor-photo doctor-placeholder">${icon("user-round", "doctor-placeholder-icon")}</div>`;
+  return `
+    <article class="route-card doctor-profile-card">
+      <div class="doctor-media">
+        ${photo}
+        <span class="doctor-badge">${doctor.badge}</span>
+      </div>
+      <div class="doctor-copy">
+        <h3>${doctor.name}</h3>
+        <p><strong>${doctor.degree}</strong></p>
+        <p>${doctor.role}</p>
+        <p>${doctor.experience}</p>
+        <p>${doctor.description}</p>
+        <div class="pill-row"><span>${doctor.time}</span><span>${doctor.fee}</span><span>${doctor.rating} rating</span></div>
+        <div class="doctor-actions">
+          <a href="data:text/plain;charset=utf-8,${encodeURIComponent(doctor.certificate + " - " + doctor.name)}" download="${doctor.name.replace(/\s+/g, "-").toLowerCase()}-certificate.txt">Certificate</a>
+          <a href="#/telemedicine-room" data-route="telemedicine-room">Consult</a>
+        </div>
+      </div>
     </article>
   `;
 }

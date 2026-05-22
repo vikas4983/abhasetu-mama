@@ -1169,6 +1169,115 @@ svg {
   padding-left: 18px;
 }
 
+.doctor-profile-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.doctor-media {
+  position: relative;
+  width: 100%;
+  min-height: 210px;
+  background: var(--bg-secondary);
+}
+
+.doctor-photo {
+  width: 100%;
+  height: 230px;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.doctor-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doctor-placeholder-icon {
+  width: 72px;
+  height: 72px;
+  color: var(--accent-teal);
+}
+
+.doctor-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(7, 21, 33, 0.84);
+  color: var(--accent-teal);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.doctor-copy,
+.doctor-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.doctor-copy {
+  padding: 16px;
+}
+
+.doctor-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.doctor-actions a {
+  justify-content: center;
+}
+
+.scanner-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.scanner-frame {
+  position: relative;
+  overflow: hidden;
+  min-height: 360px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(90deg, rgba(36, 68, 95, 0.7) 1px, transparent 1px),
+    linear-gradient(rgba(36, 68, 95, 0.7) 1px, transparent 1px),
+    rgba(19, 40, 59, 0.92);
+  background-size: 42px 42px;
+}
+
+.scanner-icon {
+  width: 82px;
+  height: 82px;
+  color: var(--accent-teal);
+}
+
+.scan-line {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: var(--accent-teal);
+  box-shadow: 0 0 22px rgba(0, 212, 170, 0.7);
+  animation: scannerSweep 2.2s linear infinite;
+}
+
+@keyframes scannerSweep {
+  from {
+    transform: translateY(-150px);
+  }
+  to {
+    transform: translateY(150px);
+  }
+}
+
 .wide-card {
   margin-bottom: 16px;
 }
@@ -1750,6 +1859,17 @@ svg {
 
   .nav-item span {
     font-size: 9px;
+  }
+}
+
+@media (max-width: 720px) {
+  .scanner-panel,
+  .doctor-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .scanner-frame {
+    min-height: 300px;
   }
 }
 
