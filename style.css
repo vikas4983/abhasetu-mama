@@ -1278,6 +1278,120 @@ svg {
   }
 }
 
+.site-footer {
+  grid-column: 1 / -1;
+  margin: 28px 0 0;
+  padding: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(0, 212, 170, 0.09), rgba(0, 180, 216, 0.04)),
+    rgba(13, 32, 49, 0.94);
+  box-shadow: var(--surface-shadow);
+}
+
+.footer-brand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(36, 68, 95, 0.8);
+}
+
+.footer-logo {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.footer-logo h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.footer-logo p,
+.site-footer p,
+.footer-bottom {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.footer-logo p,
+.site-footer p {
+  margin: 0;
+}
+
+.footer-trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.footer-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 212, 170, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 212, 170, 0.08);
+  color: var(--accent-teal);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  padding: 20px 0;
+}
+
+.footer-grid section {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.footer-grid h3 {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.footer-grid a,
+.footer-grid p {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-secondary);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.footer-grid a:hover,
+.footer-grid a:focus {
+  color: var(--accent-teal);
+  transform: translateX(2px);
+}
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(36, 68, 95, 0.8);
+}
+
 .wide-card {
   margin-bottom: 16px;
 }
@@ -1864,12 +1978,27 @@ svg {
 
 @media (max-width: 720px) {
   .scanner-panel,
-  .doctor-actions {
+  .doctor-actions,
+  .footer-brand,
+  .footer-grid {
     grid-template-columns: 1fr;
   }
 
   .scanner-frame {
     min-height: 300px;
+  }
+
+  .site-footer {
+    margin-bottom: 10px;
+    padding: 18px;
+  }
+
+  .footer-trust {
+    justify-content: flex-start;
+  }
+
+  .footer-bottom {
+    display: grid;
   }
 }
 

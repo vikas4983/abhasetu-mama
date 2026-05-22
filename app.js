@@ -841,15 +841,78 @@ function renderCurrentRoute() {
   if (route === "home") {
     contentRoot.className = "home-shell";
     contentRoot.innerHTML = homeMarkup;
+    appendFooter();
     wireHome();
   } else {
     contentRoot.className = "route-shell";
     contentRoot.innerHTML = renderRoute(route);
+    appendFooter();
   }
 
   setActiveNav(route);
   if (window.lucide) lucide.createIcons();
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function appendFooter() {
+  contentRoot.insertAdjacentHTML("beforeend", renderFooter());
+}
+
+function renderFooter() {
+  const year = new Date().getFullYear();
+  return `
+    <footer class="site-footer" aria-label="AbhaSetu footer">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="logo-icon">${icon("plus", "logo-plus")}</div>
+          <div>
+            <h2>ABHA SETU</h2>
+            <p>Digital Health Bridge for ABDM-ready healthcare operations, telemedicine, connected facilities, QR flows, and secure patient journeys.</p>
+          </div>
+        </div>
+        <div class="footer-trust" aria-label="Compliance readiness">
+          <span>${icon("shield-check", "small-icon")} ABDM Ready</span>
+          <span>${icon("lock", "small-icon")} Consent-first</span>
+          <span>${icon("accessibility", "small-icon")} Accessible</span>
+        </div>
+      </div>
+
+      <div class="footer-grid">
+        <section>
+          <h3>Platform</h3>
+          <a href="#/abdm-services" data-route="abdm-services">ABDM Services</a>
+          <a href="#/telemedicine" data-route="telemedicine">Telemedicine</a>
+          <a href="#/connected-facilities" data-route="connected-facilities">Connected Facilities</a>
+          <a href="#/qr-scanner" data-route="qr-scanner">QR Scanner</a>
+        </section>
+        <section>
+          <h3>Operations</h3>
+          <a href="#/health" data-route="health">Health Insights</a>
+          <a href="#/compliance" data-route="compliance">Compliance</a>
+          <a href="#/security" data-route="security">Security</a>
+          <a href="#/reports" data-route="reports">Reports</a>
+        </section>
+        <section>
+          <h3>Company</h3>
+          <a href="#/about" data-route="about">About</a>
+          <a href="#/contact" data-route="contact">Contact</a>
+          <a href="#/terms" data-route="terms">Terms & Conditions</a>
+          <a href="#/privacy" data-route="privacy">Privacy Policy</a>
+        </section>
+        <section>
+          <h3>Contact</h3>
+          <a href="mailto:contact@abhasetu.com">${icon("mail", "small-icon")} contact@abhasetu.com</a>
+          <a href="tel:+919981057765">${icon("phone", "small-icon")} +91-9981057765</a>
+          <p>${icon("map-pin", "small-icon")} Madar Gate, Panchampura, Katangi, Jabalpur, Madhya Pradesh 483105</p>
+        </section>
+      </div>
+
+      <div class="footer-bottom">
+        <span>© ${year} ABHA SETU. All rights reserved.</span>
+        <span>Healthcare workflows shown in demo mode. Live ABDM use requires approved sandbox or production credentials.</span>
+      </div>
+    </footer>
+  `;
 }
 
 function setActiveNav(route) {
