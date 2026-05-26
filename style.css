@@ -4378,3 +4378,202 @@ body.theme-emerald-light .site-footer {
     #f8fafc !important;
   border-color: #cbd5e1 !important;
 }
+
+/* ==========================================================================
+   NEW ABHA SETU PREMIUM UI & STYLING OVERRIDES
+   ========================================================================== */
+
+/* 1. Shimmer & Skeleton Loaders */
+.skeleton-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--surface-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-title {
+  height: 22px;
+  width: 45%;
+  border-radius: 6px;
+}
+
+.skeleton-subtitle {
+  height: 13px;
+  width: 80%;
+  border-radius: 4px;
+}
+
+.skeleton-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.skeleton-text {
+  height: 12px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-card-hover) 37%,
+    var(--bg-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 2. Active Token Countdown Sticky/Dashed Banner */
+.active-token-banner {
+  background: var(--bg-card);
+  border: 1px dashed var(--accent-teal);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: var(--surface-shadow);
+  animation: banner-pulse 2.5s infinite ease-in-out;
+  backdrop-filter: blur(20px);
+}
+
+@keyframes banner-pulse {
+  0%, 100% { border-color: rgba(0, 212, 170, 0.4); box-shadow: var(--surface-shadow); }
+  50% { border-color: rgba(0, 212, 170, 1); box-shadow: 0 0 15px rgba(0, 212, 170, 0.15); }
+}
+
+.active-token-banner .banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.active-token-banner .pulse-dot {
+  width: 10px;
+  height: 10px;
+  background-color: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--success);
+  animation: dot-pulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes dot-pulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px var(--success); }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.active-token-banner .banner-title {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.active-token-banner .banner-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.active-token-banner .banner-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.active-token-banner .timer-badge {
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent-teal);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  white-space: nowrap;
+}
+
+.active-token-banner .view-ticket-btn {
+  background: var(--accent-teal);
+  color: #13283b;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.active-token-banner .view-ticket-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Light theme overrides for active banner */
+body.theme-emerald-light .active-token-banner {
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+}
+body.theme-emerald-light .active-token-banner .view-ticket-btn {
+  color: #ffffff;
+  background: var(--accent-teal);
+}
+
+/* 3. Responsive QR Scanner Console Split-Grid */
+.scanner-console-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .scanner-console-grid {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.scanner-frame {
+  height: 100%;
+  min-height: 380px !important;
+}
+
+/* 4. Desktop Sidebar Overlap & Spacing Fixes */
+@media (min-width: 900px) {
+  .nav-item.fab-scan {
+    top: 0 !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin: 8px auto !important;
+    border-radius: 50% !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 212, 170, 0.25) !important;
+  }
+  
+  .nav-item.fab-scan:hover {
+    transform: scale(1.05) !important;
+  }
+
+  .nav-item.fab-scan span {
+    display: none !important;
+  }
+}

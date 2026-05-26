@@ -124,7 +124,7 @@ const doctors = [
     rating: "4.8",
     experience: "12 years experience",
     description: "Focused on female health, infertility concerns, skin care, and chronic condition follow-ups.",
-    photo: "assets/doctors/dr-ayesha-ali.jpeg",
+    photo: "assets/doctors/dr-yogyata-mukhraiya.jpeg",
     badge: "Verified",
     certificateId: "ABDM-REG-8827341",
     hfrId: "IN-HFR-100789"
@@ -138,7 +138,7 @@ const doctors = [
     rating: "4.7",
     experience: "18 years experience",
     description: "Family care, chronic follow-ups, preventive plans, and medication reviews.",
-    photo: "assets/doctors/dr-ayesha-ali.jpeg",
+    photo: "assets/doctors/Amitendu_Giradonia.jpeg",
     badge: "Telemedicine",
     certificateId: "ABDM-REG-1092837",
     hfrId: "IN-HFR-100122"
@@ -757,6 +757,14 @@ function initApp() {
 
   // Watch URL changes
   window.addEventListener("hashchange", renderCurrentRoute);
+  
+  // Start active token banner ticking countdown loop
+  if (!window.activeTokenTimerInterval) {
+    window.activeTokenTimerInterval = setInterval(() => {
+      updateActiveTokenBanner();
+    }, 1000);
+  }
+  
   renderCurrentRoute();
 }
 
@@ -868,7 +876,7 @@ function wireChrome() {
     if (label.includes("Home")) route = "home";
     else if (label.includes("Health")) route = "health";
     else if (label.includes("Scan")) route = "qr-scanner";
-    else if (label.includes("Appointments")) route = "appointments";
+    else if (label.includes("ABHA") || label.includes("Appointments")) route = "appointments";
     else if (label.includes("More")) route = "more";
     
     item.href = routePath(route);
@@ -1202,6 +1210,71 @@ function navigate(route) {
 }
 
 // Router & Guard Controller
+let lastRenderedRoute = null;
+
+function showSkeletonLoader(route, callback) {
+  contentRoot.className = "route-shell";
+  
+  let skeletonHTML = `
+    <div class="skeleton-header" style="margin-bottom: 24px;">
+      <div class="shimmer-bg skeleton-title" style="margin-bottom: 8px;"></div>
+      <div class="shimmer-bg skeleton-subtitle"></div>
+    </div>
+  `;
+  
+  if (route === "health" || route === "live-dashboard") {
+    skeletonHTML += `
+      <div class="route-grid metrics-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:16px;">
+        <div class="skeleton-card" style="min-height: 110px;"><div class="shimmer-bg skeleton-circle"></div><div class="shimmer-bg skeleton-text" style="width:50%;"></div><div class="shimmer-bg skeleton-text" style="width:80%;"></div></div>
+        <div class="skeleton-card" style="min-height: 110px;"><div class="shimmer-bg skeleton-circle"></div><div class="shimmer-bg skeleton-text" style="width:40%;"></div><div class="shimmer-bg skeleton-text" style="width:70%;"></div></div>
+        <div class="skeleton-card" style="min-height: 110px;"><div class="shimmer-bg skeleton-circle"></div><div class="shimmer-bg skeleton-text" style="width:60%;"></div><div class="shimmer-bg skeleton-text" style="width:75%;"></div></div>
+        <div class="skeleton-card" style="min-height: 110px;"><div class="shimmer-bg skeleton-circle"></div><div class="shimmer-bg skeleton-text" style="width:45%;"></div><div class="shimmer-bg skeleton-text" style="width:80%;"></div></div>
+      </div>
+      <div class="skeleton-card" style="height:110px; margin-bottom:16px; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="shimmer-bg skeleton-text" style="width:30%; height:16px; margin-bottom:16px;"></div>
+        <div class="shimmer-bg" style="flex:1; border-radius:8px; height: 50px;"></div>
+      </div>
+    `;
+  } else if (route === "appointments" || route === "connected-facilities" || route === "hospitals" || route === "blood-bank" || route === "qr-scanner") {
+    skeletonHTML += `
+      <div class="route-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:16px;">
+        <div class="skeleton-card" style="height:150px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div class="shimmer-bg skeleton-circle"></div>
+            <div class="shimmer-bg skeleton-text" style="width:70%; height:14px;"></div>
+            <div class="shimmer-bg skeleton-text" style="width:90%;"></div>
+          </div>
+          <div class="shimmer-bg skeleton-text" style="width:40%; margin-bottom:0;"></div>
+        </div>
+        <div class="skeleton-card" style="height:150px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div class="shimmer-bg skeleton-circle"></div>
+            <div class="shimmer-bg skeleton-text" style="width:65%; height:14px;"></div>
+            <div class="shimmer-bg skeleton-text" style="width:85%;"></div>
+          </div>
+          <div class="shimmer-bg skeleton-text" style="width:45%; margin-bottom:0;"></div>
+        </div>
+      </div>
+    `;
+  } else {
+    skeletonHTML += `
+      <div class="skeleton-card" style="height:200px; margin-bottom:16px;">
+        <div class="shimmer-bg skeleton-text" style="width:25%; height:16px; margin-bottom:16px;"></div>
+        <div class="shimmer-bg skeleton-text" style="width:95%;"></div>
+        <div class="shimmer-bg skeleton-text" style="width:85%;"></div>
+        <div class="shimmer-bg skeleton-text" style="width:90%;"></div>
+        <div class="shimmer-bg skeleton-text" style="width:60%;"></div>
+      </div>
+    `;
+  }
+  
+  contentRoot.innerHTML = skeletonHTML;
+  
+  setTimeout(() => {
+    callback();
+  }, 450);
+}
+
 function renderCurrentRoute() {
   const state = getAppState();
   let route = window.location.hash.replace(/^#\/?/, "") || "home";
@@ -1242,23 +1315,41 @@ function renderCurrentRoute() {
     if (navEl) navEl.style.display = "flex";
   }
 
-  // Sync Header elements
+  // Sync Header elements & update active token banner
   updateHeaderUI();
+  updateActiveTokenBanner();
 
-  if (route === "home") {
-    contentRoot.className = "home-shell";
-    contentRoot.innerHTML = translateMarkup(homeMarkup);
-    appendFooter();
-    wireHome();
+  const routeChanged = (route !== lastRenderedRoute);
+  lastRenderedRoute = route;
+
+  const performRender = () => {
+    if (route === "home") {
+      contentRoot.className = "home-shell";
+      contentRoot.innerHTML = translateMarkup(homeMarkup);
+      appendFooter();
+      wireHome();
+    } else {
+      contentRoot.className = "route-shell";
+      contentRoot.innerHTML = renderRoute(route);
+      appendFooter();
+    }
+
+    setActiveNav(route);
+    if (window.lucide) lucide.createIcons();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    
+    // Initialize active route scripts
+    if (route === "health") {
+      initRealtimeEcg();
+    }
+    updateActiveTokenBanner();
+  };
+
+  if (route === "login" || route === "register" || !routeChanged) {
+    performRender();
   } else {
-    contentRoot.className = "route-shell";
-    contentRoot.innerHTML = renderRoute(route);
-    appendFooter();
+    showSkeletonLoader(route, performRender);
   }
-
-  setActiveNav(route);
-  if (window.lucide) lucide.createIcons();
-  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function appendFooter() {
@@ -1282,6 +1373,11 @@ function renderFooter() {
           <span>${icon("lock", "small-icon")} Consent-first</span>
           <span>${icon("accessibility", "small-icon")} Accessible</span>
         </div>
+        <div class="social-links" style="margin-top: 14px;">
+          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" aria-label="Instagram">${icon("instagram")}</a>
+          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" aria-label="LinkedIn">${icon("linkedin")}</a>
+          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" aria-label="Facebook">${icon("facebook")}</a>
+        </div>
       </div>
       <div class="footer-grid">
         <section>
@@ -1300,10 +1396,11 @@ function renderFooter() {
         </section>
         <section>
           <h3>Company</h3>
-          <a href="#/about" data-route="about">About</a>
-          <a href="#/contact" data-route="contact">Contact</a>
-          <a href="#/terms" data-route="terms">Terms</a>
-          <a href="#/privacy" data-route="privacy">Privacy</a>
+          <a href="#/about" data-route="about">About Us</a>
+          <a href="#/contact" data-route="contact">Contact Support</a>
+          <a href="#/terms" data-route="terms">Terms of Service</a>
+          <a href="#/privacy" data-route="privacy">Privacy Policy</a>
+          <a href="#/compliance" data-route="compliance">ABDM Compliance</a>
         </section>
         <section>
           <h3>Contact</h3>
@@ -1603,10 +1700,8 @@ function renderHealth() {
         </div>
         <span class="live-badge"><span class="live-dot"></span> Active Link</span>
       </div>
-      <div class="hero-ecg" style="height: 60px; background: rgba(0,0,0,0.25); border-radius: 8px; margin-top: 12px; position: relative; overflow: hidden; border: 1px solid var(--border-color);">
-        <svg viewBox="0 0 300 60" class="ecg-line" style="width: 100%; height: 100%;">
-          <path d="M0,30 L40,30 L50,30 L55,15 L60,45 L65,10 L70,50 L75,30 L80,30 L120,30 L125,25 L130,35 L135,20 L140,40 L145,30 L150,30 L190,30 L195,20 L200,40 L205,15 L210,45 L215,30 L220,30 L260,30 L265,25 L270,35 L275,20 L280,40 L285,30 L300,30" fill="none" stroke="#00d4aa" stroke-width="1.5"/>
-        </svg>
+      <div style="height: 60px; border-radius: 8px; margin-top: 12px; position: relative; overflow: hidden; border: 1px solid var(--border-color);">
+        <canvas id="ecg-realtime-canvas" style="width: 100%; height: 60px; display: block;"></canvas>
       </div>
     </article>
 
@@ -1707,26 +1802,71 @@ function renderHealth() {
 // 5. APPOINTMENTS
 function renderAppointments() {
   const state = getAppState();
+  const tokenHistory = state.tokenHistory || [];
+  
+  // Update expired statuses in history dynamically
+  const now = Date.now();
+  if (state.activeToken && now >= state.activeToken.expiresAt) {
+    state.activeToken = null;
+    localStorage.setItem("setu_state", JSON.stringify(state));
+  }
+  
   return `
-    ${pageHeader("Appointments", "Manage consultations, waiting room slot queues, and tickets.", `<a href="#/telemedicine" class="primary-action">${icon("plus", "small-icon")} Book Consultation</a>`)}
-    <section class="route-grid list-grid">
-      ${state.appointments.map(item => `
-        <article class="route-card">
-          <div class="card-title-row">
-            ${icon("calendar")}
-            <div>
-              <h3>${_t(item.title)}</h3>
-              <p>${item.doctor}</p>
-            </div>
+    ${pageHeader("ABHA Account & Appointments", "Manage active tickets, token registry history, and consultations.", `<a href="#/telemedicine" class="primary-action">${icon("plus", "small-icon")} Book Consultation</a>`)}
+    
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+      <!-- Active / Confirmed Appointments -->
+      <section class="route-card wide-card">
+        <div class="card-title-row">${icon("calendar")}<h3>Upcoming Consultations & Appointments</h3></div>
+        <div class="route-grid list-grid" style="margin-top: 12px; display: grid; gap: 8px;">
+          ${state.appointments.map(item => `
+            <article class="route-card" style="margin-bottom: 8px; min-height: auto; padding: 12px; display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div>
+                  <h4 style="margin:0; font-size:14px; font-weight:750;">${_t(item.title)}</h4>
+                  <p style="color:var(--text-secondary); margin:4px 0 0; font-size:12px;">${item.doctor}</p>
+                </div>
+                <span class="live-badge" style="background: rgba(0, 212, 170, 0.1); color: var(--accent-teal); border: 1px solid var(--border-color); font-size: 10px; padding: 2px 8px; border-radius: 4px;">${item.status}</span>
+              </div>
+              <div class="pill-row" style="margin-top: 4px;">
+                <span>${item.meta}</span>
+                <span>Token: <strong>${item.token}</strong></span>
+              </div>
+            </article>
+          `).join("")}
+          ${state.appointments.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:16px;">No upcoming appointments</p>` : ""}
+        </div>
+      </section>
+
+      <!-- Token History Registry -->
+      <section class="route-card wide-card" style="padding: 20px;">
+        <div class="card-title-row">${icon("history")}<h3>ABHA OPD Token Registry & History</h3></div>
+        <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px; line-height: 1.5;">
+          This secure local ledger stores all generated ABDM Scan & Share OPD tokens for Janki Raman Hospital and DR AYESHAH HOMEO HEALTH MALL.
+        </p>
+        <div class="record-table" style="margin-top: 8px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+          <div class="table-row table-head" style="font-weight:700; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 10px 12px; display: grid; grid-template-columns: 1.5fr 1fr 1.2fr 0.8fr; gap: 8px;">
+            <span>Facility Name</span>
+            <span>Token Number</span>
+            <span>Date & Time</span>
+            <span>Status</span>
           </div>
-          <div class="pill-row" style="margin-top: 10px;">
-            <span>${item.meta}</span>
-            <span style="color: var(--accent-teal); font-weight: 800;">${item.status}</span>
-            <span>Token: <strong>${item.token}</strong></span>
-          </div>
-        </article>
-      `).join("")}
-    </section>
+          ${tokenHistory.map(hist => {
+            const isActive = state.activeToken && state.activeToken.tokenNum === hist.tokenNum;
+            const statusLabel = isActive ? `<span style="color:var(--success); font-weight:800;">✔ Active</span>` : `<span style="color:var(--text-muted);">Expired</span>`;
+            return `
+              <div class="table-row" style="border-bottom: 1px solid var(--border-color); padding: 10px 12px; font-size:12px; display: grid; grid-template-columns: 1.5fr 1fr 1.2fr 0.8fr; gap: 8px; align-items: center;">
+                <span style="font-weight:700;">${hist.facilityName}</span>
+                <span style="color:var(--accent-teal); font-family:monospace; font-weight:700;">${hist.tokenNum}</span>
+                <span>${hist.date} ${hist.time}</span>
+                <span>${statusLabel}</span>
+              </div>
+            `;
+          }).join("")}
+          ${tokenHistory.length === 0 ? `<div style="text-align: center; color: var(--text-muted); padding: 24px; font-size: 12px;">No historical tokens generated yet.</div>` : ""}
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -1995,9 +2135,9 @@ function renderQrScanner() {
   return `
     ${pageHeader("ABDM QR Scanner", "Scan patient cards, healthcare facilities, and check-in tickets.")}
     
-    <div style="display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 580px; margin: 0 auto;">
-      <div class="scanner-panel" style="margin-bottom: 0;">
-        <div class="scanner-frame" id="qr-reader">
+    <div class="qr-scanner-container" style="width: 100%; margin-top: 16px;">
+      <div class="scanner-console-grid" style="display: grid; gap: 20px;">
+        <div class="scanner-frame" id="qr-reader" style="margin-bottom: 0;">
           <div class="scanner-camera-viewport">
             <div class="scanner-mask-overlay">
               <div class="scanner-viewport-brackets">
@@ -2020,23 +2160,25 @@ function renderQrScanner() {
           </div>
         </div>
         
-        <div class="route-card" style="margin-top: 14px;">
-          <h3>Simulated Scan Actions</h3>
-          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 14px;">
-            Select a mock barcode payload below to simulate checking in at a physical hospital desk or syncing an ABHA profile card.
+        <div class="route-card" style="margin-top: 0; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+          <h3 style="margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+            ${icon("qr-code", "small-icon")} Simulated Scan Console
+          </h3>
+          <p style="color: var(--text-secondary); font-size: 12px; margin: 8px 0 16px; line-height: 1.5;">
+            Select a mock barcode payload below to simulate scanning a physical OPD desk QR or linking a patient's ABHA card.
           </p>
-          <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
-            <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 10px 14px;" onclick="simulateQrScan('abha')">
-              <strong>${icon("id-card", "small-icon")} Scan Patient ABHA QR Card</strong>
-              <small style="color: var(--text-muted); display: block;">Simulate loading Ananya Verma's health profile into operator view.</small>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+            <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 12px 14px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column;" onclick="simulateQrScan('abha')">
+              <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">${icon("id-card", "small-icon")} Scan Patient ABHA QR Card</strong>
+              <small style="color: var(--text-muted); display: block; margin-top: 4px; font-weight: normal; font-size: 11px;">Simulate loading Ananya Verma's profile into OPD triage queue.</small>
             </button>
-            <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 10px 14px;" onclick="simulateQrScan('facility')">
-              <strong>${icon("building-2", "small-icon")} Scan CityCare Hospital OPD QR</strong>
-              <small style="color: var(--text-muted); display: block;">Simulate rapid desk queue-sharing check-in at physical OPD desk.</small>
+            <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 12px 14px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column;" onclick="simulateQrScan('facility')">
+              <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">${icon("building-2", "small-icon")} Scan Smart Hospital OPD QR</strong>
+              <small style="color: var(--text-muted); display: block; margin-top: 4px; font-weight: normal; font-size: 11px;">Simulate checking in at Jabalpur Raman or Homeo Health Mall.</small>
             </button>
-            <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 10px 14px;" onclick="simulateQrScan('token')">
-              <strong>${icon("ticket", "small-icon")} Scan Active Consultation Token QR</strong>
-              <small style="color: var(--text-muted); display: block;">Simulate prescription lookup at smart pharmacy counters.</small>
+            <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 12px 14px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column;" onclick="simulateQrScan('token')">
+              <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">${icon("ticket", "small-icon")} Scan Consultation Token QR</strong>
+              <small style="color: var(--text-muted); display: block; margin-top: 4px; font-weight: normal; font-size: 11px;">Simulate prescription medicine refills at smart pharmacy desks.</small>
             </button>
           </div>
         </div>
@@ -2141,6 +2283,8 @@ window.executeScanModal = function(type) {
   } else if (type === "facility") {
     const state = getAppState();
     const tokenNum = `SETU-OPD-${Math.floor(100 + Math.random() * 900)}`;
+    const pickedFacility = connectedFacilities[Math.floor(Math.random() * connectedFacilities.length)] || { title: "Janki Raman Hospital & Critical Care Centre, Jabalpur" };
+    const facilityName = pickedFacility.title;
     resultHTML = `
       <div class="modal-overlay" id="qr-result-modal" onclick="closeModal('qr-result-modal')">
         <div class="modal-content" onclick="event.stopPropagation()">
@@ -2154,7 +2298,7 @@ window.executeScanModal = function(type) {
             </div>
             <h4>Hospital Queue Handoff</h4>
             <p style="color: var(--text-secondary); font-size: 12px; margin: 6px 0 16px;">
-              Do you consent to share your ABHA identity credentials with <strong>CityCare Hospital</strong>?
+              Do you consent to share your ABHA identity credentials with <strong>${facilityName}</strong>?
             </p>
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; font-size: 11px; text-align: left; margin-bottom: 20px; line-height: 1.4;">
               • Shared data: Name, Age, Gender, ABHA address.<br>
@@ -2162,7 +2306,7 @@ window.executeScanModal = function(type) {
             </div>
             <div style="display: flex; gap: 8px;">
               <button class="prefill-btn" style="flex: 1;" onclick="closeModal('qr-result-modal')">Reject</button>
-              <button class="join-btn" style="flex: 2; margin:0;" onclick="handleFacilityScanCheckin('${tokenNum}')">Share & Check-In</button>
+              <button class="join-btn" style="flex: 2; margin:0;" onclick="handleFacilityScanCheckin('${tokenNum}', '${facilityName.replace(/'/g, "\\'")}')">Share & Check-In</button>
             </div>
           </div>
         </div>
@@ -2199,27 +2343,59 @@ window.executeScanModal = function(type) {
   if (window.lucide) lucide.createIcons();
 };
 
-window.handleFacilityScanCheckin = function(tokenNum) {
+window.handleFacilityScanCheckin = function(tokenNum, facilityName) {
   closeModal("qr-result-modal");
+  
+  if (!facilityName) {
+    facilityName = "Janki Raman Hospital & Critical Care Centre, Jabalpur";
+  }
+
+  const now = Date.now();
+  const expiresAt = now + 15 * 60 * 1000; // 15 minutes from now
+  const dateObj = new Date(now);
+  const dateStr = dateObj.toLocaleDateString();
+  const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
   updateAppState(state => {
+    // Set Active Token
+    state.activeToken = {
+      tokenNum,
+      facilityName,
+      createdAt: now,
+      expiresAt: expiresAt
+    };
+    
+    // Maintain Token History
+    if (!state.tokenHistory) state.tokenHistory = [];
+    state.tokenHistory.unshift({
+      tokenNum,
+      facilityName,
+      date: dateStr,
+      time: timeStr,
+      status: "Active"
+    });
+    
+    // Add to confirmation/appointments list
     state.appointments.unshift({
       id: `SETU-FAC-${Math.floor(100 + Math.random() * 900)}`,
       title: "OPD Check-In Queue ticket",
-      doctor: "CityCare Hospital - General Medicine",
-      meta: "Present today at Counter 4",
-      status: "Checked In",
+      doctor: `${facilityName} - General OPD`,
+      meta: `Checked In at ${timeStr}`,
+      status: "Active Ticket",
       token: tokenNum
     });
+    
     state.notifications.unshift({
       id: Date.now(),
       title: "OPD Ticket Created",
-      message: `Successfully check-in at CityCare Hospital. Queue Token: ${tokenNum}`,
+      message: `Successfully checked in at ${facilityName}. Queue Token: ${tokenNum}`,
       time: "Just now",
       type: "abdm",
       unread: true
     });
   });
-  logSecurityEvent("OPD Checked-In", `Facility Scan Share check-in ticket: ${tokenNum}`);
+  
+  logSecurityEvent("OPD Checked-In", `Facility Scan Share check-in ticket: ${tokenNum} at ${facilityName}`);
   announceAccessibility(`Check in successful. OPD queue ticket is ${tokenNum}`);
   
   // Custom screen showing confirmation
@@ -2237,7 +2413,8 @@ window.handleFacilityScanCheckin = function(tokenNum) {
           <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 20px;">
             <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">OPD Queue Token</div>
             <div style="font-size: 26px; font-weight: 800; color: var(--accent-teal); margin: 4px 0;">${tokenNum}</div>
-            <div style="font-size: 11px; color: var(--text-secondary);">Assigned OPD Desk Counter: <strong>Counter 4</strong></div>
+            <div style="font-size: 12px; color: var(--text-secondary); font-weight: bold; margin-bottom: 4px;">${facilityName}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Assigned OPD Desk Counter: <strong>Counter 4</strong></div>
           </div>
           <button class="join-btn" style="width: 100%; margin: 0;" onclick="closeModal('queue-success-modal'); navigate('appointments')">Go to Appointments</button>
         </div>
@@ -2246,6 +2423,8 @@ window.handleFacilityScanCheckin = function(tokenNum) {
   `;
   document.body.insertAdjacentHTML("beforeend", screenHTML);
   if (window.lucide) lucide.createIcons();
+  
+  updateActiveTokenBanner();
 };
 
 // 11. ABDM SERVICES (Milestone 1 Workflows)
@@ -4459,46 +4638,128 @@ function renderInsights() { return renderHealth(); }
 function renderLanguage() { return renderSettings(); }
 function renderContact() {
   return `
-    ${pageHeader("Contact Support", "Connect with Ayushman Bharat health coordinators.")}
-    <section class="route-card wide-card" style="text-align: center; padding: 30px;">
-      ${icon("mail", "scanner-icon")}
-      <h3 style="margin-top: 12px;">Get in Touch</h3>
-      <p style="color: var(--text-secondary); font-size: 13px; margin: 6px 0 20px;">
-        For issues regarding ABHA registrations, sandbox credentials or diagnostic HFR clinics:
-      </p>
-      <div style="font-size: 14px; font-weight: 700; color: var(--accent-teal);">
-        support@abhasetu.com | +91-9981057765
-      </div>
-    </section>
+    ${pageHeader("Contact Support", "Connect with ABHA SETU Health Coordinators & ABDM Sandbox support.")}
+    
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+      <section class="route-card wide-card" style="padding: 24px;">
+        <div class="card-title-row">${icon("mail")}<h3>Official Communications</h3></div>
+        <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.6; margin: 10px 0 20px;">
+          For all operational inquiries, sandbox validations, HFR registry onboarding, or integration support with ABHA Setu client interfaces, reach out to our primary communication desks:
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: 8px; text-align: center;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(0, 212, 170, 0.1); color: var(--accent-teal); display: grid; place-items: center; margin: 0 auto 10px;">
+              ${icon("mail")}
+            </div>
+            <strong style="display: block; font-size: 13px;">Email Support</strong>
+            <a href="mailto:support@abhasetu.com" style="color: var(--accent-teal); font-size: 12px; font-weight: 700; margin-top: 4px; display: inline-block;">support@abhasetu.com</a>
+          </div>
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: 8px; text-align: center;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(0, 180, 216, 0.1); color: var(--accent-cyan); display: grid; place-items: center; margin: 0 auto 10px;">
+              ${icon("phone")}
+            </div>
+            <strong style="display: block; font-size: 13px;">Call Center</strong>
+            <a href="tel:+919981057765" style="color: var(--accent-teal); font-size: 12px; font-weight: 700; margin-top: 4px; display: inline-block;">+91-9981057765</a>
+          </div>
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: 8px; text-align: center;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(37, 99, 235, 0.1); color: var(--accent-blue); display: grid; place-items: center; margin: 0 auto 10px;">
+              ${icon("map-pin")}
+            </div>
+            <strong style="display: block; font-size: 13px;">Consortium Office</strong>
+            <span style="font-size: 11px; color: var(--text-secondary); display: block; margin-top: 4px;">Madar Gate, Katangi, Jabalpur, MP</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="route-card wide-card" style="padding: 24px;">
+        <div class="card-title-row">${icon("help-circle")}<h3>Frequently Asked Questions</h3></div>
+        <div style="display: grid; gap: 14px; margin-top: 14px; font-size: 12px; line-height: 1.5;">
+          <div>
+            <strong style="color: var(--text-primary); display:block; margin-bottom:4px;">Q: How do I link my existing government ABHA ID card?</strong>
+            <span style="color: var(--text-secondary);">A: Navigate to the ABHA Services panel, select "Link Existing ABHA Card", input your 14-digit ABHA Number or ABHA Address, and verify via Aadhaar OTP simulation.</span>
+          </div>
+          <div style="border-top: 1px solid var(--border-color); padding-top: 12px;">
+            <strong style="color: var(--text-primary); display:block; margin-bottom:4px;">Q: Is my clinical record uploaded on a public internet web server?</strong>
+            <span style="color: var(--text-secondary);">A: No. Under the DPDP Act and ABDM consent architecture, all record storage is highly sandboxed, encrypted locally, and is never shared without an active digital consent artifact signed by your node.</span>
+          </div>
+        </div>
+      </section>
+    </div>
   `;
 }
 
 function renderAbout() {
   return `
-    ${pageHeader("About Platform", "Mission vision of the interoperable health ecosystem.")}
-    <article class="route-card wide-card" style="line-height: 1.6;">
-      <h3>Digital Health Bridge</h3>
-      <p style="color: var(--text-secondary); font-size: 13px; margin-top: 8px;">
-        ABHA Setu provides standard patient-consent based integrations mapped to ABDM Milestone 1 guidelines, linking dynamic teleconsultations, waiting queues, HFR clinics, and diagnostic ATM kiosks.
-      </p>
-    </article>
+    ${pageHeader("About Platform", "Mission, vision, and structural architectures of the interoperable health ecosystem.")}
+    
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+      <article class="route-card wide-card" style="padding: 24px; line-height: 1.6;">
+        <div class="card-title-row">${icon("plus")}<h3>The ABHA SETU Mission</h3></div>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 10px;">
+          ABHA SETU is a state-of-the-art digital healthcare gateway designed to bridge physical medical institutions with the central **Ayushman Bharat Digital Mission (ABDM)** ecosystem of India. Developed under Milestone 1 & 2 directives of the National Health Authority (NHA), our system links patient profiles, OPD triage queues, telemedicine channels, diagnostic vital oximeters, and secure health lockers into a unified patient-centric console.
+        </p>
+      </article>
+
+      <section class="route-grid two-col">
+        <article class="route-card">
+          <div class="card-title-row">${icon("shield-check")}<h3>Unified Health Interface</h3></div>
+          <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.5;">
+            Our interface is built on standard open APIs supporting consent-based medical records exchange. It lets users register instantly, consult licensed homeopathy/allopathy practitioners, and maintain full control over their healthcare trails.
+          </p>
+        </article>
+        <article class="route-card">
+          <div class="card-title-row">${icon("heart-handshake")}<h3>Government Integrations</h3></div>
+          <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.5;">
+            Fully interoperable with the Health Facility Registry (HFR), Health Professional Registry (HPR), and the central ABHA Card numbering vaults, making check-ins at smart hospitals rapid and card-free.
+          </p>
+        </article>
+      </section>
+    </div>
   `;
 }
 
 function renderTerms() {
   return `
-    ${pageHeader("Terms and Conditions", "Platform consent parameters.")}
-    <article class="route-card wide-card" style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
-      All diagnostic screening metrics, public certificates, doctor licenses and electronic records rendered under this platform are simulated demo outputs designed for sandboxed verification.
+    ${pageHeader("Terms of Service", "Platform usage terms and consent management parameters under ABDM.")}
+    
+    <article class="route-card wide-card" style="padding: 24px; line-height: 1.6; font-size: 13px; color: var(--text-secondary);">
+      <div class="card-title-row">${icon("file-text")}<h3>1. Standard Sandbox Agreement</h3></div>
+      <p style="margin-top: 10px; font-size: 12px;">
+        Welcome to ABHA SETU. All diagnostic screening metrics, public certificates, doctor licenses, and electronic records rendered under this platform are simulated demo outputs designed for sandboxed verification and compliance demonstration under National Health Authority standards.
+      </p>
+
+      <div class="card-title-row" style="margin-top: 20px;">${icon("key")}<h3>2. Patient Consent Framework</h3></div>
+      <p style="margin-top: 10px; font-size: 12px;">
+        By initializing an OPD Check-in token or sharing an ABHA Address, you authorize ABHA Setu to simulate sharing your basic clinical profile (Name, Age, Gender, and ABHA address) with the chosen verified network facility for a period of exactly 15 minutes.
+      </p>
+
+      <div class="card-title-row" style="margin-top: 20px;">${icon("alert-triangle")}<h3>3. Liability Disclaimer</h3></div>
+      <p style="margin-top: 10px; font-size: 12px;">
+        The system simulates real-time vitals sync (smartwatch oximeter, blood glucose grids, heart rates) for demonstration. This portal should not be utilized as a substitute for professional clinical judgments, emergency medical dispatches, or legal healthcare counseling.
+      </p>
     </article>
   `;
 }
 
 function renderPrivacy() {
   return `
-    ${pageHeader("Privacy Policy", "Interoperable data policies under DPDP guidelines.")}
-    <article class="route-card wide-card" style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
-      We prioritize patient data privacy. Vitals, identity details, and medical files are stored locally in the browser's local sandbox, never transmitted onto public networks without explicit consent.
+    ${pageHeader("Privacy Policy", "Interoperable data policies, encryption parameters, and DPDP compliance.")}
+    
+    <article class="route-card wide-card" style="padding: 24px; line-height: 1.6; font-size: 13px; color: var(--text-secondary);">
+      <div class="card-title-row">${icon("lock")}<h3>1. Data Minimization & Local Sandboxing</h3></div>
+      <p style="margin-top: 10px; font-size: 12px;">
+        We strictly prioritize patient data privacy in compliance with the **Digital Personal Data Protection (DPDP) Act, 2023** of India. Vitals, identity details, and medical files are stored locally in your browser's local storage sandbox and are never transmitted onto public networks without explicit consent.
+      </p>
+
+      <div class="card-title-row" style="margin-top: 20px;">${icon("eye-off")}<h3>2. Aadhaar Masking & Security</h3></div>
+      <p style="margin-top: 10px; font-size: 12px;">
+        All personal identifiers (OTPs, Aadhaar numbers, biometric indicators) are cryptographically hashed and masked inside our local security audit logs prior to any system log persistence.
+      </p>
+
+      <div class="card-title-row" style="margin-top: 20px;">${icon("refresh-cw")}<h3>3. Active Consent Revocation</h3></div>
+      <p style="margin-top: 10px; font-size: 12px;">
+        Patients retain absolute authority to revoke facility credentials linkings. Any generated queue ticket will naturally expire after exactly 15 minutes, permanently detaching active profiles from OPD desk triage streams.
+      </p>
     </article>
   `;
 }
@@ -4539,6 +4800,189 @@ function handleAction(target, event) {
     showToast("Launching oximeter camera...");
   }
 }
+
+// 19. PREMIUM LIVE REALTIME ECG CANVAS VISUALIZER
+window.initRealtimeEcg = function() {
+  const canvas = document.getElementById("ecg-realtime-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  
+  // Handle High-DPI screen scaling
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  
+  const width = rect.width;
+  const height = rect.height;
+  
+  let points = [];
+  const maxPoints = 280;
+  let x = 0;
+  
+  // High-fidelity clinical ECG wave pattern (P-Q-R-S-T)
+  const ecgPattern = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Baseline
+    0.04, 0.08, 0.12, 0.15, 0.12, 0.08, 0.04, 0, // P wave (atrial depolarization)
+    0, 0, 0, 0, 0, // Baseline
+    -0.08, // Q wave
+    0.75, // R wave peak (ventricular depolarization)
+    -0.22, // S wave drop
+    0, 0, 0, 0, 0, // Baseline
+    0.08, 0.16, 0.22, 0.25, 0.22, 0.16, 0.08, 0, // T wave (ventricular repolarization)
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 // Baseline
+  ];
+  
+  let patternIdx = 0;
+  let animationFrameId = null;
+  
+  function drawGrid() {
+    ctx.strokeStyle = "rgba(0, 212, 170, 0.04)";
+    ctx.lineWidth = 1;
+    
+    // Vertical grid
+    for (let i = 0; i < width; i += 24) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, height);
+      ctx.stroke();
+    }
+    
+    // Horizontal grid
+    for (let i = 0; i < height; i += 15) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(width, i);
+      ctx.stroke();
+    }
+  }
+  
+  function animate() {
+    let targetVal = 0;
+    
+    // Trigger heartbeat wave
+    if (Math.random() < 0.05 && patternIdx === 0) {
+      patternIdx = 1;
+    }
+    
+    if (patternIdx > 0) {
+      targetVal = ecgPattern[patternIdx - 1];
+      patternIdx++;
+      if (patternIdx > ecgPattern.length) {
+        patternIdx = 0;
+      }
+    }
+    
+    const centerY = height / 2;
+    const yVal = centerY - (targetVal * (height * 0.42));
+    
+    points.push({ x: x, y: yVal });
+    if (points.length > maxPoints) {
+      points.shift();
+      points.forEach(pt => pt.x -= 1.6);
+    } else {
+      x += 1.6;
+    }
+    
+    ctx.clearRect(0, 0, width, height);
+    drawGrid();
+    
+    // Neon glow line style
+    ctx.strokeStyle = "var(--accent-teal, #00d4aa)";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = "rgba(0, 212, 170, 0.6)";
+    
+    ctx.beginPath();
+    if (points.length > 0) {
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+    }
+    ctx.stroke();
+    
+    // Glowing lead sensor dot
+    ctx.shadowBlur = 0;
+    if (points.length > 0) {
+      const lead = points[points.length - 1];
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(lead.x, lead.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    
+    animationFrameId = requestAnimationFrame(animate);
+  }
+  
+  animate();
+  
+  // Cleanup animation when route changes
+  const cleanup = () => {
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    window.removeEventListener("hashchange", cleanup);
+  };
+  window.addEventListener("hashchange", cleanup);
+};
+
+// 20. STICKY ACTIVE TOKEN DASHBOARD BANNER
+window.updateActiveTokenBanner = function() {
+  const state = getAppState();
+  let container = document.getElementById("active-token-banner-container");
+  
+  if (!state.activeToken) {
+    if (container) container.remove();
+    return;
+  }
+  
+  const now = Date.now();
+  const remaining = state.activeToken.expiresAt - now;
+  
+  if (remaining <= 0) {
+    state.activeToken = null;
+    localStorage.setItem("setu_state", JSON.stringify(state));
+    if (container) container.remove();
+    showToast("OPD Check-in Token has expired.");
+    
+    const route = window.location.hash.replace(/^#\/?/, "") || "home";
+    if (route === "appointments") {
+      renderCurrentRoute();
+    }
+    return;
+  }
+  
+  // Prepend container to active content root dynamically if missing
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "active-token-banner-container";
+    contentRoot.prepend(container);
+  }
+  
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000).toString().padStart(2, "0");
+  
+  container.innerHTML = `
+    <div class="active-token-banner">
+      <div class="banner-left">
+        <div class="pulse-dot"></div>
+        <div>
+          <div class="banner-title">Active OPD Queue Token: ${state.activeToken.tokenNum}</div>
+          <div class="banner-subtitle">${state.activeToken.facilityName}</div>
+        </div>
+      </div>
+      <div class="banner-right">
+        <div class="timer-badge">Expires in ${mins}:${secs}</div>
+        <button class="view-ticket-btn" onclick="navigate('appointments')">View Ticket</button>
+      </div>
+    </div>
+  `;
+};
 
 // Bootstrap Single Page App
 document.addEventListener("DOMContentLoaded", initApp);
