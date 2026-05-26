@@ -4,10 +4,10 @@
 
 // Simulated Role Permissions
 const rolePermissions = {
-  admin: ["home", "health", "appointments", "records", "more", "book-consultation", "health-atm", "digital-locker", "live-dashboard", "telemedicine", "telemedicine-room", "qr-scanner", "abdm-services", "connected-facilities", "security", "reports", "settings", "contact", "about", "terms", "privacy", "compliance", "insights", "notifications", "profile", "language", "ai-alerts", "devices", "order-medicine", "book-lab-test", "hospitals", "blood-bank", "organ-donation"],
-  doctor: ["home", "appointments", "records", "more", "telemedicine", "telemedicine-room", "qr-scanner", "connected-facilities", "settings", "contact", "about", "terms", "privacy", "notifications", "profile", "language"],
-  patient: ["home", "health", "appointments", "records", "more", "book-consultation", "health-atm", "digital-locker", "live-dashboard", "telemedicine", "telemedicine-room", "qr-scanner", "abdm-services", "connected-facilities", "settings", "contact", "about", "terms", "privacy", "compliance", "insights", "notifications", "profile", "language", "ai-alerts", "devices", "order-medicine", "book-lab-test", "hospitals", "blood-bank", "organ-donation"],
-  operator: ["home", "appointments", "records", "more", "qr-scanner", "abdm-services", "connected-facilities", "settings", "contact", "about", "terms", "privacy", "notifications", "profile", "language"]
+  admin: ["home", "health", "appointments", "records", "more", "book-consultation", "health-atm", "digital-locker", "live-dashboard", "telemedicine", "telemedicine-room", "qr-scanner", "abdm-services", "connected-facilities", "security", "reports", "settings", "contact", "about", "terms", "privacy", "compliance", "insights", "notifications", "profile", "language", "ai-alerts", "devices", "order-medicine", "book-lab-test", "hospitals", "blood-bank", "organ-donation", "abha", "sample-collection", "medical-equipment", "ambulance-booking", "drone-delivery", "medicolegal-support", "digital-consent", "prescription-verification", "secure-records", "telemedicine-compliance", "legal-vault", "health-tips", "appointment-reminders", "preventive-care", "chronic-programs", "ai-assistant"],
+  doctor: ["home", "appointments", "records", "more", "telemedicine", "telemedicine-room", "qr-scanner", "connected-facilities", "settings", "contact", "about", "terms", "privacy", "notifications", "profile", "language", "abha", "medicolegal-support", "digital-consent", "prescription-verification", "secure-records", "telemedicine-compliance", "legal-vault"],
+  patient: ["home", "health", "appointments", "records", "more", "book-consultation", "health-atm", "digital-locker", "live-dashboard", "telemedicine", "telemedicine-room", "qr-scanner", "abdm-services", "connected-facilities", "settings", "contact", "about", "terms", "privacy", "compliance", "insights", "notifications", "profile", "language", "ai-alerts", "devices", "order-medicine", "book-lab-test", "hospitals", "blood-bank", "organ-donation", "abha", "sample-collection", "medical-equipment", "ambulance-booking", "drone-delivery", "medicolegal-support", "digital-consent", "prescription-verification", "secure-records", "telemedicine-compliance", "legal-vault", "health-tips", "appointment-reminders", "preventive-care", "chronic-programs", "ai-assistant"],
+  operator: ["home", "appointments", "records", "more", "qr-scanner", "abdm-services", "connected-facilities", "settings", "contact", "about", "terms", "privacy", "notifications", "profile", "language", "abha"]
 };
 
 // Global App State with default profiles
@@ -95,7 +95,7 @@ function announceAccessibility(text) {
 const demoCredentials = {
   admin: { email: "admin@abhasetu.com", pass: "Admin@123", name: "System Administrator" },
   doctor: { email: "doctor@abhasetu.com", pass: "Doctor@123", name: "Dr. Ayesha Ali", photo: "assets/doctors/dr-ayesha-ali.jpeg" },
-  patient: { email: "patient@abhasetu.com", pass: "Patient@123", name: "Ananya Verma" },
+  patient: { email: "patient@abhasetu.com", pass: "Patient@123", name: "Dr. Ayesha Ali", photo: "assets/doctors/dr-ayesha-ali.jpeg" },
   operator: { email: "operator@abhasetu.com", pass: "Operator@123", name: "OPD Desk Operator" }
 };
 
@@ -871,12 +871,13 @@ function wireChrome() {
   }
 
   document.querySelectorAll(".nav-item").forEach((item) => {
-    const label = cleanText(item.textContent);
+    const label = cleanText(item.innerText || item.textContent);
     let route = "home";
     if (label.includes("Home")) route = "home";
     else if (label.includes("Health")) route = "health";
     else if (label.includes("Scan")) route = "qr-scanner";
-    else if (label.includes("ABHA") || label.includes("Appointments")) route = "appointments";
+    else if (label.includes("ABHA")) route = "abha";
+    else if (label.includes("Appointments")) route = "appointments";
     else if (label.includes("More")) route = "more";
     
     item.href = routePath(route);
@@ -1163,15 +1164,30 @@ function setupSearch() {
 
 function wireHome() {
   contentRoot.querySelectorAll(".hero-btn, .quick-item, .health-card, .status-card, .tele-card, .market-item, .legal-item, .insight-card, .badge").forEach((item) => {
-    const label = cleanText(item.textContent);
+    const label = cleanText(item.innerText || item.textContent);
     let route = "more";
     if (label.includes("Create ABHA") || label.includes("ABHA")) route = "abdm-services";
     else if (label.includes("Consult Doctor") || label.includes("Book Consultation") || label.includes("Physician")) route = "telemedicine";
     else if (label.includes("Digital Locker") || label.includes("Health Locker")) route = "digital-locker";
     else if (label.includes("Health ATM")) route = "health-atm";
     else if (label.includes("QR Scanner")) route = "qr-scanner";
-    else if (label.includes("Order Medicines") || label.includes("Order")) route = "order-medicine";
-    else if (label.includes("Book Lab Tests") || label.includes("Book Lab")) route = "book-lab-test";
+    else if (label.includes("Order Medicines") || label.includes("Medicine Delivery")) route = "order-medicine";
+    else if (label.includes("Book Lab Tests") || label.includes("Lab Booking")) route = "book-lab-test";
+    else if (label.includes("Sample Collection") || label.includes("Sample")) route = "sample-collection";
+    else if (label.includes("Equipment")) route = "medical-equipment";
+    else if (label.includes("Ambulance")) route = "ambulance-booking";
+    else if (label.includes("Drone")) route = "drone-delivery";
+    else if (label.includes("Medicolegal Support") || label.includes("Medicolegal")) route = "medicolegal-support";
+    else if (label.includes("Consent")) route = "digital-consent";
+    else if (label.includes("Verification")) route = "prescription-verification";
+    else if (label.includes("Secure Health Records") || label.includes("Secure Records")) route = "secure-records";
+    else if (label.includes("Telemedicine Compliance")) route = "telemedicine-compliance";
+    else if (label.includes("Vault")) route = "legal-vault";
+    else if (label.includes("Tips")) route = "health-tips";
+    else if (label.includes("Reminders")) route = "appointment-reminders";
+    else if (label.includes("Preventive")) route = "preventive-care";
+    else if (label.includes("Programs")) route = "chronic-programs";
+    else if (label.includes("Assistant")) route = "ai-assistant";
     else if (label.includes("Hospitals")) route = "hospitals";
     else if (label.includes("Blood Bank")) route = "blood-bank";
     else if (label.includes("Organ Donation")) route = "organ-donation";
@@ -1187,7 +1203,7 @@ function wireHome() {
 
   contentRoot.querySelectorAll(".view-all").forEach((link) => {
     const heading = link.closest(".section")?.querySelector("h3");
-    const headingText = cleanText(heading?.textContent || "");
+    const headingText = cleanText(heading?.innerText || heading?.textContent || "");
     let route = "more";
     if (headingText.includes("Live Health")) route = "live-dashboard";
     else if (headingText.includes("Telemedicine")) route = "telemedicine";
@@ -1460,7 +1476,23 @@ function renderRoute(route) {
     "book-lab-test": renderBookLabTest,
     hospitals: renderHospitals,
     "blood-bank": renderBloodBank,
-    "organ-donation": renderOrganDonation
+    "organ-donation": renderOrganDonation,
+    abha: renderAbha,
+    "sample-collection": renderSampleCollection,
+    "medical-equipment": renderMedicalEquipment,
+    "ambulance-booking": renderAmbulanceBooking,
+    "drone-delivery": renderDroneDelivery,
+    "medicolegal-support": renderMedicolegalSupport,
+    "digital-consent": renderDigitalConsent,
+    "prescription-verification": renderPrescriptionVerification,
+    "secure-records": renderSecureRecords,
+    "telemedicine-compliance": renderTelemedicineCompliance,
+    "legal-vault": renderLegalVault,
+    "health-tips": renderHealthTips,
+    "appointment-reminders": renderAppointmentReminders,
+    "preventive-care": renderPreventiveCare,
+    "chronic-programs": renderChronicPrograms,
+    "ai-assistant": renderAiAssistant
   };
 
   if (renderers[route]) return renderers[route]();
@@ -1600,10 +1632,10 @@ function renderRegister() {
         
         <form class="form-grid" onsubmit="handleRegistration(event)" style="gap: 12px;">
           <label>Full Name
-            <input type="text" id="reg-name" required placeholder="Ananya Verma">
+            <input type="text" id="reg-name" required placeholder="Dr. Ayesha Ali">
           </label>
           <label>Email Address
-            <input type="email" id="reg-email" required placeholder="ananya@domain.com">
+            <input type="email" id="reg-email" required placeholder="ayesha.ali@domain.com">
           </label>
           <label>Mobile Number
             <input type="tel" id="reg-mobile" required placeholder="9876542070">
@@ -1919,6 +1951,51 @@ function renderMore() {
         <h3>Preferences Settings</h3>
         <p>Themes, multi-lingual dynamic dictionaries, high contrast.</p>
       </article>
+      <article class="route-card" data-route="sample-collection">
+        ${icon("flask-conical")}
+        <h3>Home Sample Collection</h3>
+        <p>Schedule NABL-accredited diagnostic blood panels and home collection slots.</p>
+      </article>
+      <article class="route-card" data-route="medical-equipment">
+        ${icon("stethoscope")}
+        <h3>Medical Equipment Store</h3>
+        <p>Buy or rent verified BP cuffs, smart glucometers, and oximeters.</p>
+      </article>
+      <article class="route-card" data-route="ambulance-booking">
+        ${icon("ambulance")}
+        <h3>Ambulance Booking SOS</h3>
+        <p>Simulate real-time emergency dispatches, ALS/BLS, and routes tracking.</p>
+      </article>
+      <article class="route-card" data-route="drone-delivery">
+        ${icon("plane")}
+        <h3>Drone Delivery Simulator</h3>
+        <p>Pre-flight NHA compliance checklists and medical cargo telemetry.</p>
+      </article>
+      <article class="route-card" data-route="medicolegal-support">
+        ${icon("scale")}
+        <h3>Medicolegal Grievances</h3>
+        <p>Log incident reports, legal claims, and clinical dispute registries.</p>
+      </article>
+      <article class="route-card" data-route="digital-consent">
+        ${icon("file-check")}
+        <h3>Digital Consent Form</h3>
+        <p>Draw and submit surgical e-signature consent templates securely.</p>
+      </article>
+      <article class="route-card" data-route="legal-vault">
+        ${icon("lock")}
+        <h3>Legal Docs Vault</h3>
+        <p>Dynamic Living Wills and Medical Power of Attorney (POA) builders.</p>
+      </article>
+      <article class="route-card" data-route="preventive-care">
+        ${icon("activity")}
+        <h3>Preventive Cardiovascular Care</h3>
+        <p>Interactive BP and age cardiovascular risk needle calculator.</p>
+      </article>
+      <article class="route-card" data-route="ai-assistant">
+        ${icon("brain-circuit")}
+        <h3>AI Symptoms Assistant</h3>
+        <p>Chat with our ABDM-compliant smart symptom-care companion.</p>
+      </article>
     </section>
   `;
 }
@@ -2170,7 +2247,7 @@ function renderQrScanner() {
           <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
             <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 12px 14px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column;" onclick="simulateQrScan('abha')">
               <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">${icon("id-card", "small-icon")} Scan Patient ABHA QR Card</strong>
-              <small style="color: var(--text-muted); display: block; margin-top: 4px; font-weight: normal; font-size: 11px;">Simulate loading Ananya Verma's profile into OPD triage queue.</small>
+              <small style="color: var(--text-muted); display: block; margin-top: 4px; font-weight: normal; font-size: 11px;">Simulate loading Dr. Ayesha Ali's profile into OPD triage queue.</small>
             </button>
             <button class="prefill-btn" style="text-align: left; align-items: flex-start; padding: 12px 14px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column;" onclick="simulateQrScan('facility')">
               <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">${icon("building-2", "small-icon")} Scan Smart Hospital OPD QR</strong>
@@ -2270,9 +2347,9 @@ window.executeScanModal = function(type) {
               ABDM identity data extracted successfully from decrypted secure QR payload.
             </p>
             <table style="width: 100%; text-align: left; font-size: 12px; border-collapse: collapse; margin-bottom: 20px;">
-              <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">Name</td><td style="font-weight: 700;">Ananya Verma</td></tr>
-              <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">ABHA ID</td><td style="font-weight: 700; color: var(--accent-teal);">91-4207-8837-1928</td></tr>
-              <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">Address</td><td style="font-weight: 700;">ananya@abdm</td></tr>
+              <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">Name</td><td style="font-weight: 700;">Dr. Ayesha Ali</td></tr>
+              <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">ABHA ID</td><td style="font-weight: 700; color: var(--accent-teal);">91-9981-0577-6582</td></tr>
+              <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">Address</td><td style="font-weight: 700;">ayesha.ali.9981057765@abdm</td></tr>
               <tr style="border-bottom: 1px solid var(--border-color);"><td style="padding: 8px 0; color: var(--text-muted);">Consent Type</td><td style="font-weight: 700; color: var(--success);">Purpose: Care Triage</td></tr>
             </table>
             <button class="join-btn" style="width: 100%; margin: 0;" onclick="closeModal('qr-result-modal'); showToast('Patient added to OPD Desk Triage')">Link Patient Record</button>
@@ -2636,12 +2713,12 @@ window.verifyAbhaGenerationOtp = function(e, aadhaar, mobile) {
     updateAppState(st => {
       st.abhaCreated = true;
       st.abhaCard = {
-        name: st.currentUser ? st.currentUser.name : "Ananya Verma",
+        name: st.currentUser ? st.currentUser.name : "Dr. Ayesha Ali",
         abhaNumber: abhaNum,
         abhaAddress: abhaAddress,
         gender: "Female",
         mobile: mobile,
-        dob: "12-05-1992"
+        dob: "15-08-1980"
       };
       st.notifications.unshift({
         id: Date.now(),
@@ -2653,7 +2730,7 @@ window.verifyAbhaGenerationOtp = function(e, aadhaar, mobile) {
       });
     });
 
-    logSecurityEvent("ABHA Generated", `Card generated successfully for ${state.currentUser ? state.currentUser.name : "Ananya Verma"}. Address: ${abhaAddress}`);
+    logSecurityEvent("ABHA Generated", `Card generated successfully for ${state.currentUser ? state.currentUser.name : "Dr. Ayesha Ali"}. Address: ${abhaAddress}`);
     announceAccessibility("ABHA card generated successfully. Your ABHA ID address is " + abhaAddress);
     
     closeModal("abha-wizard");
@@ -2669,7 +2746,7 @@ window.copyAbhaNumber = function(num) {
 
 window.downloadAbhaCardPDF = function() {
   showToast("Downloading ABHA card PDF...");
-  const text = `AYUSHMAN BHARAT HEALTH ACCOUNT (ABHA) CARD\n--------------------------------------------\nName: Ananya Verma\nABHA Number: ${getAppState().abhaCard.abhaNumber}\nABHA Address: ${getAppState().abhaCard.abhaAddress}\nStatus: ABDM Sandbox Verified`;
+  const text = `AYUSHMAN BHARAT HEALTH ACCOUNT (ABHA) CARD\n--------------------------------------------\nName: Dr. Ayesha Ali\nABHA Number: ${getAppState().abhaCard.abhaNumber}\nABHA Address: ${getAppState().abhaCard.abhaAddress}\nStatus: ABDM Sandbox Verified`;
   const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -2698,7 +2775,7 @@ window.handleVerifyAbhaAddress = function(e) {
               Ayushman Bharat database matched. Profile status is active.
             </p>
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: left; font-size: 12px; margin: 16px 0;">
-              • Profile Name: Ananya Verma<br>
+              • Profile Name: Dr. Ayesha Ali<br>
               • Registered KYC: Aadhaar Handshake Verified<br>
               • Address: ${val}
             </div>
@@ -2728,15 +2805,15 @@ window.handleMobileRecordsSearch = function(e) {
           </div>
           <div class="modal-body">
             <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
-              The following profiles were matched with mobile gateway ending in <strong>4207</strong>.
+              The following profiles were matched with mobile gateway ending in <strong>7765</strong>.
             </p>
             <div style="display: grid; gap: 8px;">
               <div style="border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                  <strong style="display: block; font-size: 13px;">Ananya Verma</strong>
-                  <span style="font-size: 11px; color: var(--accent-teal);">ananya@abdm (Verified)</span>
+                  <strong style="display: block; font-size: 13px;">Dr. Ayesha Ali</strong>
+                  <span style="font-size: 11px; color: var(--accent-teal);">ayesha.ali.9981057765@abdm (Verified)</span>
                 </div>
-                <button class="primary-action" style="padding: 4px 8px; font-size: 10px;" onclick="closeModal('mobile-records-modal'); showToast('Ananya profile loaded')">Select</button>
+                <button class="primary-action" style="padding: 4px 8px; font-size: 10px;" onclick="closeModal('mobile-records-modal'); showToast('Dr. Ayesha Ali profile loaded')">Select</button>
               </div>
               <div style="border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
@@ -2988,7 +3065,7 @@ function renderProfile() {
       <section class="profile-panel" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 18px; border-radius: 12px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
         <img src="assets/doctors/dr-ayesha-ali.jpeg" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent-teal); object-fit: cover;">
         <div>
-          <h3 style="font-size: 18px; font-weight: 800;">${state.currentUser ? state.currentUser.name : "Ananya Verma"}</h3>
+          <h3 style="font-size: 18px; font-weight: 800;">${state.currentUser ? state.currentUser.name : "Dr. Ayesha Ali"}</h3>
           <p style="color: var(--accent-cyan); font-weight: 700; font-size: 13px;">Role: ${state.currentUser ? state.currentUser.role.toUpperCase() : "PATIENT"}</p>
           <p style="color: var(--text-secondary); font-size: 12px;">Linked ABHA ID: ${state.abhaCreated && state.abhaCard ? state.abhaCard.abhaAddress : "None Linked"}</p>
         </div>
@@ -2998,7 +3075,7 @@ function renderProfile() {
         <div class="card-title-row">${icon("user")}<h3>Personal Details Form</h3></div>
         <form class="form-grid" onsubmit="saveProfileDetails(event)" style="gap: 12px;">
           <label>Full Patient Name
-            <input type="text" id="prof-name" required value="${state.currentUser ? state.currentUser.name : "Ananya Verma"}">
+            <input type="text" id="prof-name" required value="${state.currentUser ? state.currentUser.name : "Dr. Ayesha Ali"}">
           </label>
           <label>Contact Mobile Number
             <input type="tel" id="prof-mobile" required value="${state.abhaCard ? state.abhaCard.mobile : "9876542070"}">
@@ -4714,6 +4791,24 @@ function renderAbout() {
           </p>
         </article>
       </section>
+
+      <article class="route-card wide-card" style="padding: 24px; line-height: 1.6;">
+        <div class="card-title-row">${icon("globe")}<h3>Official Social Channels</h3></div>
+        <p style="color: var(--text-secondary); font-size: 13px; margin: 10px 0 16px;">
+          Connect with the ABHA SETU community. Join our official social handles to track active milestones, sandbox integrations, and new feature releases under the National Health Authority guidelines.
+        </p>
+        <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
+            ${icon("instagram", "small-icon")} Instagram
+          </a>
+          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
+            ${icon("linkedin", "small-icon")} LinkedIn
+          </a>
+          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
+            ${icon("facebook", "small-icon")} Facebook
+          </a>
+        </div>
+      </article>
     </div>
   `;
 }
@@ -4969,19 +5064,863 @@ window.updateActiveTokenBanner = function() {
   
   container.innerHTML = `
     <div class="active-token-banner">
-      <div class="banner-left">
+      <div class="banner-main-row">
         <div class="pulse-dot"></div>
-        <div>
-          <div class="banner-title">Active OPD Queue Token: ${state.activeToken.tokenNum}</div>
+        <div class="banner-info">
+          <div class="banner-title">Token: <span class="highlight-token">${state.activeToken.tokenNum}</span></div>
           <div class="banner-subtitle">${state.activeToken.facilityName}</div>
         </div>
       </div>
-      <div class="banner-right">
+      <div class="banner-action-row">
         <div class="timer-badge">Expires in ${mins}:${secs}</div>
         <button class="view-ticket-btn" onclick="navigate('appointments')">View Ticket</button>
       </div>
     </div>
   `;
+};
+
+// 21. SWIPE GESTURE CONTROLLER (SWIPE RIGHT TO GO BACK)
+(function() {
+  let startX = 0;
+  let startY = 0;
+  let distX = 0;
+  let distY = 0;
+  let startTime = 0;
+  
+  document.addEventListener("touchstart", (e) => {
+    const touch = e.changedTouches[0];
+    startX = touch.pageX;
+    startY = touch.pageY;
+    distX = 0;
+    distY = 0;
+    startTime = Date.now();
+  }, { passive: true });
+  
+  document.addEventListener("touchend", (e) => {
+    const touch = e.changedTouches[0];
+    distX = touch.pageX - startX;
+    distY = touch.pageY - startY;
+    const elapsedTime = Date.now() - startTime;
+    
+    // Swipe Right (distX > 120px, vertical deviation < 50px, duration < 400ms)
+    if (distX > 120 && Math.abs(distY) < 50 && elapsedTime < 400) {
+      e.preventDefault();
+      contentRoot.style.transition = "transform 0.22s ease-out";
+      contentRoot.style.transform = "translateX(40px)";
+      setTimeout(() => {
+        contentRoot.style.transform = "translateX(0)";
+        window.history.back();
+      }, 130);
+    }
+  }, { passive: false });
+
+  // Mouse gestures for desktop
+  let isDragging = false;
+  document.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return; // Left click only
+    startX = e.clientX;
+    startY = e.clientY;
+    isDragging = true;
+    startTime = Date.now();
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    distX = e.clientX - startX;
+    distY = e.clientY - startY;
+    const elapsedTime = Date.now() - startTime;
+    
+    if (distX > 150 && Math.abs(distY) < 60 && elapsedTime < 450 && startX < window.innerWidth * 0.2) {
+      contentRoot.style.transition = "transform 0.22s ease-out";
+      contentRoot.style.transform = "translateX(40px)";
+      setTimeout(() => {
+        contentRoot.style.transform = "translateX(0)";
+        window.history.back();
+      }, 130);
+    }
+  });
+})();
+
+// 22. NEW PAGES & ROUTE RENDERERS
+
+// --- ABHA ID Card ---
+function renderAbha() {
+  const state = getAppState();
+  const name = "Dr. Ayesha Ali";
+  const mobile = "9981057765";
+  const abhaId = "ayesha.ali.9981057765@abdm";
+  const abhaNumber = "91-9981-0577-6582";
+  
+  return `
+    ${pageHeader("My ABHA Card", "Authorized Digital Health Card issued under Ayushman Bharat Digital Mission.")}
+    
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; max-width: 600px; margin: 0 auto;">
+      <!-- Replica ABHA Card -->
+      <article class="setu-abha-card">
+        <!-- Banner Header (Dark Blue) -->
+        <div class="setu-abha-card-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="background: #ffffff; border-radius: 4px; padding: 2px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+              <img src="https://dashboard.abdm.gov.in/uploads/nha_logo_dcf106b16e.png" alt="NHA Logo" style="width: 100%; height: auto; object-fit: contain;">
+            </div>
+            <div style="color: #ffffff; line-height: 1.2;">
+              <h4 style="margin: 0; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; color:#ffffff !important; text-transform: uppercase;">national health authority</h4>
+              <span style="font-size: 7px; color: rgba(255,255,255,0.75); display:block;">Government of India</span>
+            </div>
+          </div>
+          <div style="text-align: center; color: #ffffff; flex: 1; padding: 0 6px;">
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.3px; color:#fff; text-transform: uppercase;">Ayushman Bharat Health Account</div>
+            <div style="font-size: 9px; opacity: 0.85; margin-top: 1px; font-family: 'Noto Sans', sans-serif; color:#fff;">आयुष्मान भारत स्वास्थ्य खाता (आभा)</div>
+          </div>
+          <div style="background: #ffffff; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; padding: 2px; flex-shrink: 0;">
+            <img src="https://dashboard.abdm.gov.in/uploads/abdm_logo_1d3e8ad9c8.png" alt="ABDM Logo" style="width: 100%; height: auto; object-fit: contain;">
+          </div>
+        </div>
+        
+        <!-- Card Body Content -->
+        <div class="setu-abha-card-body">
+          <div class="setu-abha-card-seal">VERIFIED</div>
+          
+          <!-- Left Column Profile Pic -->
+          <div class="setu-abha-card-avatar-wrapper">
+            <div class="setu-abha-card-avatar">
+              <img src="assets/doctors/dr-ayesha-ali.jpeg" alt="Dr. Ayesha Ali">
+            </div>
+          </div>
+          
+          <!-- Center Column Details -->
+          <div class="setu-abha-card-details">
+            <div class="setu-abha-card-field">
+              <span class="setu-abha-card-label">Name/नाम</span>
+              <strong class="setu-abha-card-value">${name}</strong>
+            </div>
+            
+            <div class="setu-abha-card-field">
+              <span class="setu-abha-card-label">ABHA Number/आभा-संख्या</span>
+              <strong class="setu-abha-card-value token-num">${abhaNumber}</strong>
+            </div>
+            
+            <div class="setu-abha-card-field">
+              <span class="setu-abha-card-label">ABHA Address/आभा पता</span>
+              <strong class="setu-abha-card-value token-num" style="color: #0f172a; font-size: 11px;">${abhaId}</strong>
+            </div>
+            
+            <div class="setu-abha-card-row">
+              <div class="setu-abha-card-field">
+                <span class="setu-abha-card-label">Gender/लिंग</span>
+                <span class="setu-abha-card-value">Female</span>
+              </div>
+              <div class="setu-abha-card-field">
+                <span class="setu-abha-card-label">DOB/जन्मतारीख</span>
+                <span class="setu-abha-card-value">15-08-1980</span>
+              </div>
+              <div class="setu-abha-card-field">
+                <span class="setu-abha-card-label">Mobile/मोबाइल</span>
+                <span class="setu-abha-card-value" style="font-size: 10px;">${mobile}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Column QR Code -->
+          <div class="setu-abha-card-qr-wrapper">
+            <div class="setu-abha-card-qr">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ABHA:${abhaNumber};${abhaId}" alt="ABHA QR">
+            </div>
+          </div>
+        </div>
+      </article>
+      
+      <!-- Save to Health Locker Button -->
+      <button onclick="saveAbhaCardToLocker()" style="width: 100%; padding: 12px; border-radius: 12px; border: none; background: linear-gradient(90deg, #1f3a60, #10b981); color: #ffffff; font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25); transition: all 0.2s ease;">
+        ${icon("download", "small-icon")} Save to Health Locker
+      </button>
+
+      <!-- Sub tabs for appointments & history -->
+      <div style="width: 100%; display: flex; gap: 10px; margin-top: 10px;">
+        <button class="join-btn" onclick="navigate('appointments')" style="flex:1; margin:0;">OPD Queue Registry</button>
+        <button class="join-btn" onclick="navigate('records')" style="flex:1; margin:0; background:var(--bg-secondary); border-color:var(--border-color);">Linked Health Records</button>
+      </div>
+    </div>
+  `;
+}
+
+window.saveAbhaCardToLocker = function() {
+  showToast("ABHA ID Card successfully synced and saved inside secure Health Locker.");
+  logSecurityEvent("ABHA Card Saved", "User clicked Save to Health Locker on replica ABHA Card screen.");
+};
+
+// --- Sample Collection ---
+function renderSampleCollection() {
+  return `
+    ${pageHeader("Home Sample Collection", "Schedule certified phlebotomists for blood, urine, or lipid home sample extractions.")}
+    <div style="display:grid; gap:16px;">
+      <section class="route-card wide-card">
+        <div class="card-title-row">${icon("flask-conical")}<h3>Certified NABL Laboratory Network</h3></div>
+        <p style="color:var(--text-secondary); font-size:12px; margin-top:4px;">
+          Select diagnostic profiles for home sample extraction. Secure phlebotomist tracking is verified under ABDM facilities credentials.
+        </p>
+        <form class="form-grid" onsubmit="confirmSampleCollection(event)" style="margin-top:14px; display:grid; gap:12px;">
+          <label>Choose Laboratory Partner
+            <select id="sample-lab" required style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+              <option value="DR AYESHAH HOMEO HEALTH MALL, Bhopal">DR AYESHAH HOMEO LAB, Bhopal</option>
+              <option value="Janki Raman Diagnostic Lab, Jabalpur">Janki Raman Diagnostic Lab, Jabalpur</option>
+              <option value="Metro Diagnostics NHA Partner">Metro Diagnostics NHA Partner</option>
+            </select>
+          </label>
+          <label>Diagnostic Test Profile
+            <select id="sample-test" required style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+              <option value="Complete Hemoglobin & White Cell Count">Complete Hemoglobin & White Cell Count (₹290)</option>
+              <option value="Lipid Profile & Glucose Fasting">Lipid Profile & Glucose Fasting (₹490)</option>
+              <option value="Thyroid Profile T3/T4/TSH">Thyroid Profile T3/T4/TSH (₹590)</option>
+            </select>
+          </label>
+          <label>Schedule Extraction Date
+            <input type="date" id="sample-date" required style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+          </label>
+          <label>Scheduled Collection Slot
+            <select id="sample-slot" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+              <option value="07:00 AM - 09:00 AM (Fasting)">07:00 AM - 09:00 AM (Fasting)</option>
+              <option value="09:00 AM - 11:00 AM (Fasting)">09:00 AM - 11:00 AM (Fasting)</option>
+              <option value="11:00 AM - 01:00 PM">11:00 AM - 01:00 PM</option>
+            </select>
+          </label>
+          <label style="grid-column:1/-1;">Patient Residence Address
+            <textarea id="sample-address" required style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); min-height:60px;">123, Wellness Colony, Jabalpur, MP - 482002</textarea>
+          </label>
+          <button type="submit" class="join-btn" style="grid-column:1/-1; margin:0; padding:12px;">Confirm & Dispatch Phlebotomist</button>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+window.confirmSampleCollection = function(e) {
+  e.preventDefault();
+  const test = document.getElementById("sample-test").value;
+  const lab = document.getElementById("sample-lab").value;
+  const date = document.getElementById("sample-date").value;
+  const slot = document.getElementById("sample-slot").value;
+  
+  showToast(`Sample Collection scheduled successfully!`);
+  
+  updateAppState(state => {
+    state.appointments.unshift({
+      id: `SETU-SMP-${Math.floor(100+Math.random()*900)}`,
+      title: `Home Sample: ${test}`,
+      doctor: lab,
+      meta: `${date} during ${slot}`,
+      status: "Phlebotomist Assigned",
+      token: `TKN-${Math.floor(100+Math.random()*900)}`
+    });
+  });
+  
+  navigate("appointments");
+};
+
+// --- Medical Equipment ---
+function renderMedicalEquipment() {
+  const products = [
+    { id: "eq-1", name: "Bluetooth Smart Oximeter", price: 1499, desc: "ABHA sync vital oximetry reading instantly on Health Dashboard.", image: "https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&q=80&w=200" },
+    { id: "eq-2", name: "Automatic blood Pressure monitor", price: 2999, desc: "Precision diastolic/systolic tracking with consent-first lockers link.", image: "https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&q=80&w=200" },
+    { id: "eq-3", name: "GlucoSetu Wireless Glucometer", price: 1199, desc: "Includes 50 diagnostic strips. Fasting glucose uploads automatically.", image: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&q=80&w=200" }
+  ];
+
+  return `
+    ${pageHeader("Medical Equipment", "Rent or purchase certified IoT medical devices syncing vitals to your dashboard.")}
+    <section class="med-grid">
+      ${products.map(p => `
+        <article class="med-card" style="display:flex; flex-direction:column; justify-content:space-between; height:100%; border:1px solid var(--border-color); border-radius:14px; overflow:hidden; padding:12px;">
+          <img class="med-image" src="${p.image}" alt="${p.name}" style="height:120px; object-fit:cover; border-radius:8px;">
+          <h3 style="font-size:14px; font-weight:800; margin-top:10px;">${p.name}</h3>
+          <p style="font-size:11px; color:var(--text-secondary); margin:4px 0 10px; flex:1; line-height:1.4;">${p.desc}</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:10px; margin-top:8px;">
+            <span style="font-size:15px; font-weight:800; color:var(--accent-teal);">₹${p.price}</span>
+            <button class="join-btn" onclick="orderEquipment('${p.name}')" style="margin:0; padding:6px 12px; font-size:11px;">Buy Now</button>
+          </div>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+window.orderEquipment = function(name) {
+  showToast(`Order placed for ${name}! Checking prescription logs...`);
+  logSecurityEvent("Equipment Purchased", `Purchased medical device: ${name}`);
+};
+
+// --- Ambulance Booking ---
+function renderAmbulanceBooking() {
+  return `
+    ${pageHeader("SOS Ambulance Booking", "Instant dispatch of emergency response vehicles with live clinical routing.")}
+    
+    <div style="display:grid; gap:16px;">
+      <!-- Simulated GPS Status Screen -->
+      <div style="background:#090f14; border:1px solid var(--border-color); border-radius:12px; padding:16px; position:relative; min-height:160px; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;">
+        <div style="display:flex; justify-content:space-between; align-items:center; z-index:2;">
+          <span style="font-size:12px; color:var(--accent-teal); font-weight:800; display:flex; align-items:center; gap:6px;">
+            <span class="live-dot" style="background:#ef4444; box-shadow:0 0 8px #ef4444;"></span> SOS Live Dispatch Console
+          </span>
+          <small style="color:var(--text-muted); font-size:10px;">Region: Jabalpur North</small>
+        </div>
+        
+        <!-- Mock Map grid simulation -->
+        <div style="position:absolute; inset:0; opacity:0.1; background-image:linear-gradient(rgba(0, 212, 170, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 212, 170, 0.3) 1px, transparent 1px); background-size:20px 20px;"></div>
+        
+        <div style="text-align:center; padding:20px; z-index:2;">
+          <div style="font-size:22px; font-weight:800; color:#ef4444; animation: pulse 1s infinite;">3 Ambulances Nearby</div>
+          <p style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Average Response ETA: 5 Minutes</p>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; z-index:2; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px; font-size:10px; color:var(--text-muted);">
+          <span>Sys: Connected to GPS Triage</span>
+          <span>Lock: ABDM Emergency Triage desk</span>
+        </div>
+      </div>
+      
+      <div style="display:grid; grid-template-columns:1fr; gap:10px;">
+        <article class="route-card" style="padding:14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h4 style="font-size:14px; font-weight:800;">Basic Life Support (BLS)</h4>
+            <p style="font-size:11px; color:var(--text-secondary); margin-top:2px;">Oxygen administration, basic trauma care. ETA: 4 mins</p>
+          </div>
+          <button class="join-btn" onclick="dispatchAmbulance('BLS')" style="background:#ef4444; border-color:#ef4444; color:#fff; padding:8px 16px; margin:0;">Dispatch</button>
+        </article>
+        <article class="route-card" style="padding:14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h4 style="font-size:14px; font-weight:800;">Advanced Life Support (ALS)</h4>
+            <p style="font-size:11px; color:var(--text-secondary); margin-top:2px;">Defibrillator, intubation, ICU specialist. ETA: 6 mins</p>
+          </div>
+          <button class="join-btn" onclick="dispatchAmbulance('ALS')" style="background:#ef4444; border-color:#ef4444; color:#fff; padding:8px 16px; margin:0;">Dispatch</button>
+        </article>
+      </div>
+    </div>
+  `;
+}
+
+window.dispatchAmbulance = function(type) {
+  showToast(`Emergency ${type} Ambulance Dispatched! ETA: 5 mins.`);
+  logSecurityEvent("Ambulance Booked", `SOS EMERGENCY Dispatch: ${type}`);
+};
+
+// --- Drone Delivery ---
+function renderDroneDelivery() {
+  return `
+    ${pageHeader("Drone Delivery Pilot", "NHA-supported aerial logistics for critical medicine distribution in remote sectors.")}
+    <div class="route-card wide-card" style="text-align:center; padding:30px 20px;">
+      <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(0, 180, 216, 0.15); color: var(--accent-cyan); display: grid; place-items: center; margin: 0 auto 16px;">
+        ${icon("plane")}
+      </div>
+      <h3 style="font-size:18px; font-weight:800;">Simulated Flight Dispatch Center</h3>
+      <p style="color:var(--text-secondary); font-size:12px; max-width:420px; margin:8px auto 20px; line-height:1.5;">
+        This pilot program utilizes automated flight vectors to transport emergency medications and vaccine cargos to remote health units.
+      </p>
+      
+      <div style="max-width:320px; margin:0 auto;">
+        <button class="join-btn" onclick="startDroneFlightSimulation()" style="width:100%; margin:0; padding:12px;">Launch Simulated Cargo Drone</button>
+      </div>
+      
+      <div id="drone-progress-container" style="display:none; margin-top:24px; padding:16px; border-top:1px solid var(--border-color); text-align:left;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:6px;">
+          <span id="drone-flight-status" style="font-weight:700; color:var(--accent-teal);">Pre-flight checks...</span>
+          <strong id="drone-pct">0%</strong>
+        </div>
+        <div style="width:100%; height:6px; background:var(--border-color); border-radius:3px; overflow:hidden;">
+          <div id="drone-bar" style="width:0%; height:100%; background:var(--accent-teal); transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.startDroneFlightSimulation = function() {
+  const container = document.getElementById("drone-progress-container");
+  const status = document.getElementById("drone-flight-status");
+  const pct = document.getElementById("drone-pct");
+  const bar = document.getElementById("drone-bar");
+  
+  if (!container) return;
+  container.style.display = "block";
+  
+  let p = 0;
+  status.textContent = "Locked coordinate target...";
+  pct.textContent = "0%";
+  bar.style.width = "0%";
+  
+  const timer = setInterval(() => {
+    p += 10;
+    pct.textContent = `${p}%`;
+    bar.style.width = `${p}%`;
+    
+    if (p === 20) {
+      status.textContent = "Drone taking off (Altitude: 50m)...";
+    } else if (p === 50) {
+      status.textContent = "Cruising flight path (65 km/h)...";
+    } else if (p === 80) {
+      status.textContent = "Descending at destination sub-center...";
+    } else if (p >= 100) {
+      clearInterval(timer);
+      status.textContent = "Cargo delivered successfully!";
+      showToast("Drone cargo successfully received at sub-center!");
+      logSecurityEvent("Drone Flight Finished", "Simulated drone flight completed NHA logistics checklist.");
+    }
+  }, 500);
+};
+
+// --- Medicolegal Support ---
+function renderMedicolegalSupport() {
+  return `
+    ${pageHeader("Medicolegal Support", "Log claims, request clinical evaluations, and sandboxed legal consultations.")}
+    <div style="display:grid; gap:16px;">
+      <section class="route-card wide-card">
+        <div class="card-title-row">${icon("scale")}<h3>Legal Incident Registry</h3></div>
+        <p style="color:var(--text-secondary); font-size:12px; margin-top:4px;">
+          Log clinical claim details or review compliance files under the Indian Medical Council parameters.
+        </p>
+        <form class="form-grid" onsubmit="submitMedicolegalClaim(event)" style="margin-top:14px; display:grid; gap:12px;">
+          <label>Type of Claim/Grievance
+            <select id="legal-type" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+              <option value="Consent Discrepancy">Consent Discrepancy</option>
+              <option value="Prescription Audit Dispute">Prescription Audit Dispute</option>
+              <option value="Data Sharing Breach Log">Data Sharing Breach Log</option>
+            </select>
+          </label>
+          <label>Linked Facility
+            <input type="text" id="legal-facility" required placeholder="Janki Raman Hospital" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+          </label>
+          <label style="grid-column:1/-1;">Incident Brief/Summary
+            <textarea id="legal-desc" required placeholder="Provide clinical context..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); min-height:80px;"></textarea>
+          </label>
+          <button type="submit" class="join-btn" style="grid-column:1/-1; margin:0; padding:12px;">File Legal Claim</button>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+window.submitMedicolegalClaim = function(e) {
+  e.preventDefault();
+  showToast("Medicolegal grievance registered successfully.");
+  logSecurityEvent("Grievance Filed", `Medicolegal incident filed for audit`);
+  navigate("more");
+};
+
+// --- Digital Consent ---
+function renderDigitalConsent() {
+  setTimeout(() => {
+    initSignatureCanvas();
+  }, 100);
+  
+  return `
+    ${pageHeader("Digital Consent Forms", "Sign patient consent forms with cryptographic IP audit trails.")}
+    <div style="display:grid; gap:16px;">
+      <section class="route-card wide-card">
+        <div class="card-title-row">${icon("file-check")}<h3>Surgery & Data Consent Agreement</h3></div>
+        <p style="color:var(--text-secondary); font-size:12px; margin:4px 0 14px; line-height:1.5;">
+          I hereby authorize ABHA SETU and linked clinics to process my sandboxed health records under secure consent frameworks of the DPDP Act 2023.
+        </p>
+        
+        <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:10px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">Draw Signature Below</div>
+          <canvas id="signature-pad" style="width:100%; height:120px; border:1px solid var(--border-color); border-radius:6px; background:#fff; display:block; cursor:crosshair;"></canvas>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button type="button" class="qty-btn" onclick="clearSignatureCanvas()" style="padding:4px 10px; border-radius:6px;">Clear</button>
+            <button type="button" class="join-btn" onclick="saveSignatureConsent()" style="margin:0; padding:4px 12px; font-size:11px;">Submit Consent</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+let sigCanvas = null;
+let sigCtx = null;
+let isDrawingSig = false;
+
+function initSignatureCanvas() {
+  sigCanvas = document.getElementById("signature-pad");
+  if (!sigCanvas) return;
+  sigCtx = sigCanvas.getContext("2d");
+  
+  // Set resolution
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCanvas.width = rect.width;
+  sigCanvas.height = rect.height;
+  
+  sigCtx.strokeStyle = "#1e293b";
+  sigCtx.lineWidth = 2;
+  sigCtx.lineCap = "round";
+  
+  sigCanvas.addEventListener("mousedown", (e) => {
+    isDrawingSig = true;
+    const rect = sigCanvas.getBoundingClientRect();
+    sigCtx.beginPath();
+    sigCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+  });
+  
+  sigCanvas.addEventListener("mousemove", (e) => {
+    if (!isDrawingSig) return;
+    const rect = sigCanvas.getBoundingClientRect();
+    sigCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    sigCtx.stroke();
+  });
+  
+  sigCanvas.addEventListener("mouseup", () => { isDrawingSig = false; });
+}
+
+window.clearSignatureCanvas = function() {
+  if (sigCanvas && sigCtx) {
+    sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  }
+};
+
+window.saveSignatureConsent = function() {
+  showToast("Digital Signature Consent captured & submitted successfully!");
+  logSecurityEvent("Consent Signed", "Patient submitted digital signature on consent form.");
+  navigate("more");
+};
+
+// --- Prescription Verification ---
+function renderPrescriptionVerification() {
+  return `
+    ${pageHeader("Prescription Verification", "Verify doctor digital signatures and ABDM gateway verification keys.")}
+    <div class="route-card wide-card" style="text-align:center; padding:30px 20px;">
+      <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(16, 185, 129, 0.15); color: var(--success); display: grid; place-items: center; margin: 0 auto 16px;">
+        ${icon("file-text")}
+      </div>
+      <h3 style="font-size:18px; font-weight:800;">ABDM prescription Validation</h3>
+      <p style="color:var(--text-secondary); font-size:12px; max-width:420px; margin:8px auto 20px; line-height:1.5;">
+        Upload digital e-prescription templates to verify signing doctor registry licenses and signature keys.
+      </p>
+      
+      <button class="join-btn" onclick="startRxVerification()" style="margin:0 auto; display:block; max-width:240px; padding:12px;">Validate Smart Rx Template</button>
+    </div>
+  `;
+}
+
+window.startRxVerification = function() {
+  showToast("SHA-256 Prescription Hash: VALID. Doctor Signature: Dr. Ayesha Ali.");
+  logSecurityEvent("Rx Verified", "Prescription e-signature verification successful.");
+};
+
+// --- Secure Records ---
+function renderSecureRecords() {
+  return `
+    ${pageHeader("Secure Health Records", "Cryptographic local sandbox explorer for HIPAA and DPDP compliance logs.")}
+    <section class="route-card wide-card">
+      <div class="card-title-row">${icon("lock")}<h3>Local Encryption Audit Log</h3></div>
+      <p style="color:var(--text-secondary); font-size:12px; margin-bottom:14px;">
+        All clinical files linked inside your digital health lockers are stored with standard AES-256-GCM symmetric block encryption.
+      </p>
+      <div class="record-table" style="font-size:11px;">
+        <div class="table-row table-head" style="font-weight:700; background:var(--bg-secondary); padding:8px 10px; display:grid; grid-template-columns: 1.2fr 1fr 1fr; border-bottom:1px solid var(--border-color);">
+          <span>Scope accessed</span>
+          <span>Encryption Mode</span>
+          <span>Cryptographic Key Hash</span>
+        </div>
+        <div class="table-row" style="padding:8px 10px; display:grid; grid-template-columns: 1.2fr 1fr 1fr; border-bottom:1px solid var(--border-color);">
+          <span>Oximetry telemetries</span>
+          <span>AES-256-GCM</span>
+          <span style="font-family:monospace; color:var(--accent-teal);">f8c49e29a1b2</span>
+        </div>
+        <div class="table-row" style="padding:8px 10px; display:grid; grid-template-columns: 1.2fr 1fr 1fr; border-bottom:1px solid var(--border-color);">
+          <span>Homeopathy Consultations</span>
+          <span>AES-256-GCM</span>
+          <span style="font-family:monospace; color:var(--accent-teal);">a23e91d89b3f</span>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+// --- Telemedicine Compliance ---
+function renderTelemedicineCompliance() {
+  return `
+    ${pageHeader("Telemedicine Compliance", "NHA clinical regulations and telemedicine registries audit parameters.")}
+    <article class="route-card wide-card" style="line-height:1.6; font-size:12px;">
+      <div class="card-title-row">${icon("shield")}<h3>NHA Teleconsultation Guidelines Checklist</h3></div>
+      <ul style="padding-left:20px; color:var(--text-secondary); display:grid; gap:8px; margin-top:10px;">
+        <li>✔ <strong>Practitioner registry registration:</strong> All consulting physicians are verified in Health Professional Registry (HPR).</li>
+        <li>✔ <strong>Consent first architecture:</strong> Patients must sign dynamic digital consent forms before entering a video consultation room.</li>
+        <li>✔ <strong>Data Residency:</strong> Zero persistent records in external server networks; clinical files persist inside patient sandboxes only.</li>
+      </ul>
+    </article>
+  `;
+}
+
+// --- Legal Docs Vault ---
+function renderLegalVault() {
+  return `
+    ${pageHeader("Legal Docs Vault", "Create and archive electronic advanced directives, living wills, and powers of attorney.")}
+    <div style="display:grid; gap:16px;">
+      <article class="route-card wide-card">
+        <div class="card-title-row">${icon("folder-lock")}<h3>Advanced Directives & Wills</h3></div>
+        <p style="color:var(--text-secondary); font-size:12px; margin-top:4px;">
+          Draft living wills or register medical powers of attorney under valid Indian trust and proxy standards.
+        </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;">
+          <button class="join-btn" onclick="showToast('Living Will template loaded.')" style="margin:0; padding:10px;">Create Living Will</button>
+          <button class="join-btn" onclick="showToast('POA registry forms generated.')" style="margin:0; padding:10px; background:var(--bg-secondary); border-color:var(--border-color);">Register Medical POA</button>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+// --- Health Tips ---
+function renderHealthTips() {
+  return `
+    ${pageHeader("Daily Health Tips", "Personalized clinical wellness nudges based on linked diagnostic data.")}
+    <div style="display:grid; gap:16px;">
+      <section class="route-grid two-col">
+        <article class="route-card">
+          <div class="card-title-row">${icon("droplet")}<h3>Hydration sync progress</h3></div>
+          <p style="color:var(--text-secondary); font-size:12px; margin:6px 0 12px;">Target: 2500ml water (stabilizes oximetry vitals)</p>
+          <button class="qty-btn" onclick="logWaterIntake(250)" style="width:100%; min-height:36px;">+ 250ml Water</button>
+        </article>
+        
+        <article class="route-card">
+          <div class="card-title-row">${icon("activity")}<h3>Heart Rate advice</h3></div>
+          <p style="color:var(--text-secondary); font-size:12px; line-height:1.5;">
+            Normal resting range is stable. Keep active exercise to 20 mins a day to sync wellness points to HFR directories.
+          </p>
+        </article>
+      </section>
+    </div>
+  `;
+}
+
+// --- Appointment Reminders ---
+function renderAppointmentReminders() {
+  return `
+    ${pageHeader("Appointment Reminders", "Timeline logs of consultations, NABL diagnostic appointments, and medicine refills.")}
+    <section class="route-card wide-card">
+      <div class="card-title-row">${icon("bell")}<h3>Active Timeline Logs</h3></div>
+      <div style="display:grid; gap:10px; margin-top:12px;">
+        <div style="background:var(--bg-secondary); border-left:4px solid var(--accent-teal); padding:10px 14px; border-radius:4px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong style="display:block;">Smart Pharmacy Prescription Refill</strong>
+            <span style="color:var(--text-secondary); font-size:11px;">Refill date: Tomorrow, 10:00 AM</span>
+          </div>
+          <button class="qty-btn" onclick="showToast('Snoozed 1 hour.')" style="padding:4px 8px;">Snooze</button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+// --- Preventive Care ---
+function renderPreventiveCare() {
+  setTimeout(() => {
+    drawPreventiveRiskDial();
+  }, 100);
+  
+  return `
+    ${pageHeader("Preventive Care", "Ayushman Bharat Cardiovascular and General Diabetes Risk Diagnostic Calculators.")}
+    <div style="display:grid; gap:16px;">
+      <section class="route-card wide-card">
+        <div class="card-title-row">${icon("brain-circuit")}<h3>AI Risk assessment gauge</h3></div>
+        <p style="color:var(--text-secondary); font-size:12px; margin-bottom:12px;">
+          Calculates cardiac indicators based on BMI, Systolic Blood Pressure, and age parameters.
+        </p>
+        
+        <!-- Risk Dial Canvas -->
+        <div style="display:flex; justify-content:center; margin:16px 0;">
+          <canvas id="risk-dial-canvas" style="width:240px; height:130px; display:block;"></canvas>
+        </div>
+        
+        <form class="form-grid" onsubmit="calculateRiskLevel(event)" style="display:grid; gap:10px;">
+          <label>Patient Age
+            <input type="number" id="risk-age" required value="34" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+          </label>
+          <label>Systolic Blood Pressure
+            <input type="number" id="risk-bp" required value="120" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary);">
+          </label>
+          <button type="submit" class="join-btn" style="grid-column:1/-1; margin:0; padding:10px;">Re-Calculate Risk Score</button>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+let riskCanvas = null;
+let riskCtx = null;
+let currentRiskAngle = Math.PI; // Low Risk
+
+function drawPreventiveRiskDial(score = 35) {
+  riskCanvas = document.getElementById("risk-dial-canvas");
+  if (!riskCanvas) return;
+  riskCtx = riskCanvas.getContext("2d");
+  
+  const width = riskCanvas.width = 240;
+  const height = riskCanvas.height = 130;
+  
+  riskCtx.clearRect(0, 0, width, height);
+  
+  const cx = width / 2;
+  const cy = height - 10;
+  const r = 80;
+  
+  // Draw risk arc sections (Green, Yellow, Red)
+  riskCtx.lineWidth = 14;
+  riskCtx.lineCap = "butt";
+  
+  // Low Risk (Green)
+  riskCtx.strokeStyle = "#10b981";
+  riskCtx.beginPath();
+  riskCtx.arc(cx, cy, r, Math.PI, Math.PI * 1.33);
+  riskCtx.stroke();
+  
+  // Medium Risk (Yellow)
+  riskCtx.strokeStyle = "#eab308";
+  riskCtx.beginPath();
+  riskCtx.arc(cx, cy, r, Math.PI * 1.33, Math.PI * 1.66);
+  riskCtx.stroke();
+  
+  // High Risk (Red)
+  riskCtx.strokeStyle = "#ef4444";
+  riskCtx.beginPath();
+  riskCtx.arc(cx, cy, r, Math.PI * 1.66, Math.PI * 2);
+  riskCtx.stroke();
+  
+  // Map score (0 to 100) to angle (Math.PI to Math.PI * 2)
+  const targetAngle = Math.PI + (score / 100) * Math.PI;
+  
+  // Draw glowing dial pointer needle
+  riskCtx.strokeStyle = "var(--text-primary, #0f172a)";
+  riskCtx.lineWidth = 3;
+  riskCtx.lineCap = "round";
+  riskCtx.beginPath();
+  riskCtx.moveTo(cx, cy);
+  riskCtx.lineTo(cx + Math.cos(targetAngle) * (r - 12), cy + Math.sin(targetAngle) * (r - 12));
+  riskCtx.stroke();
+  
+  // Core center circle
+  riskCtx.fillStyle = "var(--accent-teal, #00d4aa)";
+  riskCtx.beginPath();
+  riskCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+  riskCtx.fill();
+  
+  // Text score HUD display
+  riskCtx.fillStyle = "var(--text-primary, #0f172a)";
+  riskCtx.font = "bold 15px monospace";
+  riskCtx.textAlign = "center";
+  riskCtx.fillText(`${score}% Risk`, cx, cy - 24);
+}
+
+window.calculateRiskLevel = function(e) {
+  e.preventDefault();
+  const bp = parseInt(document.getElementById("risk-bp").value);
+  const age = parseInt(document.getElementById("risk-age").value);
+  
+  let score = 20;
+  if (bp > 140) score += 30;
+  else if (bp > 120) score += 15;
+  if (age > 50) score += 25;
+  else if (age > 35) score += 10;
+  
+  drawPreventiveRiskDial(score);
+  showToast(`Risk Level re-evaluated: ${score}% cardiac profile.`);
+};
+
+// --- Chronic Programs ---
+function renderChronicPrograms() {
+  return `
+    ${pageHeader("Chronic Programs", "Enroll in specialized disease management protocols (Hypertension, Arthritis, Diabetes).")}
+    <div style="display:grid; gap:16px;">
+      <article class="route-card wide-card">
+        <div class="card-title-row">${icon("award")}<h3>Hypertension Management program</h3></div>
+        <p style="color:var(--text-secondary); font-size:12px; margin-top:4px;">
+          Enrolled: Active. Integrates blood pressure oximetry trackers and coordinates specialist follow-up check-ins.
+        </p>
+        <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-top:12px; font-size:11px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>BP Log Consistency Tracker</span>
+            <strong>6 / 7 Days</strong>
+          </div>
+          <div style="width:100%; height:6px; background:var(--border-color); border-radius:3px; overflow:hidden;">
+            <div style="width:85.7%; height:100%; background:var(--accent-teal);"></div>
+          </div>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+// --- AI Assistant ---
+function renderAiAssistant() {
+  setTimeout(() => {
+    initAiChatAssistant();
+  }, 100);
+  
+  return `
+    ${pageHeader("AI Health Assistant", "Safe, ABDM-compliant clinical support chatbot sandbox.")}
+    <div style="display:flex; flex-direction:column; height:340px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:var(--bg-card); box-shadow:var(--surface-shadow);">
+      <!-- Chat message frame -->
+      <div id="ai-chat-scroller" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px;">
+        <div style="background:var(--bg-secondary); color:var(--text-primary); align-self:flex-start; max-width:85%; padding:10px; border-radius:8px 8px 8px 0; font-size:12px; line-height:1.4;">
+          Hello! I am your AI Health Assistant. Ask me symptoms or check-in parameters. I cannot replace clinical professional advice.
+        </div>
+      </div>
+      <!-- Loading Shimmer loader bubble -->
+      <div id="ai-chat-loading" style="display:none; padding:12px; align-self:flex-start;">
+        <div class="shimmer-bg" style="width:80px; height:24px; border-radius:6px;"></div>
+      </div>
+      <!-- Message input field -->
+      <form onsubmit="sendAiAssistantMessage(event)" style="display:flex; padding:8px; border-top:1px solid var(--border-color); background:var(--bg-secondary); gap:8px;">
+        <input type="text" id="ai-chat-input" required placeholder="Type symptom message..." style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-primary); font-size:12px;">
+        <button type="submit" class="qty-btn" style="min-height:36px; padding:0 12px; border-radius:8px;">Send</button>
+      </form>
+    </div>
+  `;
+}
+
+let aiChatScroller = null;
+let aiChatLoading = null;
+
+function initAiChatAssistant() {
+  aiChatScroller = document.getElementById("ai-chat-scroller");
+  aiChatLoading = document.getElementById("ai-chat-loading");
+}
+
+window.sendAiAssistantMessage = function(e) {
+  e.preventDefault();
+  const input = document.getElementById("ai-chat-input");
+  if (!input || !aiChatScroller) return;
+  const msg = input.value.trim();
+  if (!msg) return;
+  
+  // User bubble
+  const userHTML = `
+    <div style="background:rgba(0, 212, 170, 0.15); color:var(--text-primary); align-self:flex-end; max-width:85%; padding:10px; border-radius:8px 8px 0 8px; font-size:12px; line-height:1.4; border:1px solid rgba(0, 212, 170, 0.25);">
+      ${msg}
+    </div>
+  `;
+  aiChatScroller.insertAdjacentHTML("beforeend", userHTML);
+  input.value = "";
+  aiChatScroller.scrollTop = aiChatScroller.scrollHeight;
+  
+  // Show AI typing shimmer
+  if (aiChatLoading) aiChatLoading.style.display = "block";
+  
+  setTimeout(() => {
+    if (aiChatLoading) aiChatLoading.style.display = "none";
+    
+    let botMsg = "My NHA training registers your input. Standard guidance outlines consult schedule. Please book a consultation slots.";
+    if (msg.toLowerCase().includes("headache") || msg.toLowerCase().includes("pain")) {
+      botMsg = "Noted pain indicators. Keep oximetry sync active, drink at least 250ml water to stabilize vitals, and coordinate consult checks.";
+    } else if (msg.toLowerCase().includes("abha")) {
+      botMsg = "You can view your replica ABHA card in the ABHA page. Tap Save to Health Locker to archive it cryptographically.";
+    }
+    
+    const botHTML = `
+      <div style="background:var(--bg-secondary); color:var(--text-primary); align-self:flex-start; max-width:85%; padding:10px; border-radius:8px 8px 8px 0; font-size:12px; line-height:1.4; border:1px solid var(--border-color);">
+        ${botMsg}
+      </div>
+    `;
+    aiChatScroller.insertAdjacentHTML("beforeend", botHTML);
+    aiChatScroller.scrollTop = aiChatScroller.scrollHeight;
+  }, 1200);
 };
 
 // Bootstrap Single Page App
