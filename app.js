@@ -1381,7 +1381,7 @@ function renderFooter() {
           <div class="logo-icon">${icon("plus", "logo-plus")}</div>
           <div>
             <h2>ABHA SETU</h2>
-            <p>${_t("Digital Health Bridge for ABDM-ready healthcare operations, telemedicine, connected facilities, QR flows, and secure patient journeys.")}</p>
+            <p>${_t("National Digital Health Bridge for ABDM-ready healthcare operations, telemedicine, connected facilities, QR flows, and secure patient journeys.")}</p>
           </div>
         </div>
         <div class="footer-trust" aria-label="Compliance readiness">
@@ -1527,7 +1527,7 @@ function renderLogin() {
           <div class="logo-icon">${icon("plus", "logo-plus")}</div>
           <div class="logo-text" style="text-align: left;">
             <h1 style="font-size: 18px;">ABHA SETU</h1>
-            <span>Digital Health Bridge</span>
+            <span>National Digital Health Bridge</span>
           </div>
         </div>
         <h2>Secure Portal Sign-In</h2>
