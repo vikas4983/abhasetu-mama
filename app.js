@@ -56,6 +56,7 @@ function updateAppState(updater) {
   localStorage.setItem("setu_state", JSON.stringify(state));
   // Keep body tags synced
   applyThemeAndAccessibility(state);
+  updateHeaderUI();
   return state;
 }
 
@@ -123,7 +124,7 @@ const doctors = [
     rating: "4.8",
     experience: "12 years experience",
     description: "Focused on female health, infertility concerns, skin care, and chronic condition follow-ups.",
-    photo: "assets/doctors/dr-yogyata-mukhraiya.jpeg",
+    photo: "assets/doctors/dr-ayesha-ali.jpeg",
     badge: "Verified",
     certificateId: "ABDM-REG-8827341",
     hfrId: "IN-HFR-100789"
@@ -137,7 +138,7 @@ const doctors = [
     rating: "4.7",
     experience: "18 years experience",
     description: "Family care, chronic follow-ups, preventive plans, and medication reviews.",
-    photo: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=150",
+    photo: "assets/doctors/dr-ayesha-ali.jpeg",
     badge: "Telemedicine",
     certificateId: "ABDM-REG-1092837",
     hfrId: "IN-HFR-100122"
@@ -146,10 +147,8 @@ const doctors = [
 
 // Connected Facilities Database
 const connectedFacilities = [
-  { title: "CityCare Multi-Speciality Hospital", route: "facility-citycare", icon: "building-2", desc: "HFR-ready OPD registrations, cashless queues, emergency routing, Scan and Share active.", hfrId: "HFR-10024A", type: "Hospital", services: "OPD, ICU, Cardiology, Lab" },
-  { title: "Metro Heart Institute & Diagnostics", route: "facility-metro", icon: "heart-pulse", desc: "ABHA verification desk, cardiac care, digital prescriptions, laboratory scans integration.", hfrId: "HFR-99214B", type: "Cardiac Center", services: "Cardiology, Radiology, Vitals" },
-  { title: "Apollo Lab Diagnostics", route: "facility-apollo", icon: "flask-conical", desc: "NABL certified partner lab. Automatic locker upload, QR-invoice, at-home sample collection.", hfrId: "HFR-88231C", type: "Diagnostic Center", services: "Blood Tests, Pathology" },
-  { title: "MediFast Smart Pharmacy", route: "facility-medifast", icon: "pill", desc: "ABDM e-prescription verification desk, automatic refill schedules, fast drug home delivery.", hfrId: "HFR-42071P", type: "Pharmacy", services: "Medicines, Health Wellness" }
+  { title: "Janki Raman Hospital & Critical Care Centre, Jabalpur", route: "facility-jankiraman", icon: "building-2", desc: "HFR-ready OPD registrations, critical care facility, emergency routing, Scan and Share active.", hfrId: "IN2310026968", type: "Hospital", services: "Critical Care, OPD, Emergency, General Medicine" },
+  { title: "DR AYESHAH HOMEO HEALTH MALL, Bhopal", route: "facility-homeohealth", icon: "heart-pulse", desc: "ABHA verification desk, homeopathic care, digital prescriptions, wellness consultation.", hfrId: "IN2310026365", type: "Wellness Center", services: "Homeopathy, Primary Care, Wellness, Consultation" }
 ];
 
 // Translations Dictionary
@@ -788,14 +787,13 @@ function updateHeaderUI() {
     badge.style.display = unreadCount > 0 ? "flex" : "none";
   }
 
-  // User details
   const avatarImg = header.querySelector(".avatar img");
   if (avatarImg) {
+    avatarImg.src = "assets/doctors/dr-ayesha-ali.jpeg";
     if (state.currentUser) {
-      avatarImg.src = state.currentUser.role === "doctor" ? demoCredentials.doctor.photo : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150";
       avatarImg.alt = state.currentUser.name;
     } else {
-      avatarImg.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150";
+      avatarImg.alt = "Guest Avatar";
     }
   }
 
@@ -816,6 +814,15 @@ function wireChrome() {
     notificationBell.addEventListener("click", (e) => {
       e.preventDefault();
       toggleNotificationDrawer();
+    });
+  }
+
+  // Wire theme picker toggle
+  const themeToggle = document.querySelector(".theme-toggle-btn");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      cycleTheme();
     });
   }
 
@@ -892,31 +899,93 @@ function wireChrome() {
   });
 }
 
+function highlightQueryText(text, query) {
+  if (!query) return text;
+  const escaped = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  return text.replace(regex, `<mark class="search-highlight">$1</mark>`);
+}
+
 function setupSearch() {
   const searchInput = document.querySelector("#service-search");
   const suggestions = document.querySelector("#search-suggestions");
   if (!searchInput || !suggestions) return;
 
+  const globalSearchBox = document.querySelector(".global-search");
+  const closeBtn = document.querySelector(".search-close-btn");
+
+  let activeSuggestionIndex = -1;
+  let currentMatches = [];
+
   function closeSuggestions() {
     suggestions.innerHTML = "";
     suggestions.classList.remove("is-open");
+    activeSuggestionIndex = -1;
+    if (globalSearchBox) globalSearchBox.classList.remove("is-active");
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      searchInput.value = "";
+      closeSuggestions();
+      searchInput.blur();
+    });
   }
 
   function openSuggestions(matches) {
+    currentMatches = matches;
+    activeSuggestionIndex = -1;
     if (!matches.length) {
       suggestions.innerHTML = `<div class="suggestion-empty">${_t("No matching services found")}</div>`;
       suggestions.classList.add("is-open");
       return;
     }
 
-    suggestions.innerHTML = matches.map((item) => `
-      <button type="button" class="suggestion-item" data-route="${item.route}" role="option">
-        ${icon(item.icon || "search", "small-icon")}
-        <span><strong>${_t(item.title)}</strong><small>${_t(item.desc)}</small></span>
-      </button>
-    `).join("");
+    const query = searchInput.value.trim();
+
+    // Group matches by type
+    const groups = {};
+    matches.forEach(item => {
+      if (!groups[item.type]) {
+        groups[item.type] = [];
+      }
+      groups[item.type].push(item);
+    });
+
+    let html = "";
+    let itemIdx = 0; // for keyboard navigation indexing
+    Object.keys(groups).forEach(type => {
+      html += `<div class="suggestion-group-header">${_t(type)}</div>`;
+      groups[type].forEach(item => {
+        const highlightedTitle = highlightQueryText(_t(item.title), query);
+        const highlightedDesc = highlightQueryText(_t(item.desc), query);
+        html += `
+          <button type="button" class="suggestion-item" data-route="${item.route}" data-index="${itemIdx}" role="option" tabindex="-1">
+            ${icon(item.icon || "search", "small-icon")}
+            <span>
+              <strong>${highlightedTitle}</strong>
+              <small>${highlightedDesc}</small>
+            </span>
+          </button>
+        `;
+        itemIdx++;
+      });
+    });
+
+    suggestions.innerHTML = html;
     suggestions.classList.add("is-open");
     if (window.lucide) lucide.createIcons();
+  }
+
+  function highlightSuggestion(index) {
+    const items = suggestions.querySelectorAll(".suggestion-item");
+    items.forEach(el => el.classList.remove("active-suggestion"));
+    if (index >= 0 && index < items.length) {
+      const activeEl = items[index];
+      activeEl.classList.add("active-suggestion");
+      activeEl.scrollIntoView({ block: "nearest" });
+    }
   }
 
   function updateSuggestions() {
@@ -926,47 +995,152 @@ function setupSearch() {
       return;
     }
 
-    // Include some standard routes in searchable items
+    const state = getAppState();
+
+    // Include dynamic and static searchable items
     const searchableItems = [
-      { title: "ABHA Card", route: "abdm-services", icon: "id-card", desc: "Create, view, download or verify ABHA Card." },
-      { title: "Order Medicines", route: "order-medicine", icon: "pill", desc: "Browse medicines, add to cart, and checkout with ABHA." },
-      { title: "Book Lab Tests", route: "book-lab-test", icon: "flask-conical", desc: "Book NABL diagnostics, select slot, and link ABHA." },
-      { title: "Hospitals Registry", route: "hospitals", icon: "building-2", desc: "Verified HFR hospitals directory, live queues and check-in." },
-      { title: "Blood Bank Directory", route: "blood-bank", icon: "droplet", desc: "Check blood units availability, request or donate blood." },
-      { title: "Organ Donation Pledge", route: "organ-donation", icon: "heart-handshake", desc: "Submit organ transplant pledge and download your NHA certificate." },
-      { title: "Connected Facilities", route: "connected-facilities", icon: "building", desc: "Scan and share at active hospitals and diagnostics." },
-      { title: "Security Dashboard", route: "security", icon: "shield-check", desc: "Check role permissions, token logs, security credentials." },
-      { title: "Theme Switching", route: "settings", icon: "palette", desc: "Choose color themes." },
-      ...doctors.map(d => ({ title: d.name, route: "telemedicine", icon: "user-round", desc: d.role })),
-      ...connectedFacilities.map(f => ({ title: f.title, route: f.route, icon: "building", desc: f.desc }))
+      // Services / Pages
+      { type: "Services", title: "ABHA Card", route: "abdm-services", icon: "id-card", desc: "Create, view, download or verify ABHA Card." },
+      { type: "Services", title: "Order Medicines", route: "order-medicine", icon: "pill", desc: "Browse OTC/Prescription medicines, add to cart." },
+      { type: "Services", title: "Book Lab Tests", route: "book-lab-test", icon: "flask-conical", desc: "Book NABL diagnostics, check slots, and sync ABHA." },
+      { type: "Services", title: "Hospitals Registry", route: "hospitals", icon: "building-2", desc: "Verified HFR hospitals directory, check-in queues." },
+      { type: "Services", title: "Blood Bank Directory", route: "blood-bank", icon: "droplet", desc: "Check blood units availability, request or donate blood." },
+      { type: "Services", title: "Organ Donation Pledge", route: "organ-donation", icon: "heart-handshake", desc: "Submit organ transplant pledge, download NHA certificate." },
+      { type: "Services", title: "Connected Facilities", route: "connected-facilities", icon: "building", desc: "Scan and share at active hospitals and diagnostics." },
+      { type: "Services", title: "Security Dashboard", route: "security", icon: "shield-check", desc: "Check role permissions, token logs, security credentials." },
+      { type: "Services", title: "Theme Switching", route: "settings", icon: "palette", desc: "Choose color themes." },
+      { type: "Services", title: "Accessibility Settings", route: "settings", icon: "accessibility", desc: "Font sizes, screen reader, high contrast options." },
+      { type: "Services", title: "Language Preferences", route: "settings", icon: "languages", desc: "Select multilingual preferences." },
+      { type: "Services", title: "Telemedicine Room", route: "telemedicine-room", icon: "video", desc: "Enter private virtual health appointment room." },
+
+      // Hospitals (Dynamic)
+      ...hospitalsList.map(h => ({
+        type: "Hospitals",
+        title: h.name,
+        route: "hospitals",
+        icon: "building-2",
+        desc: `HFR: ${h.hfrId} | ${h.address}`
+      })),
+
+      // Doctors (Dynamic)
+      ...doctors.map(d => ({
+        type: "Doctors",
+        title: d.name,
+        route: "telemedicine",
+        icon: "user-round",
+        desc: `${d.role} | Rating: ${d.rating} ★ | ${d.experience}`
+      })),
+
+      // Blood Donors (Dynamic / Real)
+      ...(state.bloodDonors || [
+        { name: "Ashish Patel", age: 33, bg: "B+", mobile: "9981435702", lastDon: "3 months ago" },
+        { name: "Anant Agrahri", age: 32, bg: "B+", mobile: "9977756362", lastDon: "3 months ago" },
+        { name: "Priyanka Mehra", age: 32, bg: "O+", mobile: "Not Available", lastDon: "3 months ago" },
+        { name: "Manoj Jhariya", age: 37, bg: "O+", mobile: "Not Available", lastDon: "3 months ago" }
+      ]).map(d => ({
+        type: "Blood Donors",
+        title: `${d.name} (${d.bg})`,
+        route: "blood-bank",
+        icon: "user-round",
+        desc: `Age: ${d.age} Years | Contact: ${d.mobile} | Last: ${d.lastDon}`
+      })),
+
+      // Medicines (Dynamic)
+      ...medicinesList.map(m => ({
+        type: "Medicines",
+        title: m.name,
+        route: "order-medicine",
+        icon: "pill",
+        desc: `Price: ₹${m.price} | Category: ${m.category} | ${m.desc}`
+      })),
+
+      // Courses (Static)
+      { type: "Courses", title: "First Aid Certification Course", route: "more", icon: "graduation-cap", desc: "CPR training and basic life support certificate." },
+      { type: "Courses", title: "ABDM Integration Training", route: "more", icon: "graduation-cap", desc: "Training for health facilities to integrate under Ayushman Bharat." },
+      { type: "Courses", title: "Primary Care Nursing Specialization", route: "more", icon: "graduation-cap", desc: "Nursing training course for emergency triage." },
+
+      // Insurance (Static)
+      { type: "Insurance", title: "Ayushman Bharat PM-JAY Policy", route: "abdm-services", icon: "shield-check", desc: "Verify eligibility and link PM-JAY insurance cards." },
+      { type: "Insurance", title: "Care Shield Plus Insurance Plan", route: "digital-locker", icon: "shield", desc: "Review claim histories and upload digital policy cards." },
+
+      // Labs (Static)
+      { type: "Labs", title: "ECG Diagnostic Screening", route: "book-lab-test", icon: "activity", desc: "Diagnostic lab slot for heart screening scans." },
+      { type: "Labs", title: "NABL Pathology Lab Tests", route: "book-lab-test", icon: "flask-conical", desc: "NABL certified blood tests and sample collection." },
+
+      // Facilities (Dynamic)
+      ...connectedFacilities.map(f => ({
+        type: "Facilities",
+        title: f.title,
+        route: f.route,
+        icon: "building",
+        desc: `${f.type} | HFR: ${f.hfrId} | ${f.desc}`
+      })),
+
+      // Departments
+      { type: "Departments", title: "Cardiology Department", route: "connected-facilities", icon: "heart-pulse", desc: "Heart health specialist consultations, cardiology clinic." },
+      { type: "Departments", title: "Neurology Department", route: "hospitals", icon: "brain-circuit", desc: "Brain, spine, and central nervous system specialty department." },
+      { type: "Departments", title: "Homeopathy OPD", route: "telemedicine", icon: "stethoscope", desc: "Ayush Homeopathy consultancy, wellness plans." },
+
+      // Emergency Services
+      { type: "Emergency Services", title: "Emergency Ambulance Booking", route: "more", icon: "ambulance", desc: "Simulated rapid ambulance dispatch and tracking." },
+      { type: "Emergency Services", title: "Urgent Blood Request Board", route: "blood-bank", icon: "droplet", desc: "Post emergency blood units request to the community." }
     ];
 
     const matches = searchableItems
-      .filter((item) => `${item.title} ${item.desc}`.toLowerCase().includes(query))
-      .slice(0, 5);
+      .filter((item) => `${item.title} ${item.desc} ${item.type}`.toLowerCase().includes(query))
+      .slice(0, 15); // Show more results since they are grouped
     openSuggestions(matches);
   }
 
   searchInput.addEventListener("input", updateSuggestions);
-  searchInput.addEventListener("focus", updateSuggestions);
+  searchInput.addEventListener("focus", () => {
+    if (globalSearchBox) globalSearchBox.classList.add("is-active");
+    updateSuggestions();
+  });
   searchInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      const first = suggestions.querySelector("[data-route]");
-      if (first) {
-        event.preventDefault();
+    const items = suggestions.querySelectorAll(".suggestion-item");
+    
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!suggestions.classList.contains("is-open")) {
+        updateSuggestions();
+        return;
+      }
+      if (items.length > 0) {
+        activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+        highlightSuggestion(activeSuggestionIndex);
+      }
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!suggestions.classList.contains("is-open")) return;
+      if (items.length > 0) {
+        activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+        highlightSuggestion(activeSuggestionIndex);
+      }
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (activeSuggestionIndex >= 0 && activeSuggestionIndex < items.length) {
+        const route = items[activeSuggestionIndex].dataset.route;
         searchInput.value = "";
         closeSuggestions();
-        navigate(first.dataset.route);
+        navigate(route);
+      } else {
+        const first = suggestions.querySelector(".suggestion-item");
+        if (first) {
+          searchInput.value = "";
+          closeSuggestions();
+          navigate(first.dataset.route);
+        }
       }
-    }
-    if (event.key === "Escape") {
+    } else if (event.key === "Escape") {
+      event.preventDefault();
       closeSuggestions();
       searchInput.blur();
     }
   });
 
   suggestions.addEventListener("click", (event) => {
-    const item = event.target.closest("[data-route]");
+    const item = event.target.closest(".suggestion-item");
     if (!item) return;
     const route = item.dataset.route;
     searchInput.value = "";
@@ -1816,15 +1990,34 @@ window.closeModal = function(id) {
 };
 
 // 10. QR SCANNER HUD & FLOW
+// 10. QR SCANNER HUD & FLOW
 function renderQrScanner() {
   return `
     ${pageHeader("ABDM QR Scanner", "Scan patient cards, healthcare facilities, and check-in tickets.")}
     
     <div style="display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 580px; margin: 0 auto;">
       <div class="scanner-panel" style="margin-bottom: 0;">
-        <div class="scanner-frame" id="qr-reader" style="background: #000; position: relative;">
-          <div class="scan-line"></div>
-          ${icon("qr-code", "scanner-icon")}
+        <div class="scanner-frame" id="qr-reader">
+          <div class="scanner-camera-viewport">
+            <div class="scanner-mask-overlay">
+              <div class="scanner-viewport-brackets">
+                <div class="bracket-tl"></div>
+                <div class="bracket-tr"></div>
+                <div class="bracket-bl"></div>
+                <div class="bracket-br"></div>
+                <div class="scan-beam-laser"></div>
+                <div class="sonar-glow"></div>
+              </div>
+            </div>
+            <!-- HUD overlays -->
+            <div class="camera-grid-simulation"></div>
+            <div class="camera-status-hud">Simulated Active ABDM Camera Feed</div>
+            <!-- Flashlight & camera glass controls -->
+            <div class="camera-glass-controls">
+              <button class="control-btn" onclick="toggleSimulatedFlashlight()">${icon("zap", "small-icon")} Flashlight</button>
+              <button class="control-btn" onclick="openSimulatedGallery()">${icon("image", "small-icon")} Gallery</button>
+            </div>
+          </div>
         </div>
         
         <div class="route-card" style="margin-top: 14px;">
@@ -1852,7 +2045,71 @@ function renderQrScanner() {
   `;
 }
 
+window.toggleSimulatedFlashlight = function() {
+  const vp = document.querySelector(".scanner-camera-viewport");
+  if (vp) {
+    vp.classList.toggle("flashlight-on");
+    const active = vp.classList.contains("flashlight-on");
+    showToast(active ? "Simulated Flashlight Enabled" : "Simulated Flashlight Disabled");
+  }
+};
+
+window.openSimulatedGallery = function() {
+  showToast("Opening secure gallery container...");
+  setTimeout(() => {
+    const types = ["abha", "facility", "token"];
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    showToast(`Loaded secure image. Starting decrypter...`);
+    simulateQrScan(randomType);
+  }, 1200);
+};
+
 window.simulateQrScan = function(type) {
+  const reader = document.getElementById("qr-reader");
+  if (!reader) {
+    executeScanModal(type);
+    return;
+  }
+  
+  // Show active multi-phase decrypter loading states overlay
+  const progressOverlay = document.createElement("div");
+  progressOverlay.className = "scan-progress-overlay";
+  progressOverlay.innerHTML = `
+    <div class="scan-progress-box">
+      <div class="scan-spinner"></div>
+      <div class="scan-status-text">Initializing sensor array...</div>
+      <div class="scan-percentage">0%</div>
+    </div>
+  `;
+  reader.appendChild(progressOverlay);
+  
+  const statusEl = progressOverlay.querySelector(".scan-status-text");
+  const pctEl = progressOverlay.querySelector(".scan-percentage");
+  
+  let progress = 0;
+  const timer = setInterval(() => {
+    progress += 5;
+    if (pctEl) pctEl.textContent = `${progress}%`;
+    
+    if (progress === 20) {
+      if (statusEl) statusEl.textContent = "Locking focus & adjusting lens...";
+    } else if (progress === 45) {
+      if (statusEl) statusEl.textContent = "Aligning ABDM secure QR frame...";
+    } else if (progress === 70) {
+      if (statusEl) statusEl.textContent = "Decrypting secure ABDM payload...";
+    } else if (progress === 90) {
+      if (statusEl) statusEl.textContent = "Verifying digital signature at gateway...";
+    }
+    
+    if (progress >= 100) {
+      clearInterval(timer);
+      progressOverlay.remove();
+      executeScanModal(type);
+    }
+  }, 120);
+};
+
+window.executeScanModal = function(type) {
   let resultHTML = "";
   if (type === "abha") {
     resultHTML = `
@@ -2010,7 +2267,7 @@ function renderAbdmServices() {
         </div>
         <div class="abha-card-body">
           <div class="abha-card-avatar">
-            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150" alt="Avatar">
+            <img src="assets/doctors/dr-ayesha-ali.jpeg" alt="Avatar">
           </div>
           <div class="abha-card-info">
             <strong>${state.abhaCard.name}</strong>
@@ -2515,6 +2772,15 @@ window.setGlobalTheme = function(theme) {
   renderCurrentRoute();
 };
 
+window.cycleTheme = function() {
+  const themes = ["dark-teal", "slate-dark", "ocean-blue", "emerald-light"];
+  const state = getAppState();
+  const currentIdx = themes.indexOf(state.theme);
+  const nextIdx = (currentIdx + 1) % themes.length;
+  const nextTheme = themes[nextIdx];
+  setGlobalTheme(nextTheme);
+};
+
 window.setGlobalLanguage = function(lang) {
   updateAppState(state => {
     state.language = lang;
@@ -2540,8 +2806,8 @@ function renderProfile() {
     ${pageHeader("My Account Profile", "Manage your personal profile and linked health identity.")}
     
     <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
-      <section class="profile-panel" style="background: rgba(19,40,59,0.5); border: 1px solid var(--border-color); padding: 18px; border-radius: 12px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent-teal); object-fit: cover;">
+      <section class="profile-panel" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 18px; border-radius: 12px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <img src="assets/doctors/dr-ayesha-ali.jpeg" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent-teal); object-fit: cover;">
         <div>
           <h3 style="font-size: 18px; font-weight: 800;">${state.currentUser ? state.currentUser.name : "Ananya Verma"}</h3>
           <p style="color: var(--accent-cyan); font-weight: 700; font-size: 13px;">Role: ${state.currentUser ? state.currentUser.role.toUpperCase() : "PATIENT"}</p>
@@ -2627,13 +2893,25 @@ window.dismissNotificationLog = function(id) {
   renderCurrentRoute();
 };
 
-// Notification slide drawer toggle
-window.toggleNotificationDrawer = function() {
+// Global outside click handler for notifications
+window.handleNotificationOutsideClick = function(e) {
   const drawer = document.getElementById("n-drawer");
-  const backdrop = document.getElementById("n-drawer-backdrop");
-  if (drawer) {
-    drawer.remove();
-    backdrop.remove();
+  const notificationBell = document.querySelector(".notification");
+  if (drawer && !drawer.contains(e.target) && notificationBell && !notificationBell.contains(e.target)) {
+    if (e.target.closest(".modal-overlay") || e.target.closest(".global-search") || e.target.closest(".prefill-btn")) {
+      return;
+    }
+    toggleNotificationDrawer(true);
+  }
+};
+
+// Notification slide drawer toggle
+window.toggleNotificationDrawer = function(forceClose = false) {
+  const drawer = document.getElementById("n-drawer");
+  if (drawer || forceClose) {
+    if (drawer) drawer.remove();
+    document.removeEventListener("click", window.handleNotificationOutsideClick);
+    document.removeEventListener("touchstart", window.handleNotificationOutsideClick);
     return;
   }
 
@@ -2645,15 +2923,14 @@ window.toggleNotificationDrawer = function() {
   updateHeaderUI();
 
   const drawerHTML = `
-    <div class="notification-drawer-backdrop" id="n-drawer-backdrop" onclick="toggleNotificationDrawer()"></div>
-    <div class="notification-drawer" id="n-drawer">
+    <div class="notification-drawer" id="n-drawer" role="dialog" aria-label="Notifications Alerts Tray">
       <div class="notification-drawer-header">
         <h3>Alerts Tray</h3>
-        <button class="modal-close" onclick="toggleNotificationDrawer()">${icon("x")}</button>
+        <button class="modal-close" onclick="toggleNotificationDrawer(true)" aria-label="Close notifications">${icon("x")}</button>
       </div>
       <div class="notification-list">
         ${state.notifications.map(n => `
-          <div class="notification-item">
+          <div class="notification-item ${n.unread ? "unread" : ""}">
             <div class="notification-item-icon">${icon(n.type === "security" ? "shield" : "bell")}</div>
             <div class="notification-item-content">
               <strong>${_t(n.title)}</strong>
@@ -2668,6 +2945,12 @@ window.toggleNotificationDrawer = function() {
   `;
   document.body.insertAdjacentHTML("beforeend", drawerHTML);
   if (window.lucide) lucide.createIcons();
+
+  // Use bubbling phase listener to prevent blocking and touch issues on mobile viewports
+  setTimeout(() => {
+    document.addEventListener("click", window.handleNotificationOutsideClick);
+    document.addEventListener("touchstart", window.handleNotificationOutsideClick);
+  }, 50);
 };
 
 // 17. SUBPAGES & VITALS SCREEN RENDERERS
@@ -3509,10 +3792,34 @@ window.confirmLabBooking = function(e, idx) {
 
 // --- Hospitals Registry ---
 const hospitalsList = [
-  { id: "hosp-1", name: "CityCare Multi-Speciality Hospital", hfrId: "HFR-10024A", rooms: "12 Active OPD Rooms", depts: ["OPD", "ICU", "Cardiology", "Neurology", "Orthopedics"] },
-  { id: "hosp-2", name: "Metro Heart & Lung Institute", hfrId: "HFR-99214B", rooms: "8 Active OPD Rooms", depts: ["Cardiology", "Pulmonology", "Thoracic Surgery"] },
-  { id: "hosp-3", name: "Apollo Smart Diagnostics & Clinic", hfrId: "HFR-88231C", rooms: "6 Active OPD Rooms", depts: ["General Medicine", "Pathology", "Radiology"] },
-  { id: "hosp-4", name: "MediFast Smart Care Clinic", hfrId: "HFR-42071P", rooms: "4 Active OPD Rooms", depts: ["Pediatrics", "General Medicine", "Physiotherapy"] }
+  {
+    id: "hosp-1",
+    name: "Janki Raman Hospital & Critical Care Centre, Jabalpur",
+    hfrId: "IN2310026968",
+    address: "5W33+W2V, Gurudev Colony, Jabalpur, Madhya Pradesh 482003",
+    contact: "093993 38520",
+    verifiedDate: "02 May 2026",
+    status: "Verified Digital Health Facility",
+    rooms: "15 Active OPD Rooms",
+    depts: ["Critical Care", "OPD", "Emergency", "General Medicine"],
+    registry: "Health Facility Registry (HFR)",
+    under: "Ayushman Bharat Digital Mission",
+    authority: "National Health Authority"
+  },
+  {
+    id: "hosp-2",
+    name: "DR AYESHAH HOMEO HEALTH MALL, Bhopal",
+    hfrId: "IN2310026365",
+    address: "Bhopal, Madhya Pradesh, India",
+    contact: "Not Available",
+    verifiedDate: "23 April 2026",
+    status: "Verified Digital Health Facility",
+    rooms: "8 Active Consultation Rooms",
+    depts: ["Homeopathy", "Primary Care", "Wellness", "Consultation"],
+    registry: "Health Facility Registry (HFR)",
+    under: "Ayushman Bharat Digital Mission",
+    authority: "National Health Authority"
+  }
 ];
 
 function renderHospitals() {
@@ -3522,26 +3829,58 @@ function renderHospitals() {
     <section class="hospital-grid">
       ${hospitalsList.map((h, index) => `
         <article class="hospital-card">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <div style="color:var(--accent-teal);">${icon("building-2", "small-icon")}</div>
-              <h3 style="font-size:14px; font-weight:800;">${h.name}</h3>
+          <div>
+            <div class="hosp-card-header">
+              <div class="hosp-header-left">
+                <div class="hosp-icon-wrapper">
+                  ${icon("building-2", "logo-plus")}
+                </div>
+                <div>
+                  <h3>${h.name}</h3>
+                  <span class="hosp-verified-badge">
+                    <span class="live-dot"></span>
+                    ${h.status || "Verified Digital Health Facility"}
+                  </span>
+                </div>
+              </div>
             </div>
-            <span class="live-badge" style="background:rgba(34,197,94,0.15); color:var(--success);"><span class="live-dot" style="background:var(--success);"></span> Verified</span>
-          </div>
-          <div style="font-size:11px; color:var(--text-secondary); margin:10px 0 6px;">HFR Identifier: <strong>${h.hfrId}</strong></div>
-          <div style="font-size:11px; color:var(--accent-cyan); font-weight:700; margin-bottom:12px;">Active OPD: ${h.rooms}</div>
-          
-          <div style="margin-bottom:14px;">
-            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Specialist Departments</div>
-            <div style="display:flex; flex-wrap:wrap; gap:4px;">
-              ${h.depts.map(d => `<span style="font-size:9px; background:var(--bg-secondary); border:1px solid var(--border-color); padding:2px 6px; border-radius:4px; color:var(--text-secondary);">${d}</span>`).join("")}
+
+            <div class="hosp-card-details">
+              <div class="hosp-detail-item">
+                <div class="hosp-detail-icon-pin">${icon("map-pin", "small-icon")}</div>
+                <span class="hosp-address">${h.address}</span>
+              </div>
+              <div class="hosp-detail-item-center">
+                <div class="hosp-detail-icon">${icon("phone", "small-icon")}</div>
+                <span class="hosp-text-bold">Contact: <strong>${h.contact}</strong></span>
+              </div>
+              <div class="hosp-detail-item-center">
+                <div class="hosp-detail-icon">${icon("shield-check", "small-icon")}</div>
+                <span>HFR Registration No: <strong class="hosp-id-highlight">${h.hfrId}</strong></span>
+              </div>
+              <div class="hosp-detail-item-center">
+                <div class="hosp-detail-icon">${icon("calendar", "small-icon")}</div>
+                <span>Verified Date: <strong class="hosp-val-primary">${h.verifiedDate}</strong></span>
+              </div>
+              
+              <div class="abdm-details">
+                <div><span>Registry:</span> <strong>${h.registry || "HFR"}</strong></div>
+                <div><span>Program:</span> <strong>${h.under || "ABDM"}</strong></div>
+                <div><span>Authority:</span> <strong>${h.authority || "NHA"}</strong></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="hosp-depts-title">Specialist Departments</div>
+              <div class="hosp-depts-container">
+                ${h.depts.map(d => `<span class="hosp-dept-tag">${d}</span>`).join("")}
+              </div>
             </div>
           </div>
 
-          <div style="display:flex; gap:8px; border-top:1px solid var(--border-color); padding-top:12px;">
-            <button class="join-btn" onclick="triggerHospitalCheckIn(${index})" style="margin:0; width:100%; padding:8px; font-size:11px;">
-              ${icon("qr-code", "small-icon")} Scan & Share Check-In
+          <div class="hosp-card-footer">
+            <button class="join-btn hosp-checkin-btn" onclick="triggerHospitalCheckIn(${index})">
+              ${icon("qr-code", "small-icon")} Scan & Share OPD Check-In
             </button>
           </div>
         </article>
@@ -3674,9 +4013,10 @@ window.confirmHospitalCheckIn = function(hospital) {
 function renderBloodBank() {
   const state = getAppState();
   const donors = state.bloodDonors || [
-    { name: "Rahul Deshmukh", age: 34, bg: "O+", mobile: "9872010471", lastDon: "2 months ago" },
-    { name: "Meera Nair", age: 28, bg: "A-", mobile: "9982736410", lastDon: "6 months ago" },
-    { name: "John Doe", age: 41, bg: "AB+", mobile: "9002817342", lastDon: "Never" }
+    { name: "Ashish Patel", age: 33, bg: "B+", mobile: "9981435702", lastDon: "3 months ago" },
+    { name: "Anant Agrahri", age: 32, bg: "B+", mobile: "9977756362", lastDon: "3 months ago" },
+    { name: "Priyanka Mehra", age: 32, bg: "O+", mobile: "Not Available", lastDon: "3 months ago" },
+    { name: "Manoj Jhariya", age: 37, bg: "O+", mobile: "Not Available", lastDon: "3 months ago" }
   ];
   const requests = state.bloodRequests || [
     { name: "Suresh Sharma", bg: "B-", units: 3, hospital: "CityCare Multi-Speciality Hospital", urgency: "Critical" }
@@ -3707,7 +4047,7 @@ function renderBloodBank() {
           <div style="background:var(--bg-secondary); border:1px solid ${stock.warning ? "var(--danger)" : "var(--border-color)"}; border-radius:8px; padding:10px; text-align:center; position:relative;">
             <div style="font-size:18px; font-weight:800; color:${stock.warning ? "var(--danger)" : "var(--accent-teal)"};">${stock.bg}</div>
             <div style="font-size:12px; font-weight:700; margin-top:4px;">${stock.units} Units</div>
-            ${stock.warning ? `<span style="font-size:7px; font-weight:900; background:rgba(239, 68, 68, 0.15); color:var(--danger); border:1px solid rgba(239, 68, 68, 0.3); border-radius:4px; padding:1px 4px; position:absolute; top:-6px; left:50%; transform:translateX(-50%); text-transform:uppercase;">Low Stock</span>` : ""}
+            ${stock.warning ? `<span style="font-size:7px; font-weight:900; background:rgba(239, 68, 68, 0.15); color:var(--danger); border:1px solid rgba(239, 68, 68, 0.3); border-radius:4px; position:absolute; top:-6px; left:50%; transform:translateX(-50%); text-transform:uppercase;">Low Stock</span>` : ""}
           </div>
         `).join("")}
       </div>
@@ -3788,29 +4128,46 @@ function renderBloodBank() {
 
       <article class="route-card wide-card">
         <div class="card-title-row">${icon("users")}<h3>Active Registered Donors Registry</h3></div>
-        <div style="overflow-x:auto;">
-          <table class="donor-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Blood Group</th>
-                <th>Contact Phone</th>
-                <th>Last Donation Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${donors.map(d => `
-                <tr>
-                  <td><strong>${d.name}</strong></td>
-                  <td>${d.age}</td>
-                  <td><span style="font-weight:800; color:var(--accent-teal);">${d.bg}</span></td>
-                  <td>${d.mobile}</td>
-                  <td>${d.lastDon}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
+        <div class="donor-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 14px;">
+          ${donors.map(d => {
+            const hasPhone = d.mobile && d.mobile !== "Not Available";
+            const phoneAction = hasPhone ? `href="tel:${d.mobile}"` : 'style="opacity: 0.6; cursor: not-allowed;" disabled';
+            const phoneText = hasPhone ? d.mobile : "Contact Not Available";
+            const phoneClass = hasPhone ? "phone-active" : "phone-disabled";
+            const phoneIcon = hasPhone ? "phone" : "phone-off";
+            return `
+              <div class="donor-card">
+                <div class="donor-card-header">
+                  <div class="donor-avatar-placeholder">
+                    ${icon("user-round", "donor-avatar-icon")}
+                  </div>
+                  <div class="donor-main-info">
+                    <h4>${d.name}</h4>
+                    <span class="donor-age">${d.age} Years</span>
+                  </div>
+                  <span class="blood-badge">${d.bg}</span>
+                </div>
+                <div class="donor-card-body">
+                  <div class="donor-meta-item">
+                    ${icon("calendar", "small-icon")}
+                    <span>Last Donation: <strong>${d.lastDon}</strong></span>
+                  </div>
+                </div>
+                <div class="donor-card-footer">
+                  ${hasPhone 
+                    ? `<a ${phoneAction} class="donor-contact-btn ${phoneClass}">
+                        ${icon(phoneIcon, "small-icon")}
+                        <span>Call: ${phoneText}</span>
+                       </a>`
+                    : `<button ${phoneAction} class="donor-contact-btn ${phoneClass}">
+                        ${icon(phoneIcon, "small-icon")}
+                        <span>${phoneText}</span>
+                       </button>`
+                  }
+                </div>
+              </div>
+            `;
+          }).join("")}
         </div>
       </article>
 

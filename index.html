@@ -54,9 +54,9 @@
       } catch(e) {}
     })();
   </script>
-  <div class="app">
-    <!-- Header -->
-    <header class="header">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
       <div class="logo">
         <div class="logo-icon">
           <i data-lucide="plus" class="logo-plus"></i>
@@ -69,6 +69,9 @@
       <div class="global-search" role="search">
         <i data-lucide="search" class="search-icon"></i>
         <input id="service-search" type="search" placeholder="Search services, records, doctors..." autocomplete="off" aria-label="Search services">
+        <button class="search-close-btn" aria-label="Close search" type="button">
+          <i data-lucide="x"></i>
+        </button>
         <div class="search-suggestions" id="search-suggestions" role="listbox"></div>
       </div>
       <div class="header-actions">
@@ -80,6 +83,10 @@
           <i data-lucide="bell" class="bell-icon"></i>
           <span class="notification-badge">1</span>
         </div>
+        <button class="theme-toggle-btn" aria-label="Toggle Theme" type="button">
+          <i data-lucide="sun" class="sun-icon"></i>
+          <i data-lucide="moon" class="moon-icon"></i>
+        </button>
         <div class="profile-menu-container">
           <div class="avatar" role="button" aria-label="User Menu" tabindex="0" aria-haspopup="true" aria-expanded="false" id="avatar-btn">
             <img src="assets/doctors/dr-ayesha-ali.jpeg" alt="User Avatar" id="header-avatar-img">
@@ -118,7 +125,10 @@
           </div>
         </div>
       </div>
-    </header>
+    </div>
+  </header>
+
+  <div class="app">
 
     <!-- Hero Section -->
     <section class="hero">
