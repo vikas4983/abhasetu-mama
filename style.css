@@ -4959,16 +4959,6 @@ html {
   box-shadow: 0 12px 30px rgba(0, 212, 170, 0.06) !important;
 }
 
-.about-social-btn {
-  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
-}
-.about-social-btn:hover {
-  transform: translateY(-2px) !important;
-  background: rgba(0, 212, 170, 0.15) !important;
-  border-color: var(--accent-teal) !important;
-  color: var(--text-primary) !important;
-}
-
 .about-hero-icon {
   color: var(--accent-teal) !important;
   width: 24px !important;
@@ -4980,6 +4970,109 @@ html {
   width: 22px !important;
   height: 22px !important;
 }
+
+/* Premium Social Media Icons Brand Styling */
+.social-svg {
+  width: 16px !important;
+  height: 16px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2px !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* Footer Circle Link Brand Coloring & Glowing Effects */
+.footer-social-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.footer-social-btn:hover {
+  transform: translateY(-4px) scale(1.1) !important;
+}
+
+.footer-social-btn:hover .social-svg {
+  transform: scale(1.1) rotate(6deg) !important;
+}
+
+/* Brand Specific Hover States for Footer */
+.footer-social-btn.instagram-btn:hover {
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 20px rgba(214, 36, 159, 0.4) !important;
+}
+
+.footer-social-btn.linkedin-btn:hover {
+  background: #0077b5 !important;
+  color: #ffffff !important;
+  border-color: #0077b5 !important;
+  box-shadow: 0 8px 20px rgba(0, 119, 181, 0.4) !important;
+}
+
+.footer-social-btn.facebook-btn:hover {
+  background: #1877f2 !important;
+  color: #ffffff !important;
+  border-color: #1877f2 !important;
+  box-shadow: 0 8px 20px rgba(24, 119, 242, 0.4) !important;
+}
+
+/* About Page Social Buttons Brand Styling */
+.about-social-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  text-decoration: none !important;
+  padding: 12px 20px !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  color: var(--text-secondary) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.about-social-btn:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12) !important;
+}
+
+.about-social-btn:hover .social-svg {
+  transform: scale(1.15) !important;
+}
+
+.about-social-btn.instagram-btn:hover {
+  background: radial-gradient(circle at 30% 107%, rgba(253, 244, 151, 0.12) 0%, rgba(253, 89, 73, 0.12) 45%, rgba(214, 36, 159, 0.12) 60%, rgba(40, 90, 235, 0.12) 90%) !important;
+  color: #fd5949 !important;
+  border-color: rgba(253, 89, 73, 0.4) !important;
+  box-shadow: 0 6px 18px rgba(253, 89, 73, 0.1) !important;
+}
+
+.about-social-btn.linkedin-btn:hover {
+  background: rgba(0, 119, 181, 0.08) !important;
+  color: #0077b5 !important;
+  border-color: rgba(0, 119, 181, 0.3) !important;
+  box-shadow: 0 6px 18px rgba(0, 119, 181, 0.1) !important;
+}
+
+.about-social-btn.facebook-btn:hover {
+  background: rgba(24, 119, 242, 0.08) !important;
+  color: #1877f2 !important;
+  border-color: rgba(24, 119, 242, 0.3) !important;
+  box-shadow: 0 6px 18px rgba(24, 119, 242, 0.1) !important;
+}
+
 
 
 

@@ -732,6 +732,31 @@ function icon(name, className = "route-icon") {
   return `<i data-lucide="${name}" class="${className}"></i>`;
 }
 
+function socialIcon(name) {
+  const svgs = {
+    instagram: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="social-svg instagram-svg">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+      </svg>
+    `,
+    linkedin: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="social-svg linkedin-svg">
+        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+        <rect x="2" y="9" width="4" height="12"></rect>
+        <circle cx="4" cy="4" r="2"></circle>
+      </svg>
+    `,
+    facebook: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="social-svg facebook-svg">
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+      </svg>
+    `
+  };
+  return svgs[name] || "";
+}
+
 // App Initialization
 function initApp() {
   const app = document.querySelector(".app");
@@ -1389,9 +1414,9 @@ function renderFooter() {
           <span>${icon("accessibility", "small-icon")} Accessible</span>
         </div>
         <div class="social-links" style="margin-top: 14px;">
-          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" aria-label="Instagram">${icon("instagram", "small-icon")}</a>
-          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" aria-label="LinkedIn">${icon("linkedin", "small-icon")}</a>
-          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" aria-label="Facebook">${icon("facebook", "small-icon")}</a>
+          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" aria-label="Instagram" class="footer-social-btn instagram-btn">${socialIcon("instagram")}</a>
+          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" aria-label="LinkedIn" class="footer-social-btn linkedin-btn">${socialIcon("linkedin")}</a>
+          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" aria-label="Facebook" class="footer-social-btn facebook-btn">${socialIcon("facebook")}</a>
         </div>
       </div>
       <div class="footer-grid">
@@ -4876,14 +4901,14 @@ function renderAbout() {
           Connect with the ABHA SETU and IQRA Online School community. Follow our official social handles to keep track of sandbox releases, skill workshops, and new ABDM feature deployments.
         </p>
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" class="about-social-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
-            ${icon("instagram", "small-icon")} Instagram
+          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" class="about-social-btn instagram-btn" style="padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 13px;">
+            ${socialIcon("instagram")} Instagram
           </a>
-          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" class="about-social-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
-            ${icon("linkedin", "small-icon")} LinkedIn
+          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" class="about-social-btn linkedin-btn" style="padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 13px;">
+            ${socialIcon("linkedin")} LinkedIn
           </a>
-          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" class="about-social-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
-            ${icon("facebook", "small-icon")} Facebook
+          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" class="about-social-btn facebook-btn" style="padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 13px;">
+            ${socialIcon("facebook")} Facebook
           </a>
         </div>
       </article>
