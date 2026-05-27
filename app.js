@@ -1070,9 +1070,8 @@ function setupSearch() {
 
       // Insurance (Static)
       { type: "Insurance", title: "Ayushman Bharat PM-JAY Policy", route: "abdm-services", icon: "shield-check", desc: "Verify eligibility and link PM-JAY insurance cards." },
-      { type: "Insurance", title: "Care Shield Plus Insurance Plan", route: "digital-locker", icon: "shield", desc: "Review claim histories and upload digital policy cards." },
-
-      // Labs (Static)
+      { type: "Insurance", title: "Care Shield Plus Insurance Plan", route: "digital-locker", icon: "shield", desc: "Review claim histories" },
+      { type: "Footer", title: "ABHA SETU", route: "home", icon: "shield", desc: "National Digital Health Bridge for ABDM-ready healthcare operations, telemedicine, connected facilities, QR flows, and secure patient journeys." },
       { type: "Labs", title: "ECG Diagnostic Screening", route: "book-lab-test", icon: "activity", desc: "Diagnostic lab slot for heart screening scans." },
       { type: "Labs", title: "NABL Pathology Lab Tests", route: "book-lab-test", icon: "flask-conical", desc: "NABL certified blood tests and sample collection." },
 
@@ -1390,9 +1389,9 @@ function renderFooter() {
           <span>${icon("accessibility", "small-icon")} Accessible</span>
         </div>
         <div class="social-links" style="margin-top: 14px;">
-          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" aria-label="Instagram">${icon("instagram")}</a>
-          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" aria-label="LinkedIn">${icon("linkedin")}</a>
-          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" aria-label="Facebook">${icon("facebook")}</a>
+          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" aria-label="Instagram">${icon("instagram", "small-icon")}</a>
+          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" aria-label="LinkedIn">${icon("linkedin", "small-icon")}</a>
+          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" aria-label="Facebook">${icon("facebook", "small-icon")}</a>
         </div>
       </div>
       <div class="footer-grid">
@@ -4767,44 +4766,123 @@ function renderContact() {
 
 function renderAbout() {
   return `
-    ${pageHeader("About Platform", "Mission, vision, and structural architectures of the interoperable health ecosystem.")}
+    ${pageHeader("About Platform", "Mission, vision, and educational integrations of the interoperable health ecosystem.")}
     
-    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
-      <article class="route-card wide-card" style="padding: 24px; line-height: 1.6;">
-        <div class="card-title-row">${icon("plus")}<h3>The ABHA SETU Mission</h3></div>
-        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 10px;">
-          ABHA SETU is a state-of-the-art digital healthcare gateway designed to bridge physical medical institutions with the central **Ayushman Bharat Digital Mission (ABDM)** ecosystem of India. Developed under Milestone 1 & 2 directives of the National Health Authority (NHA), our system links patient profiles, OPD triage queues, telemedicine channels, diagnostic vital oximeters, and secure health lockers into a unified patient-centric console.
-        </p>
+    <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+      <!-- Hero Mission Card -->
+      <article class="route-card wide-card about-hero-card" style="padding: 32px; position: relative; overflow: hidden; border-radius: 16px;">
+        <div class="tricolor-accent-bar" style="position: absolute; top: 0; left: 0; right: 0; height: 4px; display: grid; grid-template-columns: 1fr 1fr 1fr;">
+          <div style="background: #FF9933;"></div>
+          <div style="background: #FFFFFF;"></div>
+          <div style="background: #138808;"></div>
+        </div>
+        
+        <div class="card-title-row" style="margin-bottom: 20px;">
+          <h3 style="font-size: 20px; font-weight: 700; background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-teal)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">
+            The Abha Setu Mission - Powered by IQRA Online School
+          </h3>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr; gap: 18px; line-height: 1.7; font-size: 14px; color: var(--text-secondary);">
+          <p style="font-weight: 500; color: var(--text-primary); font-size: 15px; border-left: 3px solid var(--accent-teal); padding-left: 12px; margin-bottom: 8px; margin-top: 0;">
+            ABHA SETU is a next-generation digital health bridge designed to connect healthcare services with digital empowerment through one unified ecosystem.
+          </p>
+          <p style="margin: 0;">
+            The platform integrates telemedicine services, digital patient health records, OPD management systems, diagnostics support, and ABDM-ready healthcare infrastructure to deliver a secure, modern, and patient-centric healthcare experience.
+          </p>
+          <p style="margin: 0;">
+            Developed under the educational and skill-development vision of <strong>IQRA Online School</strong>, ABHA SETU serves as an integrated digital health initiative focused on bridging healthcare, technology, and professional skill development.
+          </p>
+        </div>
       </article>
 
-      <section class="route-grid two-col">
-        <article class="route-card">
-          <div class="card-title-row">${icon("shield-check")}<h3>Unified Health Interface</h3></div>
-          <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.5;">
-            Our interface is built on standard open APIs supporting consent-based medical records exchange. It lets users register instantly, consult licensed homeopathy/allopathy practitioners, and maintain full control over their healthcare trails.
+      <!-- NSDC Course Highlight Card -->
+      <article class="route-card wide-card nsdc-course-card" style="padding: 28px; border: 1px dashed rgba(0, 212, 170, 0.4); background: rgba(0, 212, 170, 0.03); border-radius: 16px; position: relative; overflow: visible;">
+        <div style="position: absolute; top: -12px; right: 24px; padding: 4px 12px; border-radius: 20px; background: var(--accent-teal); color: #13283b; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">
+          NSDC APPROVED SKILL DEVELOPMENT
+        </div>
+        
+        <div class="card-title-row" style="margin-bottom: 16px;">
+          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin: 0;">E-Health Services Provider Program</h3>
+        </div>
+        
+        <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.6; margin-bottom: 20px; margin-top: 0;">
+          As part of this mission, ABHA SETU also promotes the <strong>E-Health Services Provider Program (NSDC Approved Skill Development Course, Code: CO102500052)</strong>, empowering healthcare professionals and students with industry-relevant skills in digital health systems, electronic health record (EHR) management, and interoperable clinical workflows.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; background: rgba(255, 255, 255, 0.02); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color);">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Approved Course Code</span>
+            <span style="font-size: 16px; font-weight: 700; color: var(--accent-teal);">CO102500052</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Educational Partner</span>
+            <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">IQRA Online School</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Curriculum Standard</span>
+            <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">ABDM & EHR Guidelines</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-primary); margin-bottom: 12px; letter-spacing: 0.5px; font-weight: 600; margin-top: 0;">Key Training Modules Covered</h4>
+          <ul style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; list-style: none; padding: 0; margin: 0; font-size: 12px; color: var(--text-secondary);">
+            <li style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--accent-teal); display: inline-flex;">&#10003;</span> Interoperable EHR Systems & Digital Logs
+            </li>
+            <li style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--accent-teal); display: inline-flex;">&#10003;</span> National Health Authority (NHA) Standards
+            </li>
+            <li style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--accent-teal); display: inline-flex;">&#10003;</span> Telehealth Telemedicine Operations
+            </li>
+            <li style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--accent-teal); display: inline-flex;">&#10003;</span> ABDM Integration & Consent Frameworks
+            </li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Grid Highlights -->
+      <section class="route-grid two-col" style="gap: 20px; display: grid;">
+        <article class="route-card" style="padding: 24px; margin: 0;">
+          <div class="card-title-row" style="margin-bottom: 12px;">
+            ${icon("shield-check", "card-icon")}
+            <h3 style="font-size: 15px; font-weight: 700; margin: 0;">Unified Digital Health Interface</h3>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.6; margin: 0;">
+            A complete bridge connecting traditional clinics with interoperable frameworks. Empowering instant consent-based clinical file exchanges under the DPDP Act.
           </p>
         </article>
-        <article class="route-card">
-          <div class="card-title-row">${icon("heart-handshake")}<h3>Government Integrations</h3></div>
-          <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.5;">
-            Fully interoperable with the Health Facility Registry (HFR), Health Professional Registry (HPR), and the central ABHA Card numbering vaults, making check-ins at smart hospitals rapid and card-free.
+        <article class="route-card" style="padding: 24px; margin: 0;">
+          <div class="card-title-row" style="margin-bottom: 12px;">
+            ${icon("globe", "card-icon")}
+            <h3 style="font-size: 15px; font-weight: 700; margin: 0;">National Skill India Vision</h3>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 12px; line-height: 1.6; margin: 0;">
+            Aligning healthcare infrastructure training with digital growth. Preparing India's healthcare workforce for seamless, paperless hospital patient workflows.
           </p>
         </article>
       </section>
 
-      <article class="route-card wide-card" style="padding: 24px; line-height: 1.6;">
-        <div class="card-title-row">${icon("globe")}<h3>Official Social Channels</h3></div>
+      <!-- Social Media Connect -->
+      <article class="route-card wide-card" style="padding: 28px; line-height: 1.6;">
+        <div class="card-title-row" style="margin-bottom: 12px;">
+          ${icon("heart-handshake")}
+          <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">Join the National Mission</h3>
+        </div>
         <p style="color: var(--text-secondary); font-size: 13px; margin: 10px 0 16px;">
-          Connect with the ABHA SETU community. Join our official social handles to track active milestones, sandbox integrations, and new feature releases under the National Health Authority guidelines.
+          Connect with the ABHA SETU and IQRA Online School community. Follow our official social handles to keep track of sandbox releases, skill workshops, and new ABDM feature deployments.
         </p>
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
+          <a href="https://www.instagram.com/abha.setu?igsh=c3oydW13dm44eTJ2" target="_blank" class="about-social-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
             ${icon("instagram", "small-icon")} Instagram
           </a>
-          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
+          <a href="https://www.linkedin.com/in/abha-setu-37481a410" target="_blank" class="about-social-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
             ${icon("linkedin", "small-icon")} LinkedIn
           </a>
-          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
+          <a href="https://www.facebook.com/share/1Eb3rV5tPj/" target="_blank" class="about-social-btn" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 10px 16px; border-radius: 10px; background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.2); color: var(--accent-teal); font-weight: 700; font-size: 13px; transition: all 0.25s ease;">
             ${icon("facebook", "small-icon")} Facebook
           </a>
         </div>

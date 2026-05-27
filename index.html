@@ -32,7 +32,50 @@
   <meta name="twitter:description" content="Connect physical clinics with digital records under Ayushman Bharat Digital Mission guidelines. Experience instant check-in, oximeter-sync health dashboard, and secure e-prescriptions.">
   <meta name="twitter:image" content="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=1200">
 
-  <title>Abha Setu - National Digital Health Bridge | Ayushman Bharat Digital Mission (ABDM-Ready)</title>
+  <!-- Google Search Structured Data (JSON-LD) for Rich Sitelinks & Searchbox -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://abhasetu.com/#website",
+        "url": "https://abhasetu.com/",
+        "name": "Abha Setu - National Digital Health Bridge",
+        "alternateName": "ABHA SETU",
+        "description": "National Digital Health Bridge linking physical clinics with digital healthcare records under ABDM guidelines.",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://abhasetu.com/?search={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "SiteNavigationElement",
+        "@id": "https://abhasetu.com/#navigation",
+        "name": [
+          "Scan QR",
+          "ABHA Card",
+          "Health Locker",
+          "Book Consultation",
+          "Health ATM"
+        ],
+        "url": [
+          "https://abhasetu.com/#/qr-scanner",
+          "https://abhasetu.com/#/abha",
+          "https://abhasetu.com/#/records",
+          "https://abhasetu.com/#/telemedicine",
+          "https://abhasetu.com/#/health-atm"
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <title>Abha Setu - National Digital Health Bridge</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" defer></script>
@@ -63,7 +106,7 @@
         </div>
         <div class="logo-text">
           <h1>ABHA SETU</h1>
-          <span>National Digital Health Bridge</span>
+          <span>Digital Health Bridge</span>
         </div>
       </div>
       <div class="global-search" role="search">

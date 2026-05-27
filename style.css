@@ -4933,4 +4933,55 @@ html {
   z-index: 10 !important;
 }
 
+/* Premium Social Icon Scale & Color Inheritance */
+.social-icon {
+  width: 16px !important;
+  height: 16px !important;
+  color: inherit !important;
+  transition: transform 0.2s ease-in-out !important;
+}
+
+/* About Us Section Hover Transitions and Premium Styles */
+.about-hero-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+.about-hero-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 30px rgba(0, 212, 170, 0.08) !important;
+}
+
+.nsdc-course-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease !important;
+}
+.nsdc-course-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--accent-teal) !important;
+  box-shadow: 0 12px 30px rgba(0, 212, 170, 0.06) !important;
+}
+
+.about-social-btn {
+  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
+}
+.about-social-btn:hover {
+  transform: translateY(-2px) !important;
+  background: rgba(0, 212, 170, 0.15) !important;
+  border-color: var(--accent-teal) !important;
+  color: var(--text-primary) !important;
+}
+
+.about-hero-icon {
+  color: var(--accent-teal) !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.nsdc-icon {
+  color: var(--accent-teal) !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+
+
+
 
