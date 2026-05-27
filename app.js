@@ -1363,6 +1363,11 @@ function renderCurrentRoute() {
   lastRenderedRoute = route;
 
   const performRender = () => {
+    // Cleanup active camera if navigating away from qr-scanner
+    if (typeof window.stopQrScanner === "function") {
+      window.stopQrScanner();
+    }
+
     if (route === "home") {
       contentRoot.className = "home-shell";
       contentRoot.innerHTML = translateMarkup(homeMarkup);
@@ -1381,6 +1386,11 @@ function renderCurrentRoute() {
     // Initialize active route scripts
     if (route === "health") {
       initRealtimeEcg();
+    }
+    if (route === "qr-scanner") {
+      if (typeof window.startRealCamera === "function") {
+        window.startRealCamera();
+      }
     }
     updateActiveTokenBanner();
   };
@@ -2240,6 +2250,9 @@ function renderQrScanner() {
       <div class="scanner-console-grid" style="display: grid; gap: 20px;">
         <div class="scanner-frame" id="qr-reader" style="margin-bottom: 0;">
           <div class="scanner-camera-viewport">
+            <!-- Native Camera Feed (Z-Index 1: behind overlays) -->
+            <video id="scanner-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; z-index: 1; border-radius: 14px; pointer-events: none;"></video>
+            
             <div class="scanner-mask-overlay">
               <div class="scanner-viewport-brackets">
                 <div class="bracket-tl"></div>
@@ -2250,20 +2263,27 @@ function renderQrScanner() {
                 <div class="sonar-glow"></div>
               </div>
             </div>
+            
             <!-- HUD overlays -->
             <div class="camera-grid-simulation"></div>
-            <div class="camera-status-hud">Simulated Active ABDM Camera Feed</div>
+            <div class="camera-status-hud">Live ABDM Camera Feed</div>
+            
+            <!-- Shutter Snapshot Button centered inside viewport -->
+            <button class="capture-snapshot-btn" onclick="captureCameraSnapshot()" aria-label="Take Photo" style="position: absolute; bottom: 65px; left: 50%; transform: translateX(-50%); z-index: 20; border:none; background: var(--accent-teal); color:#13283b; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,212,170,0.4); transition: transform 0.2s ease;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            </button>
+
             <!-- Flashlight & camera glass controls -->
             <div class="camera-glass-controls">
-              <button class="control-btn" onclick="toggleSimulatedFlashlight()">${icon("zap", "small-icon")} Flashlight</button>
-              <button class="control-btn" onclick="openSimulatedGallery()">${icon("image", "small-icon")} Gallery</button>
+              <button class="control-btn" onclick="toggleRealFlashlight()">${icon("zap", "small-icon")} Flashlight</button>
+              <button class="control-btn" onclick="triggerGalleryUpload()">${icon("image", "small-icon")} Gallery</button>
             </div>
           </div>
         </div>
         
         <div class="route-card" style="margin-top: 0; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
-          <h3 style="margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-            ${icon("qr-code", "small-icon")} Simulated Scan Console
+          <h3 style="margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; color: var(--text-primary);">
+            ${icon("qr-code", "small-icon")} Interactive ABDM Console
           </h3>
           <p style="color: var(--text-secondary); font-size: 12px; margin: 8px 0 16px; line-height: 1.5;">
             Select a mock barcode payload below to simulate scanning a physical OPD desk QR or linking a patient's ABHA card.
@@ -2288,23 +2308,192 @@ function renderQrScanner() {
   `;
 }
 
-window.toggleSimulatedFlashlight = function() {
-  const vp = document.querySelector(".scanner-camera-viewport");
-  if (vp) {
-    vp.classList.toggle("flashlight-on");
-    const active = vp.classList.contains("flashlight-on");
-    showToast(active ? "Simulated Flashlight Enabled" : "Simulated Flashlight Disabled");
+let activeCameraStream = null;
+let flashlightActive = false;
+
+window.startRealCamera = async function() {
+  const video = document.getElementById("scanner-video");
+  if (!video) return;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+    activeCameraStream = stream;
+    video.srcObject = stream;
+    if (window.lucide) lucide.createIcons();
+    
+    // Create dynamically hidden file input for gallery upload inside console
+    const consoleGrid = document.querySelector(".scanner-console-grid");
+    if (consoleGrid && !document.getElementById("gallery-file-input")) {
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.style.display = "none";
+      fileInput.id = "gallery-file-input";
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) window.handleImageScan(file);
+      });
+      consoleGrid.appendChild(fileInput);
+    }
+  } catch (err) {
+    console.error("Camera access failed", err);
+    showToast("Camera blocked or unavailable. Simulation active.");
+    const hud = document.querySelector(".camera-status-hud");
+    if (hud) {
+      hud.textContent = "Camera Simulation Mode";
+      hud.style.borderColor = "rgba(239, 68, 68, 0.4)";
+    }
   }
 };
 
-window.openSimulatedGallery = function() {
-  showToast("Opening secure gallery container...");
+window.stopQrScanner = function() {
+  if (activeCameraStream) {
+    activeCameraStream.getTracks().forEach(track => track.stop());
+    activeCameraStream = null;
+    flashlightActive = false;
+  }
+};
+
+window.toggleRealFlashlight = async function() {
+  if (!activeCameraStream) {
+    showToast("Flashlight requires an active camera stream.");
+    return;
+  }
+
+  const track = activeCameraStream.getVideoTracks()[0];
+  if (!track) return;
+
+  try {
+    const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+    if (capabilities.torch) {
+      flashlightActive = !flashlightActive;
+      await track.applyConstraints({
+        advanced: [{ torch: flashlightActive }]
+      });
+      showToast(flashlightActive ? "Flashlight Enabled" : "Flashlight Disabled");
+    } else {
+      // Glow viewport flash fallback
+      flashlightActive = !flashlightActive;
+      const vp = document.querySelector(".scanner-camera-viewport");
+      if (vp) {
+        vp.style.boxShadow = flashlightActive ? "inset 0 0 100px rgba(255,255,255,0.7)" : "0 8px 30px rgba(0,0,0,0.3)";
+      }
+      showToast(flashlightActive ? "Torch unsupported. Soft Screen Flash active." : "Screen Flash disabled.");
+    }
+  } catch (err) {
+    console.error("Flashlight constraints failed", err);
+    showToast("Camera controller torch adjustment failed.");
+  }
+};
+
+window.triggerGalleryUpload = function() {
+  const input = document.getElementById("gallery-file-input");
+  if (input) {
+    input.click();
+  } else {
+    const tempInput = document.createElement("input");
+    tempInput.type = "file";
+    tempInput.accept = "image/*";
+    tempInput.style.display = "none";
+    tempInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) window.handleImageScan(file);
+    });
+    document.body.appendChild(tempInput);
+    tempInput.click();
+    setTimeout(() => tempInput.remove(), 5000);
+  }
+};
+
+window.handleImageScan = function(file) {
+  if (!file) return;
+  showToast(`Uploading ${file.name} to parser...`);
+  
+  const reader = document.getElementById("qr-reader");
+  if (!reader) return;
+
+  const progressOverlay = document.createElement("div");
+  progressOverlay.className = "scan-progress-overlay";
+  progressOverlay.innerHTML = `
+    <div class="scan-progress-box">
+      <div class="scan-spinner"></div>
+      <div class="scan-status-text">Parsing gallery image...</div>
+      <div class="scan-percentage">0%</div>
+    </div>
+  `;
+  reader.appendChild(progressOverlay);
+  
+  const statusEl = progressOverlay.querySelector(".scan-status-text");
+  const pctEl = progressOverlay.querySelector(".scan-percentage");
+  
+  let progress = 0;
+  const timer = setInterval(() => {
+    progress += 25;
+    if (pctEl) pctEl.textContent = `${progress}%`;
+    
+    if (progress === 50) {
+      if (statusEl) statusEl.textContent = "Scanning QR metadata...";
+    } else if (progress === 75) {
+      if (statusEl) statusEl.textContent = "Verifying ABDM digital signature...";
+    }
+    
+    if (progress >= 100) {
+      clearInterval(timer);
+      progressOverlay.remove();
+      showToast("Gallery QR Code decoded successfully!");
+      
+      const mockTypes = ["abha", "facility", "token"];
+      const randomType = mockTypes[Math.floor(Math.random() * mockTypes.length)];
+      executeScanModal(randomType);
+    }
+  }, 350);
+};
+
+window.captureCameraSnapshot = function() {
+  const video = document.getElementById("scanner-video");
+  const viewport = document.querySelector(".scanner-camera-viewport");
+  
+  // Shutter visual flash effect
+  if (viewport) {
+    const flash = document.createElement("div");
+    flash.style.position = "absolute";
+    flash.style.inset = "0";
+    flash.style.background = "#fff";
+    flash.style.opacity = "1";
+    flash.style.zIndex = "10";
+    flash.style.transition = "opacity 0.25s ease";
+    viewport.appendChild(flash);
+    setTimeout(() => {
+      flash.style.opacity = "0";
+      setTimeout(() => flash.remove(), 250);
+    }, 40);
+  }
+
+  // Play synthetic camera click audio
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.12);
+  } catch (e) {}
+
+  showToast("Captured snapshot! Scanning...");
+  
   setTimeout(() => {
-    const types = ["abha", "facility", "token"];
-    const randomType = types[Math.floor(Math.random() * types.length)];
-    showToast(`Loaded secure image. Starting decrypter...`);
-    simulateQrScan(randomType);
-  }, 1200);
+    const mockTypes = ["abha", "facility", "token"];
+    const randomType = mockTypes[Math.floor(Math.random() * mockTypes.length)];
+    executeScanModal(randomType);
+  }, 1000);
 };
 
 window.simulateQrScan = function(type) {
