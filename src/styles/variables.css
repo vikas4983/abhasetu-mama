@@ -1,0 +1,58 @@
+/* CSS Variables & Theme Presets */
+:root {
+  --bg-primary: #071521;
+  --bg-secondary: #0d2031;
+  --bg-card: #13283b;
+  --bg-card-hover: #18344c;
+  --accent-teal: #00d4aa;
+  --accent-cyan: #00b4d8;
+  --accent-blue: #0077b6;
+  --text-primary: #ffffff;
+  --text-secondary: #a7b7c9;
+  --text-muted: #6f849b;
+  --border-color: #24445f;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --surface-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+  --content-width: 1180px;
+  --page-pad: 16px;
+  --nav-height: 72px;
+}
+
+/* Theme Presets */
+.theme-slate-dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+  --accent-teal: #38bdf8;
+  --accent-cyan: #818cf8;
+  --accent-blue: #6366f1;
+  --border-color: #334155;
+}
+
+.theme-ocean-blue {
+  --bg-primary: #0a1128;
+  --bg-secondary: #001f54;
+  --bg-card: #0a3069;
+  --bg-card-hover: #10458a;
+  --accent-teal: #00b4d8;
+  --accent-cyan: #90e0ef;
+  --accent-blue: #0077b6;
+  --border-color: #0d3069;
+}
+
+.theme-emerald-light {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --accent-teal: #059669;
+  --accent-cyan: #10b981;
+  --accent-blue: #2563eb;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --surface-shadow: 0 12px 30px rgba(5, 150, 105, 0.05);
+}
