@@ -192,8 +192,10 @@ export default function MoreServicesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                 <button className="prefill-btn" onClick={() => router.push('/abha')}>Create ABHA Card</button>
                 <button className="prefill-btn" onClick={() => router.push('/qr-scanner')}>Open Video QR Scanner</button>
+                <button className="prefill-btn" onClick={() => router.push('/admin/docs')} style={{ border: '1px dashed var(--accent-teal)', color: 'var(--accent-teal)' }}>Interactive Developer API Docs</button>
                 <button className="prefill-btn" onClick={() => { showToast(t('Checking ABDM Sandbox Gateway status... Online')); }}>Check Gateway Status (Online)</button>
               </div>
+
             </article>
           )}
 

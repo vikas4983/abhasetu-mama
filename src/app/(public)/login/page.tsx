@@ -52,14 +52,15 @@ export default function LoginPage() {
         
         {/* Brand Logo */}
         <div className="logo" style={{ justifyContent: 'center', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="logo-icon" style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', display: 'grid', placeItems: 'center' }}>
-            <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+          <div className="logo-icon" style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-teal)', display: 'grid', placeItems: 'center', background: '#0a171c', boxShadow: '0 0 12px rgba(0, 212, 170, 0.35)' }}>
+            <img src="/assets/logo.jpg" alt="ABHA SETU Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div className="logo-text" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
             <h1 style={{ fontSize: '18px', margin: 0, fontWeight: 800, color: 'var(--text-primary)' }}>ABHA SETU</h1>
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>National Digital Health Bridge</span>
+            <span style={{ fontSize: '10px', color: 'var(--accent-teal)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: '-2px' }}>Digital Health Bridge</span>
           </div>
         </div>
+
 
         <h2 style={{ fontSize: '18px', textAlign: 'center', margin: '0 0 4px', fontWeight: 800 }}>Secure Portal Sign-In</h2>
         <p className="subtitle" style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.5 }}>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import '../styles/globals.css';
 import { ThemeProvider } from '../providers/ThemeProvider';
 import { AccessibilityProvider } from '../providers/AccessibilityProvider';
@@ -93,8 +94,12 @@ export default function RootLayout({
             }),
           }}
         />
+      </head>
+      <body suppressHydrationWarning>
         {/* Synchronous script to immediately set client preferences and prevent flicker */}
-        <script
+        <Script
+          id="theme-initializer"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -112,8 +117,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body suppressHydrationWarning>
         <QueryProvider>
           <LanguageProvider>
             <ThemeProvider>

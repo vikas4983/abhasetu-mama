@@ -166,15 +166,16 @@ export default function Header() {
   return (
     <header className="header">
       <div className="header-inner">
-        <div className="logo" onClick={() => router.push('/')} style={{ cursor: 'pointer' }}>
-          <div className="logo-icon">
-            <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+        <div className="logo" onClick={() => router.push('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="logo-icon" style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-teal)', display: 'grid', placeItems: 'center', background: '#0a171c', boxShadow: '0 0 12px rgba(0, 212, 170, 0.35)' }}>
+            <img src="/assets/logo.jpg" alt="ABHA SETU Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div className="logo-text">
-            <h1>{t('ABHA SETU')}</h1>
-            <span>{t('National Digital Health Bridge')}</span>
+            <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 800, letterSpacing: '0.5px' }}>{t('ABHA SETU')}</h1>
+            <span style={{ fontSize: '10px', color: 'var(--accent-teal)', fontWeight: '600', display: 'block', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: '-2px' }}>{t('Digital Health Bridge')}</span>
           </div>
         </div>
+
 
         {/* Global Search Input */}
         <div ref={searchRef} className={`global-search ${isSearchActive ? 'is-active' : ''}`} role="search">
