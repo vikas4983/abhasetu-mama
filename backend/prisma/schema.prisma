@@ -1,0 +1,71 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model AbhaProfile {
+  id               String            @id @default(uuid()) @map("id")
+  abhaNumber       String            @unique @map("abha_number")
+  abhaAddress      String            @unique @map("abha_address")
+  fullName         String            @map("full_name")
+  gender           String            @map("gender")
+  dateOfBirth      DateTime          @map("date_of_birth")
+  mobile           String            @map("mobile")
+  status           String            @default("ACTIVE") @map("status")
+  profilePhoto     String?           @map("profile_photo")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  consentArtifacts ConsentArtifact[]
+  careContexts     CareContext[]
+
+  @@map("abha_profiles")
+}
+
+model ConsentArtifact {
+  id                String      @id @default(uuid()) @map("id")
+  consentRequestId  String      @unique @map("consent_request_id")
+  consentArtifactId String?     @unique @map("consent_artifact_id")
+  abhaAddress       String      @map("abha_address")
+  profile           AbhaProfile @relation(fields: [abhaAddress], references: [abhaAddress])
+  status            String      @default("REQUESTED") @map("status")
+  purposeCode       String      @map("purpose_code")
+  hiTypes           String[]    @map("hi_types")
+  dateRangeFrom     DateTime    @map("date_range_from")
+  dateRangeTo       DateTime    @map("date_range_to")
+  expiryDate        DateTime    @map("expiry_date")
+  signature         String?     @map("signature")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@map("consent_artifacts")
+}
+
+model CareContext {
+  id                    String      @id @default(uuid()) @map("id")
+  patientId             String      @map("patient_id")
+  profile               AbhaProfile @relation(fields: [patientId], references: [id])
+  careContextReference String      @unique @map("care_context_reference")
+  displayName           String      @map("display_name")
+  linked                Boolean     @default(false) @map("linked")
+  linkedAt              DateTime?   @map("linked_at")
+  createdAt             DateTime    @default(now()) @map("created_at")
+
+  @@map("care_contexts")
+}
+
+model WebhookLog {
+  id            String   @id @default(uuid()) @map("id")
+  transactionId String   @map("transaction_id")
+  apiRoute      String   @map("api_route")
+  statusCode    Int      @map("status_code")
+  requestBody   Json?    @map("request_body")
+  responseBody  Json?    @map("response_body")
+  error         String?  @map("error")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("webhook_logs")
+}
