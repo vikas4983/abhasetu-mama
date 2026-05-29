@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../../providers/LanguageProvider';
 import { ShieldCheck, Lock, Accessibility, Mail, Phone, MapPin, Plus } from 'lucide-react';
@@ -9,6 +9,20 @@ export default function Footer() {
   const router = useRouter();
   const { t } = useLanguage();
   const year = new Date().getFullYear();
+  const [selectedLogo, setSelectedLogo] = useState<string>('default');
+
+  useEffect(() => {
+    try {
+      const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+      if (state.selectedLogo) {
+        setSelectedLogo(state.selectedLogo);
+      } else {
+        setSelectedLogo('default');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const handleLinkClick = (e: React.MouseEvent, route: string) => {
     e.preventDefault();
@@ -19,8 +33,29 @@ export default function Footer() {
     <footer className="site-footer" aria-label="AbhaSetu footer">
       <div className="footer-brand">
         <div className="footer-logo">
-          <div className="logo-icon">
-            <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+          <div className="logo-icon" style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '50%', 
+            display: 'grid', 
+            placeItems: 'center', 
+            overflow: 'hidden',
+            background: selectedLogo !== 'default' ? 'transparent' : 'linear-gradient(135deg, var(--accent-teal), var(--accent-cyan))',
+            boxShadow: selectedLogo !== 'default' ? 'none' : '0 12px 28px color-mix(in srgb, var(--accent-teal) 24%, transparent)',
+            border: selectedLogo !== 'default' ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+            padding: selectedLogo !== 'default' ? '2px' : '0'
+          }}>
+            {selectedLogo === 'default' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px', color: '#ffffff' }}>
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
+            ) : (
+              <img
+                src={selectedLogo}
+                alt="Brand Logo"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
+              />
+            )}
           </div>
           <div>
             <h2>ABHA SETU</h2>
@@ -69,17 +104,17 @@ export default function Footer() {
         </section>
         <section>
           <h3>Contact</h3>
-          <a href="mailto:contact@abhasetu.com">
-            <Mail className="small-icon" style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
+          <a href="mailto:contact@abhasetu.com" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <Mail className="small-icon" style={{ width: '14px', height: '14px', flexShrink: 0, marginRight: '6px' }} />
             contact@abhasetu.com
           </a>
-          <a href="tel:+919981057765">
-            <Phone className="small-icon" style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
+          <a href="tel:+919981057765" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <Phone className="small-icon" style={{ width: '14px', height: '14px', flexShrink: 0, marginRight: '6px' }} />
             +91-9981057765
           </a>
-          <p>
-            <MapPin className="small-icon" style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px', minWidth: '14px' }} />
-            Madar Gate, Panchampura, Katangi, Jabalpur, Madhya Pradesh 483105
+          <p style={{ display: 'inline-flex', alignItems: 'flex-start' }}>
+            <MapPin className="small-icon" style={{ width: '14px', height: '14px', flexShrink: 0, marginRight: '6px', marginTop: '3px' }} />
+            <span>Madar Gate, Panchampura, Katangi, Jabalpur, MP 483105</span>
           </p>
         </section>
         <section>

@@ -72,7 +72,7 @@ export default function LoginPage() {
               width: '38px', 
               height: '38px', 
               borderRadius: '50%', 
-              background: selectedLogo !== 'default' ? 'transparent' : 'rgba(0, 212, 170, 0.1)', 
+              background: selectedLogo !== 'default' ? 'transparent' : 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', 
               display: 'grid', 
               placeItems: 'center',
               overflow: 'hidden',
@@ -106,7 +106,7 @@ export default function LoginPage() {
             type="button"
             className={`prefill-btn ${selectedRole === 'patient' ? 'active' : ''}`}
             onClick={() => handleRolePrefill('patient')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'patient' ? 'rgba(0, 212, 170, 0.1)' : 'var(--bg-secondary)', color: selectedRole === 'patient' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'patient' ? 'color-mix(in srgb, var(--accent-teal) 10%, transparent)' : 'var(--bg-secondary)', color: selectedRole === 'patient' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
           >
             <UserRound style={{ width: '16px', height: '16px' }} />
             <span>Patient</span>
@@ -115,7 +115,7 @@ export default function LoginPage() {
             type="button"
             className={`prefill-btn ${selectedRole === 'doctor' ? 'active' : ''}`}
             onClick={() => handleRolePrefill('doctor')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'doctor' ? 'rgba(0, 212, 170, 0.1)' : 'var(--bg-secondary)', color: selectedRole === 'doctor' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'doctor' ? 'color-mix(in srgb, var(--accent-teal) 10%, transparent)' : 'var(--bg-secondary)', color: selectedRole === 'doctor' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
           >
             <Stethoscope style={{ width: '16px', height: '16px' }} />
             <span>Doctor</span>
@@ -124,7 +124,7 @@ export default function LoginPage() {
             type="button"
             className={`prefill-btn ${selectedRole === 'operator' ? 'active' : ''}`}
             onClick={() => handleRolePrefill('operator')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'operator' ? 'rgba(0, 212, 170, 0.1)' : 'var(--bg-secondary)', color: selectedRole === 'operator' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'operator' ? 'color-mix(in srgb, var(--accent-teal) 10%, transparent)' : 'var(--bg-secondary)', color: selectedRole === 'operator' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
           >
             <Users style={{ width: '16px', height: '16px' }} />
             <span>Operator</span>
@@ -133,7 +133,7 @@ export default function LoginPage() {
             type="button"
             className={`prefill-btn ${selectedRole === 'admin' ? 'active' : ''}`}
             onClick={() => handleRolePrefill('admin')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'admin' ? 'rgba(0, 212, 170, 0.1)' : 'var(--bg-secondary)', color: selectedRole === 'admin' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-color)', background: selectedRole === 'admin' ? 'color-mix(in srgb, var(--accent-teal) 10%, transparent)' : 'var(--bg-secondary)', color: selectedRole === 'admin' ? 'var(--accent-teal)' : 'var(--text-primary)' }}
           >
             <ShieldCheck style={{ width: '16px', height: '16px' }} />
             <span>Admin</span>

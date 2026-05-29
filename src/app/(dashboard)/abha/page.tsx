@@ -995,86 +995,72 @@ export default function AbhaPage() {
         </div>
       </section>
 
-      {/* Modern High-Fidelity Tabs Layout (Grid for Mobile First responsiveness) */}
-      <div 
-        className="tab-menu" 
-        style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
-          gap: '6px', 
-          padding: '6px', 
-          background: 'var(--bg-secondary)', 
-          borderRadius: '14px', 
-          width: '100%', 
-          maxWidth: '850px', 
-          margin: '20px auto 10px', 
-          border: '1px solid var(--border-color)' 
-        }}
-      >
+      {/* Premium Glassmorphic Adaptive Tab Navigation Menu */}
+      <nav className="abha-tab-menu">
         <button 
           onClick={() => setActiveTab('card')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'card' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'card' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'card' ? 'active-tab' : ''}`}
         >
           <Calendar style={{ width: '16px', height: '16px' }} />
-          <span>My ABHA</span>
+          <span>{t('My ABHA Card')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('onboard')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'onboard' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'onboard' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'onboard' ? 'active-tab' : ''}`}
         >
           <Fingerprint style={{ width: '16px', height: '16px' }} />
-          <span>M1 Onboard</span>
+          <span>{t('Create ABHA Card')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('hiplink')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'hiplink' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'hiplink' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'hiplink' ? 'active-tab' : ''}`}
         >
           <Link2 style={{ width: '16px', height: '16px' }} />
-          <span>M2 HIP Link</span>
+          <span>{t('Link Hospital Records')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('consent')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'consent' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'consent' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'consent' ? 'active-tab' : ''}`}
         >
           <FolderLock style={{ width: '16px', height: '16px' }} />
-          <span>M3 Consent</span>
+          <span>{t('Share Records (Consent)')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('scanshare')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'scanshare' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'scanshare' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'scanshare' ? 'active-tab' : ''}`}
         >
           <QrCode style={{ width: '16px', height: '16px' }} />
-          <span>Scan & Share</span>
+          <span>{t('Scan & Share (OPD)')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('uhi')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'uhi' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'uhi' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'uhi' ? 'active-tab' : ''}`}
         >
           <Globe style={{ width: '16px', height: '16px' }} />
-          <span>UHI network</span>
+          <span>{t('Search Doctors & Book')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('nhcx')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'nhcx' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'nhcx' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'nhcx' ? 'active-tab' : ''}`}
         >
           <Shield style={{ width: '16px', height: '16px' }} />
-          <span>NHCX claims</span>
+          <span>{t('Insurance Claims')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('nhpr')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'nhpr' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'nhpr' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'nhpr' ? 'active-tab' : ''}`}
         >
           <Stethoscope style={{ width: '16px', height: '16px' }} />
-          <span>NHPR Registry</span>
+          <span>{t('Doctor Registry (HPR)')}</span>
         </button>
         <button 
           onClick={() => setActiveTab('tests')}
-          style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'tests' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'transparent', color: activeTab === 'tests' ? 'var(--accent-teal)' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          className={`abha-tab-button ${activeTab === 'tests' ? 'active-tab' : ''}`}
         >
           <ShieldCheck style={{ width: '16px', height: '16px' }} />
-          <span>Sandbox Tests</span>
+          <span>{t('Developer Sandbox Tests')}</span>
         </button>
-      </div>
+      </nav>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%', maxWidth: '600px', margin: '10px auto 0' }}>
         
@@ -1185,7 +1171,7 @@ export default function AbhaPage() {
 
             <div style={{ width: '100%', display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button className="join-btn" onClick={() => router.push('/appointments')} style={{ flex: 1, margin: 0 }}>OPD Queue Registry</button>
-              <button className="join-btn" onClick={() => router.push('/records')} style={{ flex: 1, margin: 0, background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>Linked Health Records</button>
+              <button className="prefill-btn" onClick={() => router.push('/records')} style={{ flex: 1, margin: 0 }}>Linked Health Records</button>
             </div>
           </>
         )}
@@ -1194,12 +1180,12 @@ export default function AbhaPage() {
         {activeTab === 'onboard' && (
           <article className="route-card" style={{ width: '100%', padding: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
                 <Fingerprint />
               </div>
               <div style={{ textAlign: 'left' }}>
-                <h3 style={{ margin: 0, fontSize: '16px' }}>ABHA Sandbox Onboarding</h3>
-                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Generate 14-digit National Health account using Aadhaar Gateway (M1)</p>
+                <h3 style={{ margin: 0, fontSize: '16px' }}>{t('Create Your ABHA Card')}</h3>
+                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{t('Generate your 14-digit national health card securely using your Aadhaar number.')}</p>
               </div>
             </div>
 
@@ -1222,7 +1208,7 @@ export default function AbhaPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
                   {loading ? <RefreshCw className="animate-spin" /> : <Send style={{ width: '16px', height: '16px' }} />}
                   <span>Request Aadhaar OTP</span>
@@ -1232,7 +1218,7 @@ export default function AbhaPage() {
 
             {onboardStep === 'otp' && (
               <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                <div style={{ padding: '10px', background: 'rgba(0, 212, 170, 0.05)', border: '1px solid rgba(0, 212, 170, 0.2)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
                   <span>Enter verification code sent to your mobile. <strong>Enter "123456" for instant sandbox pass.</strong></span>
                 </div>
@@ -1250,7 +1236,7 @@ export default function AbhaPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
                   {loading ? <RefreshCw className="animate-spin" /> : <Key style={{ width: '16px', height: '16px' }} />}
                   <span>Verify & Create ABHA</span>
@@ -1286,12 +1272,12 @@ export default function AbhaPage() {
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <article className="route-card" style={{ width: '100%', padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
                   <Link2 />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '15px' }}>HIP Care Context Linker (M2)</h3>
-                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Synchronous patient record discovery & direct linking</p>
+                  <h3 style={{ margin: 0, fontSize: '15px' }}>{t('Link Your Hospital Records')}</h3>
+                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{t('Find and link all your doctor visits and lab reports directly.')}</p>
                 </div>
               </div>
 
@@ -1374,7 +1360,7 @@ export default function AbhaPage() {
                   </div>
                   <button
                     type="submit"
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   >
                     <ShieldCheck style={{ width: '16px', height: '16px' }} />
                     <span>Verify & Link Record</span>
@@ -1429,8 +1415,8 @@ export default function AbhaPage() {
                   <FolderLock />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '15px' }}>HIU Consent Manager (M3)</h3>
-                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Secure Curve25519 ECDH key agreement & FHIR record pull</p>
+                  <h3 style={{ margin: 0, fontSize: '15px' }}>{t('Share Records Safely (Consent Manager)')}</h3>
+                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{t('Give secure permission to share and view your records safely.')}</p>
                 </div>
               </div>
 
@@ -1462,9 +1448,9 @@ export default function AbhaPage() {
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Information Types</label>
                     <div style={{ padding: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', borderRadius: '8px', fontSize: '10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                      <span style={{ padding: '2px 6px', background: 'rgba(0,212,170,0.1)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold' }}>Rx</span>
-                      <span style={{ padding: '2px 6px', background: 'rgba(0,212,170,0.1)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold' }}>Diag</span>
-                      <span style={{ padding: '2px 6px', background: 'rgba(0,212,170,0.1)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold' }}>OPD</span>
+                      <span style={{ padding: '2px 6px', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold' }}>Rx</span>
+                      <span style={{ padding: '2px 6px', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold' }}>Diag</span>
+                      <span style={{ padding: '2px 6px', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold' }}>OPD</span>
                     </div>
                   </div>
                 </div>
@@ -1520,7 +1506,7 @@ export default function AbhaPage() {
                 {decryptedRecords.map((record, index) => (
                   <article key={index} className="route-card" style={{ width: '100%', padding: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', textAlign: 'left' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
-                      <span style={{ fontSize: '10px', padding: '2px 8px', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: '10px', padding: '2px 8px', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', borderRadius: '4px', fontWeight: 'bold', textTransform: 'uppercase' }}>
                         {record.resourceType}
                       </span>
                       <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Status: {record.status}</span>
@@ -1558,7 +1544,7 @@ export default function AbhaPage() {
             <article className="route-card" style={{ width: '100%', padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', textAlign: 'left' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
                     <Stethoscope />
                   </div>
                   <div>
@@ -1572,13 +1558,13 @@ export default function AbhaPage() {
               <div style={{ display: 'flex', gap: '8px', padding: '2px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
                 <button 
                   onClick={() => setNhprMode('search')}
-                  style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: nhprMode === 'search' ? 'var(--accent-teal)' : 'transparent', color: nhprMode === 'search' ? '#000' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: nhprMode === 'search' ? 'var(--accent-teal)' : 'transparent', color: nhprMode === 'search' ? '#ffffff' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
                 >
                   Search & Verify
                 </button>
                 <button 
                   onClick={() => setNhprMode('enroll')}
-                  style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: nhprMode === 'enroll' ? 'var(--accent-teal)' : 'transparent', color: nhprMode === 'enroll' ? '#000' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: nhprMode === 'enroll' ? 'var(--accent-teal)' : 'transparent', color: nhprMode === 'enroll' ? '#ffffff' : 'var(--text-muted)', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
                 >
                   Register Doctor
                 </button>
@@ -1639,7 +1625,7 @@ export default function AbhaPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   >
                     {loading ? <RefreshCw className="animate-spin" /> : <Search style={{ width: '16px', height: '16px' }} />}
                     <span>Search HPR Registry</span>
@@ -1665,7 +1651,7 @@ export default function AbhaPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        style={{ width: '100%', padding: '11px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        style={{ width: '100%', padding: '11px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         {loading ? <RefreshCw className="animate-spin" /> : <UserPlus style={{ width: '16px', height: '16px' }} />}
                         <span>Request Aadhaar KYC OTP</span>
@@ -1692,7 +1678,7 @@ export default function AbhaPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        style={{ width: '100%', padding: '11px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        style={{ width: '100%', padding: '11px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         {loading ? <RefreshCw className="animate-spin" /> : <ShieldCheck style={{ width: '16px', height: '16px' }} />}
                         <span>Verify & Onboard Professional</span>
@@ -1882,7 +1868,7 @@ export default function AbhaPage() {
                     <div 
                       key={bill.billId} 
                       onClick={() => setSelectedBill(bill)}
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: selectedBill?.billId === bill.billId ? 'rgba(0, 212, 170, 0.05)' : 'var(--bg-primary)', border: selectedBill?.billId === bill.billId ? '2px solid var(--accent-teal)' : '1px solid var(--border-color)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: selectedBill?.billId === bill.billId ? 'color-mix(in srgb, var(--accent-teal) 5%, transparent)' : 'var(--bg-primary)', border: selectedBill?.billId === bill.billId ? '2px solid var(--accent-teal)' : '1px solid var(--border-color)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
                     >
                       <div>
                         <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{bill.serviceName}</strong>
@@ -1898,7 +1884,7 @@ export default function AbhaPage() {
                 {selectedBill && (
                   <button
                     onClick={processScanPayPayment}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer', marginTop: '16px', transition: 'all 0.2s' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', marginTop: '16px', transition: 'all 0.2s' }}
                   >
                     Pay Rs. {selectedBill.amount} via Health UPI Wallet
                   </button>
@@ -1990,7 +1976,7 @@ export default function AbhaPage() {
                           <span style={{ display: 'block', fontWeight: 800, color: 'var(--accent-blue)', marginBottom: '4px' }}>Rs. {doc.fee}</span>
                           <button 
                             onClick={() => runUhiSelect(doc)}
-                            style={{ padding: '4px 8px', border: 'none', background: 'var(--accent-teal)', color: '#000', fontWeight: 'bold', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                            style={{ padding: '4px 8px', border: 'none', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 'bold', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
                           >
                             Book
                           </button>
@@ -2019,7 +2005,7 @@ export default function AbhaPage() {
                   </div>
                   <button
                     onClick={runUhiInit}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
                   >
                     Proceed with Patient Details Check
                   </button>
@@ -2039,7 +2025,7 @@ export default function AbhaPage() {
                   </div>
                   <button
                     onClick={runUhiConfirm}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
                   >
                     Authorize Payment & Confirm Booking
                   </button>
@@ -2153,7 +2139,7 @@ export default function AbhaPage() {
 
                   <button
                     onClick={runNhcxEligibilityCheck}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
                   >
                     1. Check Coverage Policy Eligibility
                   </button>
@@ -2230,7 +2216,7 @@ export default function AbhaPage() {
                   </div>
                   <button
                     onClick={runNhcxSettlement}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#000', fontWeight: 800, cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
                   >
                     3. Submit Final Cashless Claim Settlement
                   </button>
@@ -2314,8 +2300,7 @@ export default function AbhaPage() {
                   padding: '12px 24px', 
                   borderRadius: '10px', 
                   border: 'none', 
-                  background: 'var(--accent-teal)', 
-                  color: '#000', 
+                  background: 'var(--accent-teal)', color: '#ffffff', 
                   fontWeight: 800, 
                   fontSize: '13px', 
                   cursor: testsRunning ? 'not-allowed' : 'pointer', 

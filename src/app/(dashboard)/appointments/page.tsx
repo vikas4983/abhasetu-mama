@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, Appointment } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
-import { Calendar, ArrowLeft, Clock, History, Plus, X, ShieldCheck, HeartPulse, CheckCircle } from 'lucide-react';
+import { Calendar, ArrowLeft, Clock, History, Plus, X, ShieldCheck, HeartPulse, CheckCircle, Loader2 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
+import { useInfiniteScroll } from '../../../utils/hooks/useInfiniteScroll';
 
 interface Doctor {
   name: string;
@@ -94,6 +95,14 @@ export default function AppointmentsPage() {
 
   // Dynamic doctors list state
   const [doctorsList, setDoctorsList] = useState<Doctor[]>(doctors);
+
+  // Infinite scroll hook for Doctor cards list
+  const { 
+    visibleItems: visibleDocs, 
+    hasMore: hasMoreDocs, 
+    isLoading: loadingDocs, 
+    loadMore: loadMoreDocs 
+  } = useInfiniteScroll(doctorsList, { initialSize: 2, loadSize: 2 });
 
   // Load custom HPR registered doctors from localStorage on startup
   useEffect(() => {
@@ -267,7 +276,7 @@ export default function AppointmentsPage() {
 
               {/* Roster list */}
               <section className="route-grid doctor-grid">
-                {doctorsList.map((d, index) => (
+                {visibleDocs.map((d, index) => (
                   <article key={index} className="route-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', padding: '20px' }}>
                     <img
                       src={d.photo}
@@ -280,7 +289,7 @@ export default function AppointmentsPage() {
                     <div style={{ flex: 1, minWidth: '200px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                         <h3 style={{ fontSize: '15px', margin: 0 }}>{d.name}</h3>
-                        <span className="live-badge" style={{ padding: '2px 8px', fontSize: '9px', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)' }}>{d.badge}</span>
+                        <span className="live-badge" style={{ padding: '2px 8px', fontSize: '9px', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)' }}>{d.badge}</span>
                       </div>
                       <p style={{ fontSize: '11px', color: 'var(--accent-cyan)', fontWeight: 700, margin: '2px 0' }}>{d.degree} - {d.experience}</p>
                       <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.4' }}>{d.description}</p>
@@ -296,6 +305,26 @@ export default function AppointmentsPage() {
                   </article>
                 ))}
               </section>
+
+              {hasMoreDocs && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                  <button 
+                    className="prefill-btn" 
+                    onClick={loadMoreDocs} 
+                    disabled={loadingDocs}
+                    style={{ padding: '8px 24px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: 'auto', height: '36px' }}
+                  >
+                    {loadingDocs ? (
+                      <>
+                        <Loader2 className="animate-spin" style={{ width: '14px', height: '14px', marginRight: '6px' }} />
+                        {t('Loading Doctors...')}
+                      </>
+                    ) : (
+                      t('Load More Doctors')
+                    )}
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -357,7 +386,7 @@ export default function AppointmentsPage() {
                           <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 750 }}>{t(item.title)}</h4>
                           <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0', fontSize: '12px' }}>{item.doctor}</p>
                         </div>
-                        <span className="live-badge" style={{ background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', border: '1px solid var(--border-color)', fontSize: '10px', padding: '2px 8px', borderRadius: '4px' }}>{item.status}</span>
+                        <span className="live-badge" style={{ background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', border: '1px solid var(--border-color)', fontSize: '10px', padding: '2px 8px', borderRadius: '4px' }}>{item.status}</span>
                       </div>
                       <div className="pill-row" style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                         <span style={{ marginRight: '12px' }}>{item.meta}</span>
@@ -492,7 +521,7 @@ export default function AppointmentsPage() {
         <div className="modal-overlay" id="confirm-modal" onClick={() => setShowSuccessModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
             <div className="modal-body" style={{ padding: '30px 20px' }}>
-              <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.15)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
+              <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 15%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
                 <CheckCircle className="logo-plus" style={{ width: '28px', height: '28px' }} />
               </div>
               <h2 style={{ fontSize: '20px', margin: '0 0 8px' }}>OPD Token Confirmed!</h2>

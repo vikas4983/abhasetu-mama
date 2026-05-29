@@ -276,7 +276,7 @@ export default function SandboxDocsPage() {
             padding: '12px',
             border: '1px solid var(--border-color)',
             borderRadius: '10px',
-            background: activeTab === 'docs' ? 'rgba(0, 212, 170, 0.12)' : 'var(--bg-card)',
+            background: activeTab === 'docs' ? 'color-mix(in srgb, var(--accent-teal) 12%, transparent)' : 'var(--bg-card)',
             color: activeTab === 'docs' ? 'var(--accent-teal)' : 'var(--text-secondary)',
             fontWeight: 750,
             cursor: 'pointer',
@@ -298,7 +298,7 @@ export default function SandboxDocsPage() {
             padding: '12px',
             border: '1px solid var(--border-color)',
             borderRadius: '10px',
-            background: activeTab === 'playground' ? 'rgba(0, 212, 170, 0.12)' : 'var(--bg-card)',
+            background: activeTab === 'playground' ? 'color-mix(in srgb, var(--accent-teal) 12%, transparent)' : 'var(--bg-card)',
             color: activeTab === 'playground' ? 'var(--accent-teal)' : 'var(--text-secondary)',
             fontWeight: 750,
             cursor: 'pointer',
@@ -341,7 +341,7 @@ export default function SandboxDocsPage() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{
-                    background: api.method === 'POST' ? 'rgba(0, 212, 170, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                    background: api.method === 'POST' ? 'color-mix(in srgb, var(--accent-teal) 15%, transparent)' : 'rgba(56, 189, 248, 0.15)',
                     color: api.method === 'POST' ? 'var(--accent-teal)' : 'var(--accent-cyan)',
                     padding: '4px 8px',
                     borderRadius: '6px',
@@ -409,7 +409,7 @@ export default function SandboxDocsPage() {
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(0, 212, 170, 0.1)';
+                    e.currentTarget.style.background = 'color-mix(in srgb, var(--accent-teal) 10%, transparent)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'transparent';
@@ -474,7 +474,7 @@ export default function SandboxDocsPage() {
                   <h4 style={{ margin: 0, color: '#fff', fontSize: '14px' }}>{apis[selectedApi as keyof typeof apis].name}</h4>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Target API Route: {apis[selectedApi as keyof typeof apis].url}</span>
                 </div>
-                <span style={{ background: 'rgba(0, 212, 170, 0.15)', color: 'var(--accent-teal)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                <span style={{ background: 'color-mix(in srgb, var(--accent-teal) 15%, transparent)', color: 'var(--accent-teal)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', fontFamily: 'monospace' }}>
                   {apis[selectedApi as keyof typeof apis].method}
                 </span>
               </div>
@@ -543,8 +543,7 @@ export default function SandboxDocsPage() {
                         padding: '8px',
                         border: 'none',
                         borderRadius: '6px',
-                        background: 'var(--accent-teal)',
-                        color: '#000',
+                        background: 'var(--accent-teal)', color: '#ffffff',
                         fontSize: '11px',
                         fontWeight: 800,
                         cursor: 'pointer',
@@ -552,7 +551,7 @@ export default function SandboxDocsPage() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '6px',
-                        boxShadow: '0 4px 12px rgba(0, 212, 170, 0.2)',
+                        boxShadow: '0 4px 12px color-mix(in srgb, var(--accent-teal) 20%, transparent)',
                         transition: 'opacity 0.2s'
                       }}
                     >

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -25,6 +25,50 @@ export default function HealthPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { logSecurityEvent } = useAuth();
+
+  const [iconStyle, setIconStyle] = useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
+
+  useEffect(() => {
+    const checkState = () => {
+      try {
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.iconStyle) {
+          setIconStyle(state.iconStyle);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkState();
+    window.addEventListener('storage', checkState);
+    window.addEventListener('setu_state_update', checkState);
+    return () => {
+      window.removeEventListener('storage', checkState);
+      window.removeEventListener('setu_state_update', checkState);
+    };
+  }, []);
+
+  const getIconConfig = (style: string, color3d: string, shadow3d: string) => {
+    if (style === '3d-gradient') {
+      return {
+        className: 'quick-icon-3d',
+        style: {
+          background: color3d,
+          boxShadow: shadow3d
+        }
+      };
+    } else if (style === 'minimalist') {
+      return {
+        className: 'quick-icon-minimal',
+        style: {}
+      };
+    } else {
+      return {
+        className: 'quick-icon-glass',
+        style: {}
+      };
+    }
+  };
 
   // Water intake state
   const [water, setWater] = useState(1200);
@@ -160,28 +204,35 @@ export default function HealthPage() {
         </div>
       </section>
 
-      {/* Expanded Metrics Row - 8 Vitals Total */}
       <section className="route-grid metrics-grid" style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
         <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('bp')}>
-          <Activity className="card-icon" style={{ color: 'var(--accent-teal)' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}>
+            <Activity />
+          </div>
           <span>Blood Pressure</span>
           <strong>120/80</strong>
           <small>mmHg - Stable</small>
         </article>
         <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('spo2')}>
-          <HeartPulse className="card-icon" style={{ color: 'var(--danger)' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').style}>
+            <HeartPulse />
+          </div>
           <span>SpO2 (Pulse)</span>
           <strong>98%</strong>
           <small>Normal range</small>
         </article>
         <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('glucose')}>
-          <Droplet className="card-icon" style={{ color: 'var(--accent-cyan)' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').style}>
+            <Droplet />
+          </div>
           <span>Blood Glucose</span>
           <strong>96</strong>
           <small>mg/dL - Fasting</small>
         </article>
         <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('hr')}>
-          <Heart className="card-icon" style={{ color: '#ef4444' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').style}>
+            <Heart />
+          </div>
           <span>Heart Rate</span>
           <strong>72</strong>
           <small>BPM - Normal</small>
@@ -189,7 +240,9 @@ export default function HealthPage() {
         
         {/* NEW VITAL: Sleep Cycle */}
         <article className="metric-card">
-          <Moon className="card-icon" style={{ color: 'var(--accent-cyan)' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').style}>
+            <Moon />
+          </div>
           <span>Sleep Cycle</span>
           <strong>7.8 hrs</strong>
           <small>Deep: 2.2 hrs</small>
@@ -197,7 +250,9 @@ export default function HealthPage() {
 
         {/* NEW VITAL: Body Temperature */}
         <article className="metric-card">
-          <Thermometer className="card-icon" style={{ color: '#fa7a19' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #fa7a19 0%, #d66025 100%)', '0 4px 14px rgba(250, 122, 25, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #fa7a19 0%, #d66025 100%)', '0 4px 14px rgba(250, 122, 25, 0.4)').style}>
+            <Thermometer />
+          </div>
           <span>Body Temp</span>
           <strong>98.4 °F</strong>
           <small>Stable / Normal</small>
@@ -205,7 +260,9 @@ export default function HealthPage() {
 
         {/* NEW VITAL: Respiratory Rate */}
         <article className="metric-card">
-          <Wind className="card-icon" style={{ color: 'var(--success)' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').style}>
+            <Wind />
+          </div>
           <span>Respiration</span>
           <strong>16 /min</strong>
           <small>Breaths - Normal</small>
@@ -213,7 +270,9 @@ export default function HealthPage() {
 
         {/* NEW VITAL: Heart Rate Variability */}
         <article className="metric-card">
-          <Award className="card-icon" style={{ color: '#f59e0b' }} />
+          <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)', '0 4px 14px rgba(255, 112, 166, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)', '0 4px 14px rgba(255, 112, 166, 0.4)').style}>
+            <Award />
+          </div>
           <span>HRV index</span>
           <strong>58 ms</strong>
           <small>Excellent / Active</small>
@@ -471,7 +530,7 @@ export default function HealthPage() {
                   left: 0,
                   right: 0,
                   height: `${(water / targetWater) * 100}%`,
-                  background: 'rgba(0, 212, 170, 0.25)',
+                  background: 'color-mix(in srgb, var(--accent-teal) 25%, transparent)',
                   transition: 'height 0.5s ease',
                   width: '100%',
                 }}

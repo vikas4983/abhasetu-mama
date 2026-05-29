@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
-import { FolderLock, ArrowLeft, Upload, ShieldAlert, Sparkles } from 'lucide-react';
+import { FolderLock, ArrowLeft, Upload, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
+import { useInfiniteScroll } from '../../../utils/hooks/useInfiniteScroll';
 
 export default function RecordsPage() {
   const router = useRouter();
@@ -13,6 +14,14 @@ export default function RecordsPage() {
   const { records, addRecord, logSecurityEvent } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Infinite scroll hook for Health records list
+  const { 
+    visibleItems: visibleRecords, 
+    hasMore: hasMoreRecords, 
+    isLoading: loadingRecords, 
+    loadMore: loadMoreRecords 
+  } = useInfiniteScroll(records, { initialSize: 3, loadSize: 3 });
 
   // Trigger high-fidelity shimmering skeleton transition on page mount
   useEffect(() => {
@@ -59,7 +68,7 @@ export default function RecordsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
           {/* Shimmering Upload Zone */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
-            <article className="route-card" style={{ textAlign: 'center', padding: '32px 24px', border: '1px dashed var(--border-color)', background: 'rgba(0, 212, 170, 0.01)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <article className="route-card" style={{ textAlign: 'center', padding: '32px 24px', border: '1px dashed var(--border-color)', background: 'color-mix(in srgb, var(--accent-teal) 1%, transparent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
               <div className="setu-skeleton setu-skeleton-avatar" style={{ width: '48px', height: '48px' }}></div>
               <div className="setu-skeleton setu-skeleton-title" style={{ width: '220px', height: '16px' }}></div>
               <div className="setu-skeleton setu-skeleton-text" style={{ width: '70%', height: '12px' }}></div>
@@ -86,8 +95,8 @@ export default function RecordsPage() {
         <>
           {/* Upload Zone */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px', marginBottom: '22px', marginTop: '20px' }}>
-            <article className="route-card" style={{ textAlign: 'center', padding: '32px 24px', border: '1px dashed var(--border-color)', background: 'rgba(0, 212, 170, 0.02)' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
+            <article className="route-card" style={{ textAlign: 'center', padding: '32px 24px', border: '1px dashed var(--border-color)', background: 'color-mix(in srgb, var(--accent-teal) 2%, transparent)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
                 <FolderLock style={{ width: '24px', height: '24px' }} />
               </div>
               <h4 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 8px' }}>Linked Electronic Records Locker</h4>
@@ -123,12 +132,12 @@ export default function RecordsPage() {
               <span>Date Uploaded</span>
               <span>Verified Provider</span>
             </div>
-            {records.length === 0 ? (
+            {visibleRecords.length === 0 ? (
               <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                 No health records linked yet. Upload records or sync ABHA card to retrieve clinical documentation.
               </div>
             ) : (
-              records.map((record, index) => (
+              visibleRecords.map((record, index) => (
                 <div
                   key={index}
                   className="table-row"
@@ -150,6 +159,26 @@ export default function RecordsPage() {
               ))
             )}
           </section>
+
+          {hasMoreRecords && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+              <button 
+                className="prefill-btn" 
+                onClick={loadMoreRecords} 
+                disabled={loadingRecords}
+                style={{ padding: '8px 24px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: 'auto', height: '36px' }}
+              >
+                {loadingRecords ? (
+                  <>
+                    <Loader2 className="animate-spin" style={{ width: '14px', height: '14px', marginRight: '6px' }} />
+                    {t('Loading Records...')}
+                  </>
+                ) : (
+                  t('Load More Records')
+                )}
+              </button>
+            </div>
+          )}
         </>
       )}
     </>

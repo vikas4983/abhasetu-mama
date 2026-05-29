@@ -67,6 +67,8 @@ interface AuthContextType {
   addRecord: (record: HealthRecord) => void;
   setAbhaCreated: (created: boolean, card: any) => void;
   clearNotifications: () => void;
+  deleteNotification: (id: number) => void;
+  markNotificationRead: (id: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -130,7 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           records: DEFAULT_RECORDS,
           notifications: DEFAULT_NOTIFICATIONS,
           securityLogs: [{ event: "Platform Init", details: "ABHA Setu security controller successfully loaded.", time: new Date().toLocaleTimeString() }],
-          activeToken: null
+          activeToken: null,
+          theme: 'dark-teal',
+          iconStyle: 'glassmorphic'
         };
         localStorage.setItem('setu_state', JSON.stringify(initial));
         setSecurityLogs(initial.securityLogs);
@@ -291,6 +295,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const deleteNotification = (id: number) => {
+    setNotifications(prev => {
+      const next = prev.filter(n => n.id !== id);
+      syncToLocalStorage({ notifications: next });
+      return next;
+    });
+  };
+
+  const markNotificationRead = (id: number) => {
+    setNotifications(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, unread: false } : n);
+      syncToLocalStorage({ notifications: next });
+      return next;
+    });
+  };
+
   // Route security shield
   useEffect(() => {
     if (!currentUser && pathname !== '/login' && pathname !== '/register') {
@@ -326,7 +346,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       addAppointment,
       addRecord,
       setAbhaCreated,
-      clearNotifications
+      clearNotifications,
+      deleteNotification,
+      markNotificationRead
     }}>
       {children}
     </AuthContext.Provider>

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
-import { Key, FileText, ArrowLeft } from 'lucide-react';
+import { Key, FileText, ArrowLeft, Loader2 } from 'lucide-react';
+import { useInfiniteScroll } from '../../../utils/hooks/useInfiniteScroll';
 
 export default function SecurityPage() {
   const { securityLogs, currentUser } = useAuth();
@@ -18,6 +19,16 @@ export default function SecurityPage() {
     }, 600);
     return () => clearTimeout(timer);
   }, []);
+
+  // Infinite scroll hook for Security logs list
+  const {
+    visibleItems: visibleLogs,
+    hasMore: hasMoreLogs,
+    isLoading: loadingLogs,
+    loadMore: loadMoreLogs,
+    error: logsError,
+    retry: retryLogs
+  } = useInfiniteScroll(securityLogs, { initialSize: 5, loadSize: 5 });
 
   // Create a dynamic JWT payload representation for display
   const userBase64 = currentUser
@@ -108,12 +119,12 @@ export default function SecurityPage() {
             All personal identifiers (vitals, Aadhaar, OTPs) are cryptographically hashed and redacted prior to system audit persistence.
           </p>
           <div style={{ display: 'grid', gap: '8px' }}>
-            {securityLogs.length === 0 ? (
+            {visibleLogs.length === 0 ? (
               <div style={{ padding: '12px 0', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
                 No security logs recorded yet.
               </div>
             ) : (
-              securityLogs.map((log, idx) => (
+              visibleLogs.map((log, idx) => (
                 <div
                   key={idx}
                   style={{
@@ -134,6 +145,33 @@ export default function SecurityPage() {
               ))
             )}
           </div>
+
+          {hasMoreLogs && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+              <button
+                className="prefill-btn"
+                onClick={loadMoreLogs}
+                disabled={loadingLogs}
+                style={{ padding: '8px 24px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: 'auto', height: '36px' }}
+              >
+                {loadingLogs ? (
+                  <>
+                    <Loader2 className="animate-spin" style={{ width: '14px', height: '14px', marginRight: '6px' }} />
+                    {t('Loading Logs...')}
+                  </>
+                ) : (
+                  t('Load More Logs')
+                )}
+              </button>
+            </div>
+          )}
+
+          {logsError && (
+            <div style={{ textAlign: 'center', color: 'var(--danger)', fontSize: '12px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+              <span>{logsError}</span>
+              <button className="join-btn" onClick={retryLogs} style={{ padding: '4px 12px', fontSize: '10px', minHeight: 'auto' }}>Retry</button>
+            </div>
+          )}
         </section>
       </div>
     </>

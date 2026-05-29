@@ -110,8 +110,8 @@ export default function LogoLoader({ isLoading, type = 'login' }: LogoLoaderProp
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            border: '1px solid rgba(0, 212, 170, 0.08)',
-            background: 'linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px)',
+            border: '1px solid color-mix(in srgb, var(--accent-teal) 8%, transparent)',
+            background: 'linear-gradient(color-mix(in srgb, var(--accent-teal) 3%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--accent-teal) 3%, transparent) 1px, transparent 1px)',
             backgroundSize: '16px 16px',
             opacity: 0.8,
             overflow: 'hidden',
@@ -205,10 +205,12 @@ export default function LogoLoader({ isLoading, type = 'login' }: LogoLoaderProp
                 background: 'linear-gradient(135deg, var(--accent-teal), var(--accent-cyan))',
                 display: 'grid',
                 placeItems: 'center',
-                boxShadow: '0 0 20px rgba(0, 212, 170, 0.4)',
+                boxShadow: '0 0 20px color-mix(in srgb, var(--accent-teal) 40%, transparent)',
               }}
             >
-              <Plus style={{ width: '32px', height: '32px', color: '#fff' }} />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '30px', height: '30px', color: '#ffffff' }}>
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
             </div>
           ) : (
             <img
@@ -295,11 +297,11 @@ export default function LogoLoader({ isLoading, type = 'login' }: LogoLoaderProp
         @keyframes logo-cinematic-pulse {
           0%, 100% {
             transform: scale(1);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 0 0px rgba(0, 212, 170, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 0 0px color-mix(in srgb, var(--accent-teal) 10%, transparent);
           }
           50% {
             transform: scale(1.03);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 16px 4px rgba(0, 212, 170, 0.2);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 16px 4px color-mix(in srgb, var(--accent-teal) 20%, transparent);
           }
         }
         @keyframes scan-radar-rotate {

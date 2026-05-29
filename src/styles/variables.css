@@ -71,3 +71,35 @@
   --border-color: #264335;
   --surface-shadow: 0 18px 48px rgba(1, 148, 67, 0.12);
 }
+
+.theme-crimson-red {
+  --bg-primary: #0f0304;
+  --bg-secondary: #1b0507;
+  --bg-card: #27080a;
+  --bg-card-hover: #360d10;
+  --accent-teal: #e63946; /* Vibrant Red for active text, buttons & highlights (4.9:1 contrast) */
+  --accent-cyan: #ff758f; /* Bright Rose for secondary focus highlights */
+  --accent-blue: #7c0509; /* Deep Red for brand background accents & depth overlays */
+  --text-primary: #ffffff;
+  --text-secondary: #e5c9cb;
+  --text-muted: #9b7679;
+  --border-color: #7c0509; /* Visible borders in deep crimson */
+  --surface-shadow: 0 18px 48px rgba(124, 5, 9, 0.25);
+}
+
+.theme-abdm-sandbox {
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f4fa;
+  --accent-teal: #264488; /* NHA Blue */
+  --accent-cyan: #d66025; /* NHA Orange/Saffron */
+  --accent-blue: #1a365d;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --surface-shadow: 0 12px 36px rgba(38, 68, 136, 0.08);
+}
+
+

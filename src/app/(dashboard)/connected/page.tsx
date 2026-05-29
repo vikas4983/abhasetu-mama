@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -54,6 +54,49 @@ export default function ConnectedFacilitiesPage() {
   const { setActiveToken, addAppointment, addNotification, logSecurityEvent } = useAuth();
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [iconStyle, setIconStyle] = useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
+
+  useEffect(() => {
+    const checkState = () => {
+      try {
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.iconStyle) {
+          setIconStyle(state.iconStyle);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkState();
+    window.addEventListener('storage', checkState);
+    window.addEventListener('setu_state_update', checkState);
+    return () => {
+      window.removeEventListener('storage', checkState);
+      window.removeEventListener('setu_state_update', checkState);
+    };
+  }, []);
+
+  const getIconConfig = (style: string, color3d: string, shadow3d: string) => {
+    if (style === '3d-gradient') {
+      return {
+        className: 'quick-icon-3d',
+        style: {
+          background: color3d,
+          boxShadow: shadow3d
+        }
+      };
+    } else if (style === 'minimalist') {
+      return {
+        className: 'quick-icon-minimal',
+        style: {}
+      };
+    } else {
+      return {
+        className: 'quick-icon-glass',
+        style: {}
+      };
+    }
+  };
 
   const handleFacilityCheckin = (facility: Facility) => {
     setIsCheckingIn(true);
@@ -199,14 +242,23 @@ export default function ConnectedFacilitiesPage() {
         {connectedFacilities.map((f, index) => (
           <article key={index} className="route-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedFacility(f)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <div className="quick-icon" style={{ padding: '8px', borderRadius: '8px', background: 'rgba(0,212,170,0.1)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', width: '38px', height: '38px' }}>
+              <div
+                className={f.icon === 'building-2'
+                  ? getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').className
+                  : getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').className
+                }
+                style={f.icon === 'building-2'
+                  ? getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').style
+                  : getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').style
+                }
+              >
                 {f.icon === 'building-2' ? <Building2 style={{ width: '20px', height: '20px' }} /> : <HeartPulse style={{ width: '20px', height: '20px' }} />}
               </div>
               <h3 style={{ fontSize: '14px', margin: 0, flex: 1 }}>{t(f.title)}</h3>
             </div>
             <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px', height: '48px', overflow: 'hidden' }}>{t(f.desc)}</p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="live-badge" style={{ padding: '2px 8px', fontSize: '9px', background: 'rgba(0, 212, 170, 0.15)', color: 'var(--accent-teal)' }}>HFR Verified</span>
+              <span className="live-badge" style={{ padding: '2px 8px', fontSize: '9px', background: 'color-mix(in srgb, var(--accent-teal) 15%, transparent)', color: 'var(--accent-teal)' }}>HFR Verified</span>
               <a
                 href="#"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedFacility(f); }}

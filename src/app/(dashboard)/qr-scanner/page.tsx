@@ -501,8 +501,8 @@ export default function QrScannerPage() {
                     width: '320px',
                     height: '320px',
                     borderRadius: '50%',
-                    border: '1px solid rgba(0, 212, 170, 0.08)',
-                    background: 'repeating-radial-gradient(circle, transparent, transparent 15px, rgba(0, 212, 170, 0.02) 15px, rgba(0, 212, 170, 0.02) 30px)',
+                    border: '1px solid color-mix(in srgb, var(--accent-teal) 8%, transparent)',
+                    background: 'repeating-radial-gradient(circle, transparent, transparent 15px, color-mix(in srgb, var(--accent-teal) 2%, transparent) 15px, color-mix(in srgb, var(--accent-teal) 2%, transparent) 30px)',
                     animation: 'pulse 3s infinite ease-in-out',
                     zIndex: 1
                   }}
@@ -513,8 +513,8 @@ export default function QrScannerPage() {
                   style={{
                     zIndex: 3,
                     background: 'rgba(7, 21, 33, 0.82)',
-                    border: '2px solid rgba(0, 212, 170, 0.4)',
-                    boxShadow: '0 0 30px rgba(0, 212, 170, 0.25)',
+                    border: '2px solid color-mix(in srgb, var(--accent-teal) 40%, transparent)',
+                    boxShadow: '0 0 30px color-mix(in srgb, var(--accent-teal) 25%, transparent)',
                     borderRadius: '12px',
                     padding: '16px',
                     transform: 'scale(0.95)',
@@ -532,7 +532,7 @@ export default function QrScannerPage() {
                     right: '12px',
                     fontFamily: 'monospace',
                     fontSize: '9px',
-                    color: 'rgba(0, 212, 170, 0.65)',
+                    color: 'color-mix(in srgb, var(--accent-teal) 65%, transparent)',
                     textAlign: 'right',
                     lineHeight: '1.4',
                     zIndex: 2,
@@ -601,7 +601,7 @@ export default function QrScannerPage() {
                   left: '12px',
                   padding: '4px 10px',
                   background: 'rgba(7, 21, 33, 0.85)',
-                  border: isSimulatedCamera ? '1px solid rgba(0, 212, 170, 0.3)' : '1px solid rgba(0, 212, 170, 0.3)',
+                  border: isSimulatedCamera ? '1px solid color-mix(in srgb, var(--accent-teal) 30%, transparent)' : '1px solid color-mix(in srgb, var(--accent-teal) 30%, transparent)',
                   borderRadius: '6px',
                   fontSize: '9px',
                   textTransform: 'uppercase',
@@ -654,7 +654,7 @@ export default function QrScannerPage() {
                 padding: '10px',
                 borderRadius: '10px',
                 border: '1px solid var(--border-color)',
-                background: flashlightActive ? 'rgba(0, 212, 170, 0.1)' : 'rgba(255,255,255,0.02)',
+                background: flashlightActive ? 'color-mix(in srgb, var(--accent-teal) 10%, transparent)' : 'rgba(255,255,255,0.02)',
                 color: flashlightActive ? 'var(--accent-teal)' : 'var(--text-secondary)',
                 fontSize: '12px',
                 fontWeight: 700,
@@ -697,8 +697,7 @@ export default function QrScannerPage() {
                 padding: '10px',
                 borderRadius: '10px',
                 border: 'none',
-                background: 'var(--accent-teal)',
-                color: '#000',
+                background: 'var(--accent-teal)', color: '#ffffff',
                 fontSize: '12px',
                 fontWeight: 800,
                 display: 'flex',
@@ -706,7 +705,7 @@ export default function QrScannerPage() {
                 justifyContent: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 212, 170, 0.2)'
+                boxShadow: '0 4px 12px color-mix(in srgb, var(--accent-teal) 20%, transparent)'
               }}
             >
               <Camera style={{ width: '14px', height: '14px' }} /> <span>Capture QR</span>
@@ -772,7 +771,7 @@ export default function QrScannerPage() {
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
                 <UserCheck style={{ width: '24px', height: '24px' }} />
               </div>
               <h4>Patient Profile Verified</h4>
@@ -856,7 +855,7 @@ export default function QrScannerPage() {
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
                 <FileCheck style={{ width: '24px', height: '24px' }} />
               </div>
               <h4>Smart Rx Token Validated</h4>

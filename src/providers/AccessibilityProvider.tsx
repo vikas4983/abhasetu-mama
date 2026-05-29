@@ -6,6 +6,8 @@ export interface AccessibilitySettings {
   highContrast: boolean;
   largeFont: boolean;
   screenReader: boolean;
+  motionReduction?: boolean;
+  fontFamily?: 'inter' | 'roboto' | 'system';
 }
 
 interface AccessibilityContextType {
@@ -19,6 +21,8 @@ const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
   highContrast: false,
   largeFont: false,
   screenReader: false,
+  motionReduction: false,
+  fontFamily: 'inter',
 };
 
 export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
@@ -62,6 +66,20 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       body.classList.add('accessibility-high-contrast');
     } else {
       body.classList.remove('accessibility-high-contrast');
+    }
+
+    if (settings.motionReduction) {
+      body.classList.add('accessibility-motion-reduction');
+    } else {
+      body.classList.remove('accessibility-motion-reduction');
+    }
+
+    // Apply dynamic font families
+    body.classList.remove('font-inter', 'font-roboto', 'font-system');
+    if (settings.fontFamily) {
+      body.classList.add(`font-${settings.fontFamily}`);
+    } else {
+      body.classList.add('font-inter');
     }
   }, [settings]);
 

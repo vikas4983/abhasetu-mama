@@ -77,7 +77,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "स्वास्थ्य",
     "Appointments": "अपॉइंटमेंट",
     "Records": "रिकॉर्ड",
-    "More": "अधिक"
+    "More": "अधिक",
+    "Link Hospital Records": "अस्पताल रिकॉर्ड लिंक करें",
+    "Share Records (Consent)": "रिकॉर्ड साझा करें (सहमति)",
+    "Scan & Share (OPD)": "स्कैन और साझा (ओपीडी)",
+    "Search Doctors & Book": "डॉक्टर खोजें और बुक करें",
+    "Insurance Claims": "बीमा दावे (क्लेम्स)",
+    "Doctor Registry (HPR)": "डॉक्टर रजिस्ट्री (HPR)",
+    "Developer Sandbox Tests": "डेवलपर सैंडबॉक्स टेस्ट"
   },
   TA: {
     "Your Digital": "உங்கள் டிஜிட்டல்",
@@ -144,7 +151,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "சுகாதாரம்",
     "Appointments": "சந்திப்புகள்",
     "Records": "பதிவுகள்",
-    "More": "மேலும்"
+    "More": "மேலும்",
+    "Link Hospital Records": "மருத்துவமனை பதிவுகளை இணைக்கவும்",
+    "Share Records (Consent)": "பதிவுகளை பகிரவும் (ஒப்புதல்)",
+    "Scan & Share (OPD)": "ஸ்கேன் & ஷேர் (OPD)",
+    "Search Doctors & Book": "மருத்துவர்களை தேடி முன்பதிவு செய்க",
+    "Insurance Claims": "காப்பீட்டு கோரிக்கைகள்",
+    "Doctor Registry (HPR)": "மருத்துவர் பதிவேடு (HPR)",
+    "Developer Sandbox Tests": "டெवलப்பர் சாண்ட்பாக்ஸ் சோதனைகள்"
   },
   TE: {
     "Your Digital": "మీ డిజిటల్",
@@ -211,7 +225,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "ఆరోగ్యం",
     "Appointments": "నియామకాలు",
     "Records": "రికార్డులు",
-    "More": "మరింత"
+    "More": "మరింత",
+    "Link Hospital Records": "హాస్పిటల్ రికార్డులను లింక్ చేయండి",
+    "Share Records (Consent)": "రికార్డులను షేర్ చేయండి (సమ్మతి)",
+    "Scan & Share (OPD)": "స్కాన్ & షేర్ (OPD)",
+    "Search Doctors & Book": "వైద్యులను శోధించి బుక్ చేయండి",
+    "Insurance Claims": "భీమా క్లెయిమ్‌లు",
+    "Doctor Registry (HPR)": "డాక్టర్ రిజిస్ట్రీ (HPR)",
+    "Developer Sandbox Tests": "డెవలపర్ శాండ్‌బాక్స్ పరీక్షలు"
   },
   BN: {
     "Your Digital": "আপনার ডিজিটাল",
@@ -278,7 +299,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "স্বাস্থ্য",
     "Appointments": "অ্যাপয়েন্টমেন্ট",
     "Records": "রেকর্ড",
-    "More": "আরো"
+    "More": "আরো",
+    "Link Hospital Records": "হাসপাতাল রেকর্ড লিঙ্ক করুন",
+    "Share Records (Consent)": "রেকর্ড শেয়ার করুন (সম্মতি)",
+    "Scan & Share (OPD)": "স্ক্যান ও শেয়ার (OPD)",
+    "Search Doctors & Book": "ডাক্তার খুঁজুন ও বুক করুন",
+    "Insurance Claims": "বীমা দাবি (ক্লেম)",
+    "Doctor Registry (HPR)": "ডাক্তার রেজিস্ট্রি (HPR)",
+    "Developer Sandbox Tests": "ডেভেলপার স্যান্ডবক্স টেস্ট"
   },
   MR: {
     "Your Digital": "तुमची डिजिटल",
@@ -345,7 +373,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "आरोग्य",
     "Appointments": "अपॉइंटमेंट",
     "Records": "रेकॉर्ड",
-    "More": "अधिक"
+    "More": "अधिक",
+    "Link Hospital Records": "रुग्णालय रेकॉर्ड लिंक करा",
+    "Share Records (Consent)": "रेकॉर्ड सामायिक करा (सहमती)",
+    "Scan & Share (OPD)": "स्कॅन आणि शेअर (ओपीडी)",
+    "Search Doctors & Book": "डॉक्टर शोधा आणि बुक करा",
+    "Insurance Claims": "विमा दावे (क्लेम्स)",
+    "Doctor Registry (HPR)": "डॉक्टर नोंदणी (HPR)",
+    "Developer Sandbox Tests": "डेव्हलपर सँडबॉक्स चाचण्या"
   },
   GU: {
     "Your Digital": "તમારું ડિજિટલ",
@@ -412,7 +447,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "આરોગ્ય",
     "Appointments": "એપોઇન્ટમેન્ટ",
     "Records": "રેકોર્ડ્સ",
-    "More": "વધુ"
+    "More": "વધુ",
+    "Link Hospital Records": "હોસ્પિટલ રેકોર્ડ લિંક કરો",
+    "Share Records (Consent)": "રેકોર્ડ શેર કરો (સંમતિ)",
+    "Scan & Share (OPD)": "સ્કેન અને શેર (OPD)",
+    "Search Doctors & Book": "ડોક્ટર શોધો અને બુક કરો",
+    "Insurance Claims": "વીમા દાવાઓ",
+    "Doctor Registry (HPR)": "ડોક્ટર રજિસ્ટ્રી (HPR)",
+    "Developer Sandbox Tests": "ડેવલપર સેન્ડબોક્સ ટેસ્ટ"
   },
   KN: {
     "Your Digital": "ನಿಮ್ಮ ಡಿಜಿಟಲ್",
@@ -479,7 +521,14 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Health": "ಆರೋಗ್ಯ",
     "Appointments": "ನೇಮಕಾতিಗಳು",
     "Records": "ದಾಖಲೆಗಳು",
-    "More": "ಇನ್ನಷ್ಟು"
+    "More": "ಇನ್ನಷ್ಟು",
+    "Link Hospital Records": "ಆಸ್ಪತ್ರೆ ದಾಖಲೆಗಳನ್ನು ಲಿಂಕ್ ಮಾಡಿ",
+    "Share Records (Consent)": "ದಾಖಲೆಗಳನ್ನು ಹಂಚಿಕೊಳ್ಳಿ (ಸಮ್ಮತಿ)",
+    "Scan & Share (OPD)": "ಸ್ಕ್ಯಾನ್ ಮತ್ತು ಶೇರ್ (OPD)",
+    "Search Doctors & Book": "ವೈದ್ಯರನ್ನು ಹುಡುಕಿ ಮತ್ತು ಬುಕ್ ಮಾಡಿ",
+    "Insurance Claims": "ವಿಮಾ ಹಕ್ಕುಗಳು",
+    "Doctor Registry (HPR)": "ವೈದ್ಯರ ನೋಂದಣಿ (HPR)",
+    "Developer Sandbox Tests": "ಡೆವಲಪರ್ ಸ್ಯಾಂಡ್‌ಬಾಕ್ಸ್ ಪರೀಕ್ಷೆಗಳು"
   }
 };
 

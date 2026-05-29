@@ -43,7 +43,7 @@ export default function EcgCanvas() {
 
     function drawGrid() {
       if (!ctx) return;
-      ctx.strokeStyle = 'rgba(0, 212, 170, 0.04)';
+      ctx.strokeStyle = 'color-mix(in srgb, var(--accent-teal) 4%, transparent)';
       ctx.lineWidth = 1;
 
       // Vertical grid
@@ -100,7 +100,7 @@ export default function EcgCanvas() {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.shadowBlur = 8;
-      ctx.shadowColor = 'rgba(0, 212, 170, 0.6)';
+      ctx.shadowColor = 'color-mix(in srgb, var(--accent-teal) 60%, transparent)';
 
       ctx.beginPath();
       if (points.length > 0) {

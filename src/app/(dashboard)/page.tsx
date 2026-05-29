@@ -41,12 +41,57 @@ export default function DashboardHome() {
   const { records } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
+  const [iconStyle, setIconStyle] = useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 700);
     return () => clearTimeout(timer);
   }, []);
+
+  // Synchronize dynamic icon preferences
+  useEffect(() => {
+    const checkState = () => {
+      try {
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.iconStyle) {
+          setIconStyle(state.iconStyle);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkState();
+    window.addEventListener('storage', checkState);
+    window.addEventListener('setu_state_update', checkState);
+    return () => {
+      window.removeEventListener('storage', checkState);
+      window.removeEventListener('setu_state_update', checkState);
+    };
+  }, []);
+
+  const getIconConfig = (style: string, color3d: string, shadow3d: string) => {
+    if (style === '3d-gradient') {
+      return {
+        className: 'quick-icon-3d',
+        style: {
+          background: color3d,
+          boxShadow: shadow3d
+        }
+      };
+    } else if (style === 'minimalist') {
+      return {
+        className: 'quick-icon-minimal',
+        style: {}
+      };
+    } else {
+      return {
+        className: 'quick-icon-glass',
+        style: {}
+      };
+    }
+  };
 
   // Load current BP from synced records or default
   const hasKioskRecord = records.some(r => r.name.includes("ATM") || r.source.includes("Kiosk"));
@@ -158,43 +203,43 @@ export default function DashboardHome() {
         </div>
         <div className="quick-grid">
           <div className="quick-item" onClick={() => handleQuickClick('/appointments')}>
-            <div className="quick-icon"><Stethoscope /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}><Stethoscope /></div>
             <span>{t('Consult Doctor')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/more')}>
-            <div className="quick-icon"><Pill /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').style}><Pill /></div>
             <span>{t('Order Medicines')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/more')}>
-            <div className="quick-icon"><FlaskConical /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').style}><FlaskConical /></div>
             <span>{t('Book Lab Tests')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/records')}>
-            <div className="quick-icon"><ShieldCheck /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)').style}><ShieldCheck /></div>
             <span>{t('Manage Insurance')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/about')}>
-            <div className="quick-icon"><GraduationCap /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').style}><GraduationCap /></div>
             <span>{t('Training & Courses')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/connected')}>
-            <div className="quick-icon"><Building2 /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').style}><Building2 /></div>
             <span>{t('Hospitals')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/more')}>
-            <div className="quick-icon"><Droplet style={{ color: '#ef4444' }} /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').style}><Droplet style={{ color: iconStyle === '3d-gradient' ? '#fff' : 'var(--accent-teal)' }} /></div>
             <span>{t('Blood Bank')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/more')}>
-            <div className="quick-icon"><HeartHandshake /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)', '0 4px 14px rgba(255, 112, 166, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)', '0 4px 14px rgba(255, 112, 166, 0.4)').style}><HeartHandshake /></div>
             <span>{t('Organ Donation')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/qr-scanner')}>
-            <div className="quick-icon"><QrCode /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)').style}><QrCode /></div>
             <span>{t('QR Scanner')}</span>
           </div>
           <div className="quick-item" onClick={() => handleQuickClick('/abha')}>
-            <div className="quick-icon"><IdCard /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #7209b7 0%, #f72585 100%)', '0 4px 14px rgba(114, 9, 183, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #7209b7 0%, #f72585 100%)', '0 4px 14px rgba(114, 9, 183, 0.4)').style}><IdCard /></div>
             <span>{t('Create ABHA Card')}</span>
           </div>
         </div>
@@ -246,14 +291,14 @@ export default function DashboardHome() {
         </div>
         <div className="health-status">
           <div className="status-card" onClick={() => handleQuickClick('/health')} style={{ cursor: 'pointer' }}>
-            <div className="status-icon"><BrainCircuit /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #00b4d8 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #00b4d8 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').style}><BrainCircuit /></div>
             <div className="status-info">
               <span className="status-title">{t('AI Alerts')}</span>
               <span className="status-value">2 New</span>
             </div>
           </div>
           <div className="status-card" onClick={() => handleQuickClick('/health')} style={{ cursor: 'pointer' }}>
-            <div className="status-icon"><Smartphone /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').style}><Smartphone /></div>
             <div className="status-info">
               <span className="status-title">{t('Device Sync')}</span>
               <span className="status-value">4/4 Connected</span>
@@ -328,27 +373,27 @@ export default function DashboardHome() {
         </div>
         <div className="market-scroll">
           <div className="market-item" onClick={() => handleQuickClick('/more')}>
-            <div className="market-icon"><Truck /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').style}><Truck /></div>
             <span>{t('Medicine Delivery')}</span>
           </div>
           <div className="market-item" onClick={() => handleQuickClick('/more')}>
-            <div className="market-icon"><FlaskConical /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').style}><FlaskConical /></div>
             <span>{t('Lab Booking')}</span>
           </div>
           <div className="market-item" onClick={() => handleQuickClick('/more')}>
-            <div className="market-icon"><TestTube /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)').style}><TestTube /></div>
             <span>{t('Home Sample Collection')}</span>
           </div>
           <div className="market-item" onClick={() => handleQuickClick('/more')}>
-            <div className="market-icon"><Stethoscope /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}><Stethoscope /></div>
             <span>{t('Medical Equipment')}</span>
           </div>
           <div className="market-item" onClick={() => handleQuickClick('/more')}>
-            <div className="market-icon"><Ambulance /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').style}><Ambulance /></div>
             <span>{t('Ambulance Booking')}</span>
           </div>
           <div className="market-item market-soon">
-            <div className="market-icon"><Plane style={{ color: 'var(--text-muted)' }} /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #6c757d 0%, #495057 100%)', '0 4px 14px rgba(108, 117, 125, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #6c757d 0%, #495057 100%)', '0 4px 14px rgba(108, 117, 125, 0.4)').style}><Plane style={{ color: iconStyle === '3d-gradient' ? '#fff' : 'var(--text-muted)' }} /></div>
             <span>{t('Drone Delivery')}</span>
             <span className="soon-badge">{t('Coming Soon')}</span>
           </div>
@@ -365,27 +410,27 @@ export default function DashboardHome() {
         </div>
         <div className="legal-grid">
           <div className="legal-item" onClick={() => handleQuickClick('/more')}>
-            <div className="legal-icon"><Scale /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #7209b7 0%, #f72585 100%)', '0 4px 14px rgba(114, 9, 183, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #7209b7 0%, #f72585 100%)', '0 4px 14px rgba(114, 9, 183, 0.4)').style}><Scale /></div>
             <span>{t('Medicolegal Support')}</span>
           </div>
           <div className="legal-item" onClick={() => handleQuickClick('/more')}>
-            <div className="legal-icon"><FileCheck /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').style}><FileCheck /></div>
             <span>{t('Digital Consent Forms')}</span>
           </div>
           <div className="legal-item" onClick={() => handleQuickClick('/more')}>
-            <div className="legal-icon"><FileText /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}><FileText /></div>
             <span>{t('Prescription Verification')}</span>
           </div>
           <div className="legal-item" onClick={() => handleQuickClick('/records')}>
-            <div className="legal-icon"><FolderLock /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').style}><FolderLock /></div>
             <span>{t('Secure Health Records')}</span>
           </div>
           <div className="legal-item" onClick={() => handleQuickClick('/more')}>
-            <div className="legal-icon"><ShieldCheck /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)').style}><ShieldCheck /></div>
             <span>{t('Telemedicine Compliance')}</span>
           </div>
           <div className="legal-item" onClick={() => handleQuickClick('/more')}>
-            <div className="legal-icon"><Lock /></div>
+            <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)').style}><Lock /></div>
             <span>{t('Legal Docs Vault')}</span>
           </div>
         </div>

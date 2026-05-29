@@ -55,7 +55,7 @@ export default function RegisterPage() {
               width: '38px', 
               height: '38px', 
               borderRadius: '50%', 
-              background: selectedLogo !== 'default' ? 'transparent' : 'rgba(0, 212, 170, 0.1)', 
+              background: selectedLogo !== 'default' ? 'transparent' : 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', 
               display: 'grid', 
               placeItems: 'center',
               overflow: 'hidden',

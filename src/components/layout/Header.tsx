@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, User as UserType } from '../../providers/AuthProvider';
 import { useLanguage, LanguageCode } from '../../providers/LanguageProvider';
 import { useTheme } from '../../providers/ThemeProvider';
+import { showToast } from '../../utils/toast';
 import {
   Search,
   Plus,
@@ -42,7 +43,7 @@ interface SearchItem {
 }
 
 export default function Header() {
-  const { currentUser, logout, notifications, records } = useAuth();
+  const { currentUser, logout, notifications, records, appointments, clearNotifications, deleteNotification, markNotificationRead } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { theme, cycleTheme } = useTheme();
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function Header() {
   const [searchMatches, setSearchMatches] = useState<SearchItem[]>([]);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState<string>('default');
 
   // Synchronize logo changes in real-time
@@ -80,6 +82,7 @@ export default function Header() {
   const langRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -92,6 +95,9 @@ export default function Header() {
       }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchActive(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -108,6 +114,51 @@ export default function Header() {
     }
 
     const q = query.toLowerCase();
+
+    // Load custom records, appointments, and doctors dynamically
+    let dynamicItems: SearchItem[] = [];
+    if (records && Array.isArray(records)) {
+      records.forEach((r: any) => {
+        dynamicItems.push({
+          type: "Health Records Locker",
+          title: r.name || r.title,
+          route: "records",
+          icon: "file-text",
+          desc: `Linked clinical record from ${r.source || 'Vault'} | Date: ${r.date || ''}`
+        });
+      });
+    }
+    if (appointments && Array.isArray(appointments)) {
+      appointments.forEach((a: any) => {
+        const docName = a.doctorName || a.doctor || 'Physician';
+        dynamicItems.push({
+          type: "Appointments Roster",
+          title: `Consultation with ${docName}`,
+          route: "appointments",
+          icon: "video",
+          desc: `Scheduled: ${a.meta || a.date || ''} at ${a.time || ''} | Status: ${a.status || 'Confirmed'}`
+        });
+      });
+    }
+    try {
+      const storedHpr = localStorage.getItem('hpr_registered_doctors');
+      if (storedHpr) {
+        const hprList = JSON.parse(storedHpr);
+        if (Array.isArray(hprList)) {
+          hprList.forEach((doc: any) => {
+            dynamicItems.push({
+              type: "Doctors (HPR Verified)",
+              title: doc.name || doc.doctorName,
+              route: "appointments",
+              icon: "user-round",
+              desc: `${doc.specialization || doc.role || 'Practitioner'} | HPR ID: ${doc.hprId || doc.id || ''}`
+            });
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to read search dynamic elements:", e);
+    }
 
     // Replicate original search matches database
     const searchableItems: SearchItem[] = [
@@ -140,7 +191,7 @@ export default function Header() {
       { type: "Labs", title: "NABL Pathology Lab Tests", route: "more", icon: "flask-conical", desc: "NABL certified blood tests and sample collection." },
       { type: "Departments", title: "Cardiology Department", route: "connected", icon: "heart-pulse", desc: "Heart health specialist consultations, cardiology clinic." },
       { type: "Emergency Services", title: "Emergency Ambulance Booking", route: "more", icon: "ambulance", desc: "Simulated rapid ambulance dispatch and tracking." }
-    ];
+    ].concat(dynamicItems);
 
     const matches = searchableItems
       .filter((item) => `${item.title} ${item.desc} ${item.type}`.toLowerCase().includes(q))
@@ -199,7 +250,7 @@ export default function Header() {
               overflow: 'hidden', 
               padding: 0, 
               background: selectedLogo !== 'default' ? 'transparent' : 'linear-gradient(135deg, var(--accent-teal), var(--accent-cyan))',
-              boxShadow: selectedLogo !== 'default' ? 'none' : '0 12px 28px rgba(0, 212, 170, 0.24)',
+              boxShadow: selectedLogo !== 'default' ? 'none' : '0 12px 28px color-mix(in srgb, var(--accent-teal) 24%, transparent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -207,7 +258,9 @@ export default function Header() {
             }}
           >
             {selectedLogo === 'default' ? (
-              <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px', color: 'var(--accent-teal)' }}>
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
             ) : (
               <img
                 src={selectedLogo}
@@ -346,15 +399,94 @@ export default function Header() {
           </div>
 
           {/* Notification Indicator */}
-          <div
-            className="notification"
-            role="button"
-            aria-label="Notifications"
-            tabIndex={0}
-            onClick={() => router.push('/security')}
-          >
-            <Bell className="bell-icon" style={{ width: '18px', height: '18px' }} />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          <div ref={notifRef} style={{ position: 'relative' }}>
+            <div
+              className={`notification ${isNotifOpen ? 'selected-card' : ''}`}
+              role="button"
+              aria-label="Notifications"
+              tabIndex={0}
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+            >
+              <Bell className="bell-icon" style={{ width: '18px', height: '18px' }} />
+              {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+            </div>
+
+            {/* Redesigned Floating Notification Drawer */}
+            {isNotifOpen && (
+              <div className="notif-drawer">
+                <div className="notif-header">
+                  <h3>
+                    <Bell style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
+                    {t('Notifications')}
+                  </h3>
+                  {unreadCount > 0 && (
+                    <button className="notif-btn" onClick={clearNotifications}>
+                      {t('Mark all read')}
+                    </button>
+                  )}
+                </div>
+
+                <div className="notif-body">
+                  {notifications.length === 0 ? (
+                    <div className="notif-empty">
+                      <Bell style={{ width: '32px', height: '32px', color: 'var(--text-muted)' }} />
+                      <h4>{t('All caught up!')}</h4>
+                      <p>{t('No new notifications or alerts.')}</p>
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`notif-item ${notif.unread ? 'unread' : ''}`}
+                        onClick={() => {
+                          markNotificationRead(notif.id);
+                          showToast(t('Notification marked as read'));
+                        }}
+                      >
+                        <div
+                          className="notif-item-icon"
+                          style={{
+                            background: notif.type === 'security' ? 'rgba(239, 68, 68, 0.12)' : 'color-mix(in srgb, var(--accent-teal) 12%, transparent)',
+                            color: notif.type === 'security' ? 'var(--danger)' : 'var(--accent-teal)'
+                          }}
+                        >
+                          {notif.type === 'security' ? <ShieldCheck className="small-icon" style={{ width: '15px', height: '15px' }} /> : <Bell className="small-icon" style={{ width: '15px', height: '15px' }} />}
+                        </div>
+                        <div className="notif-item-content">
+                          <strong className="notif-item-title">{t(notif.title)}</strong>
+                          <span className="notif-item-msg">{t(notif.message)}</span>
+                          <span className="notif-item-time">{t(notif.time)}</span>
+                        </div>
+                        {notif.unread && <span className="notif-item-unread-dot" />}
+                        <button
+                          className="notif-item-delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notif.id);
+                            showToast(t('Notification deleted'));
+                          }}
+                          title="Delete Alert"
+                        >
+                          <X style={{ width: '12px', height: '12px' }} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="notif-footer">
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{t('ABHA SECURE PANEL')}</span>
+                  {notifications.length > 0 && (
+                    <button className="notif-btn danger" onClick={() => {
+                      notifications.forEach(n => deleteNotification(n.id));
+                      showToast(t('Notifications cleared.'));
+                    }}>
+                      {t('Clear all')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Theme Toggle */}

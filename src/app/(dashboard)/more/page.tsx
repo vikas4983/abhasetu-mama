@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -39,6 +39,74 @@ export default function MoreServicesPage() {
   const { addRecord, logSecurityEvent, addNotification } = useAuth();
   
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [iconStyle, setIconStyle] = useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
+
+  useEffect(() => {
+    const checkState = () => {
+      try {
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.iconStyle) {
+          setIconStyle(state.iconStyle);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkState();
+    window.addEventListener('storage', checkState);
+    window.addEventListener('setu_state_update', checkState);
+    return () => {
+      window.removeEventListener('storage', checkState);
+      window.removeEventListener('setu_state_update', checkState);
+    };
+  }, []);
+
+  const getIconConfig = (style: string, color3d: string, shadow3d: string) => {
+    if (style === '3d-gradient') {
+      return {
+        className: 'quick-icon-3d',
+        style: {
+          background: color3d,
+          boxShadow: shadow3d
+        }
+      };
+    } else if (style === 'minimalist') {
+      return {
+        className: 'quick-icon-minimal',
+        style: {}
+      };
+    } else {
+      return {
+        className: 'quick-icon-glass',
+        style: {}
+      };
+    }
+  };
+
+  const getMoreIconStyle = (itemId: string) => {
+    switch (itemId) {
+      case 'abdm':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #7209b7 0%, #f72585 100%)', '0 4px 14px rgba(114, 9, 183, 0.4)');
+      case 'connected':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)');
+      case 'security':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)');
+      case 'settings':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)');
+      case 'sample':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)');
+      case 'equipment':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)');
+      case 'ambulance':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)');
+      case 'drone':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)');
+      case 'medicolegal':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #ff70a6 0%, #ff9770 100%)', '0 4px 14px rgba(255, 112, 166, 0.4)');
+      default:
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #00b4d8 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)');
+    }
+  };
 
   // Micro-SaaS Panel states
   const [sampleLab, setSampleLab] = useState('DR AYESHAH HOMEO LAB, Bhopal');
@@ -409,7 +477,10 @@ export default function MoreServicesPage() {
             style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <div className="quick-icon" style={{ padding: '8px', borderRadius: '8px', background: 'rgba(0,212,170,0.1)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', width: '38px', height: '38px' }}>
+              <div 
+                className={getMoreIconStyle(item.id).className} 
+                style={getMoreIconStyle(item.id).style}
+              >
                 {item.icon}
               </div>
               <h3 style={{ fontSize: '14px', margin: 0 }}>{t(item.title)}</h3>

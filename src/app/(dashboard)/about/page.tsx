@@ -53,7 +53,7 @@ export default function AboutPage() {
         </article>
 
         {/* NSDC Course Highlight Card */}
-        <article className="route-card wide-card nsdc-course-card" style={{ padding: '28px', border: '1px dashed rgba(0, 212, 170, 0.4)', background: 'rgba(0, 212, 170, 0.03)', borderRadius: '16px', position: 'relative', overflow: 'visible' }}>
+        <article className="route-card wide-card nsdc-course-card" style={{ padding: '28px', border: '1px dashed color-mix(in srgb, var(--accent-teal) 40%, transparent)', background: 'color-mix(in srgb, var(--accent-teal) 3%, transparent)', borderRadius: '16px', position: 'relative', overflow: 'visible' }}>
           <div style={{ position: 'absolute', top: '-12px', right: '24px', padding: '4px 12px', borderRadius: '20px', background: 'var(--accent-teal)', color: '#13283b', fontSize: '10px', fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
             NSDC APPROVED SKILL DEVELOPMENT
           </div>
