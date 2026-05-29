@@ -1,0 +1,37 @@
+name: Build and Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - main # Change to 'master' if that's your default branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Next.js static export
+        run: npm run build
+
+      - name: Deploy via cPanel Git
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          password: ${{ secrets.CPANEL_PASSWORD }}
+          port: 22
+          script: |
+            cd /home/${{ secrets.CPANEL_USERNAME }}/repositories/abhasetu-mama
+            git pull
+            /usr/local/cpanel/bin/uapi --user=${{ secrets.CPANEL_USERNAME }} VersionControlDeployment create repository_root=/home/${{ secrets.CPANEL_USERNAME }}/repositories/YOUR_REPO_NAME
