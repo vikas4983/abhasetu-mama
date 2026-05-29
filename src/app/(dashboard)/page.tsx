@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../../providers/LanguageProvider';
 import { useAuth } from '../../providers/AuthProvider';
@@ -39,6 +39,14 @@ export default function DashboardHome() {
   const router = useRouter();
   const { t } = useLanguage();
   const { records } = useAuth();
+  
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load current BP from synced records or default
   const hasKioskRecord = records.some(r => r.name.includes("ATM") || r.source.includes("Kiosk"));
@@ -50,6 +58,58 @@ export default function DashboardHome() {
   const handleQuickClick = (route: string) => {
     router.push(route);
   };
+
+  if (isLoading) {
+    return (
+      <>
+        {/* Shimmering Hero Section */}
+        <section className="hero setu-skeleton" style={{ minHeight: '228px', border: '1px solid rgba(36, 68, 95, 0.25)', borderRadius: '14px', margin: '16px 0 20px', backgroundSize: '200% 100% !important' }}>
+          <div style={{ padding: '20px' }}>
+            <div className="setu-skeleton setu-skeleton-title" style={{ width: '40%', height: '28px', marginBottom: '14px' }}></div>
+            <div className="setu-skeleton setu-skeleton-text" style={{ width: '60%', height: '18px', marginBottom: '24px' }}></div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="setu-skeleton setu-skeleton-button" style={{ width: '130px', height: '40px' }}></div>
+              <div className="setu-skeleton setu-skeleton-button" style={{ width: '130px', height: '40px' }}></div>
+            </div>
+          </div>
+        </section>
+
+        {/* Shimmering Quick Access */}
+        <section className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div className="setu-skeleton setu-skeleton-title" style={{ width: '120px' }}></div>
+            <div className="setu-skeleton setu-skeleton-text" style={{ width: '60px' }}></div>
+          </div>
+          <div className="quick-grid">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="quick-item" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                <div className="setu-skeleton" style={{ width: '32px', height: '32px', borderRadius: '50%', marginBottom: '6px' }}></div>
+                <div className="setu-skeleton setu-skeleton-text" style={{ width: '70%', height: '10px' }}></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Shimmering Health Dashboard */}
+        <section className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div className="setu-skeleton setu-skeleton-title" style={{ width: '160px' }}></div>
+            <div className="setu-skeleton setu-skeleton-text" style={{ width: '60px' }}></div>
+          </div>
+          <div className="health-grid">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="health-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                <div className="setu-skeleton setu-skeleton-text" style={{ width: '40%', height: '10px', marginBottom: '8px' }}></div>
+                <div className="setu-skeleton setu-skeleton-title" style={{ width: '70%', height: '24px', marginBottom: '8px' }}></div>
+                <div className="setu-skeleton" style={{ width: '100%', height: '20px', borderRadius: '4px' }}></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </>
+    );
+  }
+
 
   return (
     <>

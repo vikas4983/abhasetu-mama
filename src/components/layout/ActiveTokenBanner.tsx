@@ -11,6 +11,12 @@ export default function ActiveTokenBanner() {
   const { t } = useLanguage();
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [dismissed, setDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Reset dismissal status when activeToken changes
+    setDismissed(false);
+  }, [activeToken]);
 
   useEffect(() => {
     if (!activeToken) return;
@@ -40,15 +46,52 @@ export default function ActiveTokenBanner() {
     return () => clearInterval(interval);
   }, [activeToken, setActiveToken, logSecurityEvent, t]);
 
-  if (!activeToken || timeLeft <= 0) return null;
+  if (!activeToken || timeLeft <= 0 || dismissed) return null;
 
   const mins = Math.floor(timeLeft / 60000);
   const secs = Math.floor((timeLeft % 60000) / 1000).toString().padStart(2, '0');
 
   return (
-    <div id="active-token-banner-container">
-      <div className="active-token-banner">
-        <div className="banner-main-row">
+    <div id="active-token-banner-container" className="animate-slide-in">
+      <div className="active-token-banner" style={{ position: 'relative' }}>
+        {/* Dismiss Button */}
+        <button
+          onClick={() => {
+            setDismissed(true);
+            logSecurityEvent('Token Banner Dismissed', `User closed floating token notification for ${activeToken.tokenNum}`);
+          }}
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            padding: '4px',
+            lineHeight: 1,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--danger)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
+          aria-label="Dismiss Notification"
+        >
+          &times;
+        </button>
+
+        <div className="banner-main-row" style={{ paddingRight: '20px' }}>
           <div className="pulse-dot"></div>
           <div className="banner-info">
             <div className="banner-title">
@@ -72,3 +115,4 @@ export default function ActiveTokenBanner() {
     </div>
   );
 }
+

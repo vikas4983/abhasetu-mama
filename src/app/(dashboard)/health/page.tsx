@@ -11,7 +11,12 @@ import {
   Award,
   ClipboardCheck,
   BrainCircuit,
-  ArrowLeft
+  ArrowLeft,
+  Moon,
+  Thermometer,
+  Wind,
+  Heart,
+  TrendingUp
 } from 'lucide-react';
 import EcgCanvas from '../../../components/features/ecg-visualizer/EcgCanvas';
 import { showToast } from '../../../utils/toast';
@@ -31,6 +36,49 @@ export default function HealthPage() {
   const [smoker, setSmoker] = useState('no');
   const [diabetes, setDiabetes] = useState('no');
   const [riskResult, setRiskResult] = useState<{ score: number; text: string; color: string } | null>(null);
+
+  // Active trend chart variables
+  const [activeTrend, setActiveTrend] = useState<'hr' | 'spo2' | 'glucose' | 'bp'>('hr');
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const trendData: Record<string, { label: string; values: number[]; dates: string[]; unit: string; color: string; min: number; max: number }> = {
+    hr: {
+      label: 'Heart Rate',
+      values: [68, 72, 75, 70, 74, 71, 72],
+      dates: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      unit: 'BPM',
+      color: '#ef4444',
+      min: 60,
+      max: 85
+    },
+    spo2: {
+      label: 'SpO2 Level',
+      values: [97, 98, 98, 97, 99, 98, 98],
+      dates: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      unit: '%',
+      color: 'var(--accent-teal)',
+      min: 94,
+      max: 100
+    },
+    glucose: {
+      label: 'Blood Glucose',
+      values: [92, 96, 105, 94, 98, 95, 96],
+      dates: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      unit: 'mg/dL',
+      color: 'var(--accent-cyan)',
+      min: 80,
+      max: 120
+    },
+    bp: {
+      label: 'Systolic BP',
+      values: [116, 120, 124, 118, 121, 120, 119],
+      dates: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      unit: 'mmHg',
+      color: '#fa7a19',
+      min: 110,
+      max: 130
+    }
+  };
 
   const logWaterIntake = (amount: number) => {
     setWater((prev) => {
@@ -67,6 +115,36 @@ export default function HealthPage() {
     logSecurityEvent('Risk Calculation', `Calculated Ayushman Bharat Cardiovascular risk percentage as ${riskScore}%`);
   };
 
+  // SVG dimensions for trend chart
+  const width = 500;
+  const height = 200;
+  const paddingX = 45;
+  const paddingY = 30;
+
+  const currentTrend = trendData[activeTrend];
+  
+  // Project data points to SVG coordinate systems
+  const points = currentTrend.values.map((val, idx) => {
+    const x = paddingX + (idx / (currentTrend.values.length - 1)) * (width - 2 * paddingX);
+    const y = height - paddingY - ((val - currentTrend.min) / (currentTrend.max - currentTrend.min)) * (height - 2 * paddingY);
+    return { x, y, value: val, date: currentTrend.dates[idx] };
+  });
+
+  // Construct SVG Bezier Curve path string for smooth visual transition
+  const pathD = points.reduce((acc, p, idx) => {
+    if (idx === 0) return `M ${p.x} ${p.y}`;
+    const prev = points[idx - 1];
+    // Smooth control points
+    const cpX1 = prev.x + 25;
+    const cpY1 = prev.y;
+    const cpX2 = p.x - 25;
+    const cpY2 = p.y;
+    return `${acc} C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p.x} ${p.y}`;
+  }, '');
+
+  // Fill path beneath trend line for glowing linear backdrop
+  const fillD = `${pathD} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`;
+
   return (
     <>
       {/* Route Hero Header */}
@@ -82,31 +160,63 @@ export default function HealthPage() {
         </div>
       </section>
 
-      {/* Metrics Row */}
-      <section className="route-grid metrics-grid" style={{ marginTop: '20px' }}>
-        <article className="metric-card">
+      {/* Expanded Metrics Row - 8 Vitals Total */}
+      <section className="route-grid metrics-grid" style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+        <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('bp')}>
           <Activity className="card-icon" style={{ color: 'var(--accent-teal)' }} />
           <span>Blood Pressure</span>
           <strong>120/80</strong>
           <small>mmHg - Stable</small>
         </article>
-        <article className="metric-card">
+        <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('spo2')}>
           <HeartPulse className="card-icon" style={{ color: 'var(--danger)' }} />
           <span>SpO2 (Pulse)</span>
           <strong>98%</strong>
           <small>Normal range</small>
         </article>
-        <article className="metric-card">
+        <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('glucose')}>
           <Droplet className="card-icon" style={{ color: 'var(--accent-cyan)' }} />
           <span>Blood Glucose</span>
           <strong>96</strong>
           <small>mg/dL - Fasting</small>
         </article>
+        <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('hr')}>
+          <Heart className="card-icon" style={{ color: '#ef4444' }} />
+          <span>Heart Rate</span>
+          <strong>72</strong>
+          <small>BPM - Normal</small>
+        </article>
+        
+        {/* NEW VITAL: Sleep Cycle */}
+        <article className="metric-card">
+          <Moon className="card-icon" style={{ color: 'var(--accent-cyan)' }} />
+          <span>Sleep Cycle</span>
+          <strong>7.8 hrs</strong>
+          <small>Deep: 2.2 hrs</small>
+        </article>
+
+        {/* NEW VITAL: Body Temperature */}
+        <article className="metric-card">
+          <Thermometer className="card-icon" style={{ color: '#fa7a19' }} />
+          <span>Body Temp</span>
+          <strong>98.4 °F</strong>
+          <small>Stable / Normal</small>
+        </article>
+
+        {/* NEW VITAL: Respiratory Rate */}
+        <article className="metric-card">
+          <Wind className="card-icon" style={{ color: 'var(--success)' }} />
+          <span>Respiration</span>
+          <strong>16 /min</strong>
+          <small>Breaths - Normal</small>
+        </article>
+
+        {/* NEW VITAL: Heart Rate Variability */}
         <article className="metric-card">
           <Award className="card-icon" style={{ color: '#f59e0b' }} />
-          <span>Wellness Score</span>
-          <strong>84/100</strong>
-          <small>Highly active</small>
+          <span>HRV index</span>
+          <strong>58 ms</strong>
+          <small>Excellent / Active</small>
         </article>
       </section>
 
@@ -121,6 +231,205 @@ export default function HealthPage() {
         </div>
         <div style={{ height: '60px', borderRadius: '8px', marginTop: '12px', position: 'relative', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
           <EcgCanvas />
+        </div>
+      </article>
+
+      {/* ==================== HIGH-FIDELITY ANIMATED VITAL TRENDS CHART ==================== */}
+      <article className="route-card wide-card" style={{ marginTop: '16px', padding: '20px' }}>
+        <div className="card-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TrendingUp style={{ color: 'var(--accent-teal)' }} />
+            <h3 style={{ margin: 0 }}>Interactive Vital Trends & Historical Analytics</h3>
+          </div>
+          
+          {/* Trend tab toggles */}
+          <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '4px' }}>
+            {(['hr', 'spo2', 'glucose', 'bp'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveTrend(tab);
+                  setHoveredIdx(null);
+                  logSecurityEvent('Vital Chart Toggled', `Switched telemetry analytics trend chart to ${trendData[tab].label}`);
+                }}
+                style={{
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  background: activeTrend === tab ? 'var(--bg-card-hover)' : 'transparent',
+                  color: activeTrend === tab ? 'var(--accent-teal)' : 'var(--text-secondary)',
+                  fontSize: '11px',
+                  fontWeight: 750,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  borderBottom: activeTrend === tab ? '1px solid var(--accent-teal)' : 'none'
+                }}
+              >
+                {trendData[tab].label.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: '0 0 20px', lineHeight: '1.5' }}>
+          Track live telemetry indices from synced smart wearables and Health ATM checks. Hover over data nodes to query clinical values.
+        </p>
+
+        {/* Responsive Custom SVG Canvas Chart */}
+        <div style={{ position: 'relative', width: '100%', overflowX: 'auto', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            style={{ width: '100%', minWidth: '450px', height: 'auto', display: 'block', overflow: 'visible' }}
+          >
+            <defs>
+              <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={currentTrend.color} stopOpacity="0.35" />
+                <stop offset="100%" stopColor={currentTrend.color} stopOpacity="0.00" />
+              </linearGradient>
+            </defs>
+
+            {/* Coordinate Grid Lines */}
+            {[0, 1, 2, 3, 4].map((i) => {
+              const y = paddingY + (i / 4) * (height - 2 * paddingY);
+              const gridVal = currentTrend.max - (i / 4) * (currentTrend.max - currentTrend.min);
+              return (
+                <g key={i} opacity="0.3">
+                  <line
+                    x1={paddingX}
+                    y1={y}
+                    x2={width - paddingX}
+                    y2={y}
+                    stroke="var(--border-color)"
+                    strokeWidth="1"
+                    strokeDasharray="4,4"
+                  />
+                  <text
+                    x={paddingX - 10}
+                    y={y + 3}
+                    textAnchor="end"
+                    fill="var(--text-muted)"
+                    fontSize="9"
+                    fontFamily="monospace"
+                  >
+                    {Math.round(gridVal)}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Glowing fill region under the line */}
+            <path
+              d={fillD}
+              fill="url(#chartGrad)"
+              style={{ transition: 'd 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}
+            />
+
+            {/* Glowing active trend line */}
+            <path
+              d={pathD}
+              fill="none"
+              stroke={currentTrend.color}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transition: 'd 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                filter: `drop-shadow(0 4px 6px ${currentTrend.color})`
+              }}
+            />
+
+            {/* Active Vertical Guideline Tracker */}
+            {hoveredIdx !== null && points[hoveredIdx] && (
+              <line
+                x1={points[hoveredIdx].x}
+                y1={paddingY}
+                x2={points[hoveredIdx].x}
+                y2={height - paddingY}
+                stroke={currentTrend.color}
+                strokeWidth="1"
+                strokeDasharray="3,3"
+                opacity="0.7"
+              />
+            )}
+
+            {/* Interactive Data Circle Points */}
+            {points.map((p, idx) => (
+              <g
+                key={idx}
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                style={{ cursor: 'pointer' }}
+              >
+                {/* Large transparent hit target for easy mobile touch */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="14"
+                  fill="transparent"
+                />
+                
+                {/* Glow ring */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={hoveredIdx === idx ? "8" : "5"}
+                  fill={currentTrend.color}
+                  opacity={hoveredIdx === idx ? "0.4" : "0.15"}
+                  style={{ transition: 'all 0.15s ease' }}
+                />
+
+                {/* Core point */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={hoveredIdx === idx ? "4.5" : "3.5"}
+                  fill="var(--text-primary)"
+                  stroke={currentTrend.color}
+                  strokeWidth="2"
+                  style={{ transition: 'all 0.15s ease' }}
+                />
+
+                {/* X axis dates */}
+                <text
+                  x={p.x}
+                  y={height - 8}
+                  textAnchor="middle"
+                  fill={hoveredIdx === idx ? "var(--accent-teal)" : "var(--text-muted)"}
+                  fontSize="9.5"
+                  fontWeight={hoveredIdx === idx ? "800" : "normal"}
+                  style={{ transition: 'all 0.15s ease' }}
+                >
+                  {p.date}
+                </text>
+              </g>
+            ))}
+          </svg>
+
+          {/* Glowing dynamic floating tooltip box */}
+          {hoveredIdx !== null && points[hoveredIdx] && (
+            <div
+              style={{
+                position: 'absolute',
+                top: `${points[hoveredIdx].y - 50}px`,
+                left: `${Math.min(Math.max(points[hoveredIdx].x - 60, 10), width - 130)}px`,
+                background: 'rgba(7, 21, 33, 0.95)',
+                border: `1.5px solid ${currentTrend.color}`,
+                borderRadius: '8px',
+                padding: '6px 10px',
+                boxShadow: `0 8px 24px rgba(0, 0, 0, 0.4), 0 0 10px ${currentTrend.color}22`,
+                fontSize: '11px',
+                zIndex: 10,
+                pointerEvents: 'none',
+                animation: 'scaleUp 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <div style={{ color: 'var(--text-muted)', fontSize: '9px', textTransform: 'uppercase' }}>{points[hoveredIdx].date} status</div>
+              <div style={{ fontWeight: 850, color: '#fff', marginTop: '2px' }}>
+                {points[hoveredIdx].value} <span style={{ color: currentTrend.color, fontSize: '10px' }}>{currentTrend.unit}</span>
+              </div>
+            </div>
+          )}
         </div>
       </article>
 

@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Accessibility,
   X,
+  Code,
   Stethoscope,
   Pill,
   FlaskConical,
@@ -51,6 +52,30 @@ export default function Header() {
   const [searchMatches, setSearchMatches] = useState<SearchItem[]>([]);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [selectedLogo, setSelectedLogo] = useState<string>('default');
+
+  // Synchronize logo changes in real-time
+  useEffect(() => {
+    const checkLogo = () => {
+      try {
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.selectedLogo) {
+          setSelectedLogo(state.selectedLogo);
+        } else {
+          setSelectedLogo('default');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkLogo();
+    window.addEventListener('storage', checkLogo);
+    window.addEventListener('setu_state_update', checkLogo);
+    return () => {
+      window.removeEventListener('storage', checkLogo);
+      window.removeEventListener('setu_state_update', checkLogo);
+    };
+  }, []);
 
   const langRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -94,6 +119,7 @@ export default function Header() {
       { type: "Services", title: "Organ Donation Pledge", route: "more", icon: "heart-handshake", desc: "Submit organ transplant pledge, download NHA certificate." },
       { type: "Services", title: "Connected Facilities", route: "connected", icon: "building", desc: "Scan and share at active hospitals and diagnostics." },
       { type: "Services", title: "Security Dashboard", route: "security", icon: "shield-check", desc: "Check role permissions, token logs, security credentials." },
+      { type: "Services", title: "ABDM Sandbox API Documentation", route: "sandbox", icon: "code", desc: "Interactive developer documentation, live playground network test runners." },
       { type: "Services", title: "Theme Switching", route: "settings", icon: "palette", desc: "Choose color themes." },
       { type: "Services", title: "Accessibility Settings", route: "settings", icon: "accessibility", desc: "Font sizes, screen reader, high contrast options." },
       { type: "Services", title: "Language Preferences", route: "settings", icon: "languages", desc: "Select multilingual preferences." },
@@ -167,12 +193,32 @@ export default function Header() {
     <header className="header">
       <div className="header-inner">
         <div className="logo" onClick={() => router.push('/')} style={{ cursor: 'pointer' }}>
-          <div className="logo-icon">
-            <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+          <div 
+            className="logo-icon"
+            style={{ 
+              overflow: 'hidden', 
+              padding: 0, 
+              background: selectedLogo !== 'default' ? 'transparent' : 'linear-gradient(135deg, var(--accent-teal), var(--accent-cyan))',
+              boxShadow: selectedLogo !== 'default' ? 'none' : '0 12px 28px rgba(0, 212, 170, 0.24)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '10px'
+            }}
+          >
+            {selectedLogo === 'default' ? (
+              <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+            ) : (
+              <img
+                src={selectedLogo}
+                alt="Brand Logo"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            )}
           </div>
           <div className="logo-text">
             <h1>{t('ABHA SETU')}</h1>
-            <span>{t('National Digital Health Bridge')}</span>
+            <span>{t('Digital Health Bridge')}</span>
           </div>
         </div>
 
@@ -413,6 +459,19 @@ export default function Header() {
                   >
                     <ShieldCheck className="small-icon" style={{ width: '14px', height: '14px' }} />
                     <span>{t('Security Settings')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push('/sandbox');
+                    }}
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    <Code className="small-icon" style={{ width: '14px', height: '14px' }} />
+                    <span>{t('Sandbox API Docs')}</span>
                   </button>
 
                   <hr className="dropdown-divider" />

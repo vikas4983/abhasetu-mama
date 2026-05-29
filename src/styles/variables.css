@@ -56,3 +56,18 @@
   --border-color: #e2e8f0;
   --surface-shadow: 0 12px 30px rgba(5, 150, 105, 0.05);
 }
+
+.theme-saffron-emerald {
+  --bg-primary: #090e0c;
+  --bg-secondary: #101c16;
+  --bg-card: #182e24;
+  --bg-card-hover: #223f31;
+  --accent-teal: #fa7a19; /* Saffron Orange */
+  --accent-cyan: #019443; /* Emerald Green */
+  --accent-blue: #d95300;
+  --text-primary: #ffffff;
+  --text-secondary: #c2d3c9;
+  --text-muted: #698375;
+  --border-color: #264335;
+  --surface-shadow: 0 18px 48px rgba(1, 148, 67, 0.12);
+}

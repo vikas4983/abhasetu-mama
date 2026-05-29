@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -11,6 +11,14 @@ export default function SecurityPage() {
   const { t } = useLanguage();
   const router = useRouter();
 
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Create a dynamic JWT payload representation for display
   const userBase64 = currentUser
     ? btoa(JSON.stringify({ email: currentUser.email, role: currentUser.role, name: currentUser.name }))
@@ -18,6 +26,45 @@ export default function SecurityPage() {
 
   const dummyJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${userBase64}.9S2d_12KdaUis92Jdklso01AdksoW921s`;
   const [jwtHeader, jwtPayload, jwtSign] = dummyJwt.split('.');
+
+  if (isLoading) {
+    return (
+      <>
+        {/* Shimmering security skeletons */}
+        <section className="route-hero">
+          <div className="setu-skeleton setu-skeleton-text" style={{ width: '80px', height: '14px', marginBottom: '8px' }}></div>
+          <div className="setu-skeleton setu-skeleton-title" style={{ width: '180px', height: '24px', marginBottom: '8px' }}></div>
+          <div className="setu-skeleton setu-skeleton-text" style={{ width: '320px', height: '14px' }}></div>
+        </section>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginTop: '20px' }}>
+          <div className="route-card" style={{ padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <div className="setu-skeleton" style={{ width: '24px', height: '24px', borderRadius: '50%' }}></div>
+              <div className="setu-skeleton setu-skeleton-title" style={{ width: '180px', height: '18px' }}></div>
+            </div>
+            <div className="setu-skeleton setu-skeleton-text" style={{ width: '80%', height: '12px', marginBottom: '12px' }}></div>
+            <div className="setu-skeleton" style={{ width: '100%', height: '60px', borderRadius: '8px' }}></div>
+          </div>
+          <div className="route-card" style={{ padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <div className="setu-skeleton" style={{ width: '24px', height: '24px', borderRadius: '50%' }}></div>
+              <div className="setu-skeleton setu-skeleton-title" style={{ width: '150px', height: '18px' }}></div>
+            </div>
+            <div className="setu-skeleton setu-skeleton-text" style={{ width: '90%', height: '12px', marginBottom: '12px' }}></div>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                  <div className="setu-skeleton setu-skeleton-text" style={{ width: '60%', height: '12px' }}></div>
+                  <div className="setu-skeleton setu-skeleton-text" style={{ width: '60px', height: '12px' }}></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
 
   return (
     <>

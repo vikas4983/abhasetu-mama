@@ -6,6 +6,7 @@ import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
+import LogoLoader from '../../../components/common/LogoLoader';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -16,7 +17,19 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedLogo, setSelectedLogo] = useState<string>('default');
   const [isRegistering, setIsRegistering] = useState(false);
+
+  React.useEffect(() => {
+    try {
+      const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+      if (state.selectedLogo) {
+        setSelectedLogo(state.selectedLogo);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,21 +39,42 @@ export default function RegisterPage() {
       register(name, email, mobile);
       setIsRegistering(false);
       showToast(t('Account created successfully! Welcome to ABHA SETU.'));
-    }, 1200);
+    }, 1800); // 1.8 seconds enrollment animation
   };
 
   return (
     <div className="login-container" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', padding: '20px' }}>
+      <LogoLoader isLoading={isRegistering} type="register" />
       <div className="login-card" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '30px 24px', boxShadow: 'var(--surface-shadow)' }}>
         
         {/* Brand Logo */}
         <div className="logo" style={{ justifyContent: 'center', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="logo-icon" style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', display: 'grid', placeItems: 'center' }}>
-            <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+          <div 
+            className="logo-icon" 
+            style={{ 
+              width: '38px', 
+              height: '38px', 
+              borderRadius: '50%', 
+              background: selectedLogo !== 'default' ? 'transparent' : 'rgba(0, 212, 170, 0.1)', 
+              display: 'grid', 
+              placeItems: 'center',
+              overflow: 'hidden',
+              padding: selectedLogo !== 'default' && selectedLogo.includes('logo6') ? '2px' : '0'
+            }}
+          >
+            {selectedLogo === 'default' ? (
+              <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+            ) : (
+              <img
+                src={selectedLogo}
+                alt="Brand Logo"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            )}
           </div>
           <div className="logo-text" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
             <h1 style={{ fontSize: '18px', margin: 0, fontWeight: 800, color: 'var(--text-primary)' }}>ABHA SETU</h1>
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>National Digital Health Bridge</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{t('Digital Health Bridge')}</span>
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Theme = 'dark-teal' | 'slate-dark' | 'ocean-blue' | 'emerald-light';
+export type Theme = 'dark-teal' | 'slate-dark' | 'ocean-blue' | 'emerald-light' | 'saffron-emerald';
 
 interface ThemeContextType {
   theme: Theme;
@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const cycleTheme = () => {
-    const themes: Theme[] = ['dark-teal', 'slate-dark', 'ocean-blue', 'emerald-light'];
+    const themes: Theme[] = ['dark-teal', 'slate-dark', 'ocean-blue', 'emerald-light', 'saffron-emerald'];
     const currentIdx = themes.indexOf(theme);
     const nextIdx = (currentIdx + 1) % themes.length;
     setTheme(themes[nextIdx]);

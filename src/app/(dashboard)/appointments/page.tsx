@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, Appointment } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -81,6 +81,55 @@ export default function AppointmentsPage() {
 
   const [recentToken, setRecentToken] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Trigger high-fidelity shimmering skeleton transitions on tab switches
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 950);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
+  // Dynamic doctors list state
+  const [doctorsList, setDoctorsList] = useState<Doctor[]>(doctors);
+
+  // Load custom HPR registered doctors from localStorage on startup
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('hpr_registered_doctors');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const mapped: Doctor[] = parsed.map((p: any) => ({
+          name: p.name,
+          role: `Senior ${p.system} Consultant`,
+          degree: p.degrees.join(', '),
+          time: "Today, 5:30 PM",
+          fee: "Rs 799",
+          rating: "4.9",
+          experience: p.experience,
+          description: `Verified specialist in ${p.system} registered under HPR (HPID: ${p.hprId}) with digital JWS signing authority.`,
+          photo: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=150",
+          badge: "ABDM Verified",
+          certificateId: p.registrationNo,
+          hfrId: p.activeFacilityId
+        }));
+        
+        setDoctorsList(prev => {
+          const merged = [...prev];
+          mapped.forEach(mDoc => {
+            if (!merged.some(d => d.certificateId === mDoc.certificateId || d.name === mDoc.name)) {
+              merged.push(mDoc);
+            }
+          });
+          return merged;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load registered doctors from HPR storage", e);
+    }
+  }, []);
 
   // Local simulated OPD check-in token history registry
   const [tokenHistory, setTokenHistory] = useState([
@@ -102,7 +151,7 @@ export default function AppointmentsPage() {
     e.preventDefault();
     if (showBookingIndex === null) return;
 
-    const d = doctors[showBookingIndex];
+    const d = doctorsList[showBookingIndex];
     const tokenNum = `SETU-TKN-${Math.floor(100 + Math.random() * 900)}`;
 
     // Add to auth provider appts state
@@ -166,111 +215,193 @@ export default function AppointmentsPage() {
 
       {activeTab === 'roster' ? (
         <div style={{ marginTop: '20px' }}>
-          {/* Live waiting room indicators */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '22px' }}>
-            <article className="route-card">
-              <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Clock style={{ color: 'var(--accent-teal)' }} />
-                <h3 style={{ margin: 0 }}>Live Waiting Room Queues</h3>
-              </div>
-              <p style={{ margin: '8px 0', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                Patients currently in digital OPD rooms: <strong>3 ahead</strong>. Estimated waiting: <strong>8 minutes</strong>.
-              </p>
-              <div className="wait-bar"><div className="wait-progress" style={{ width: '75%' }}></div></div>
-            </article>
-          </div>
-
-          {/* Roster list */}
-          <section className="route-grid doctor-grid">
-            {doctors.map((d, index) => (
-              <article key={index} className="route-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', padding: '20px' }}>
-                <img
-                  src={d.photo}
-                  alt={d.name}
-                  style={{ width: '74px', height: '74px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-teal)' }}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=150';
-                  }}
-                />
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <h3 style={{ fontSize: '15px', margin: 0 }}>{d.name}</h3>
-                    <span className="live-badge" style={{ padding: '2px 8px', fontSize: '9px', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)' }}>{d.badge}</span>
-                  </div>
-                  <p style={{ fontSize: '11px', color: 'var(--accent-cyan)', fontWeight: 700, margin: '2px 0' }}>{d.degree} - {d.experience}</p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.4' }}>{d.description}</p>
-                  <div className="pill-row" style={{ display: 'flex', gap: '8px', fontSize: '10px' }}>
-                    <span>Fee: {d.fee}</span>
-                    <span>Rating: ★ {d.rating}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <button className="join-btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: '11px' }} onClick={() => handleOpenCert(index)}>View Credentials</button>
-                    <button className="primary-action" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => handleOpenBooking(index)}>Book Slot</button>
-                  </div>
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+              {/* Shimmering live waiting room */}
+              <article className="route-card" style={{ border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
+                  <div className="setu-skeleton setu-skeleton-avatar" style={{ width: '20px', height: '20px' }}></div>
+                  <div className="setu-skeleton setu-skeleton-title" style={{ width: '160px', height: '14px' }}></div>
                 </div>
+                <div className="setu-skeleton setu-skeleton-text" style={{ width: '80%', height: '12px', marginBottom: '8px' }}></div>
+                <div className="wait-bar" style={{ height: '6px' }}><div className="setu-skeleton" style={{ width: '100%', height: '100%', border: 'none !important' }}></div></div>
               </article>
-            ))}
-          </section>
+
+              {/* Shimmering Doctor Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', width: '100%' }}>
+                {[1, 2, 3].map((n) => (
+                  <article key={n} className="route-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', flexWrap: 'wrap' }}>
+                    <div className="setu-skeleton setu-skeleton-avatar" style={{ width: '74px', height: '74px', borderRadius: '50%' }}></div>
+                    <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                        <div className="setu-skeleton setu-skeleton-title" style={{ width: '150px', height: '14px' }}></div>
+                        <div className="setu-skeleton" style={{ width: '78px', height: '18px', borderRadius: '4px' }}></div>
+                      </div>
+                      <div className="setu-skeleton setu-skeleton-text" style={{ width: '120px', height: '10px' }}></div>
+                      <div className="setu-skeleton setu-skeleton-text" style={{ width: '95%', height: '10px' }}></div>
+                      <div className="setu-skeleton setu-skeleton-text" style={{ width: '70%', height: '10px' }}></div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                        <div className="setu-skeleton" style={{ width: '110px', height: '28px', borderRadius: '8px' }}></div>
+                        <div className="setu-skeleton" style={{ width: '90px', height: '28px', borderRadius: '8px' }}></div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Live waiting room indicators */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '22px' }}>
+                <article className="route-card">
+                  <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <Clock style={{ color: 'var(--accent-teal)' }} />
+                    <h3 style={{ margin: 0 }}>Live Waiting Room Queues</h3>
+                  </div>
+                  <p style={{ margin: '8px 0', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                    Patients currently in digital OPD rooms: <strong>3 ahead</strong>. Estimated waiting: <strong>8 minutes</strong>.
+                  </p>
+                  <div className="wait-bar"><div className="wait-progress" style={{ width: '75%' }}></div></div>
+                </article>
+              </div>
+
+              {/* Roster list */}
+              <section className="route-grid doctor-grid">
+                {doctorsList.map((d, index) => (
+                  <article key={index} className="route-card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', padding: '20px' }}>
+                    <img
+                      src={d.photo}
+                      alt={d.name}
+                      style={{ width: '74px', height: '74px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-teal)' }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=150';
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <h3 style={{ fontSize: '15px', margin: 0 }}>{d.name}</h3>
+                        <span className="live-badge" style={{ padding: '2px 8px', fontSize: '9px', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)' }}>{d.badge}</span>
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--accent-cyan)', fontWeight: 700, margin: '2px 0' }}>{d.degree} - {d.experience}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.4' }}>{d.description}</p>
+                      <div className="pill-row" style={{ display: 'flex', gap: '8px', fontSize: '10px' }}>
+                        <span>Fee: {d.fee}</span>
+                        <span>Rating: ★ {d.rating}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                        <button className="join-btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: '11px' }} onClick={() => handleOpenCert(index)}>View Credentials</button>
+                        <button className="primary-action" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => handleOpenBooking(index)}>Book Slot</button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', marginTop: '20px' }}>
-          {/* Active / Confirmed Appointments */}
-          <section className="route-card wide-card">
-            <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Calendar style={{ color: 'var(--accent-teal)' }} />
-              <h3 style={{ margin: 0 }}>Upcoming Consultations & Appointments</h3>
-            </div>
-            <div className="route-grid list-grid" style={{ marginTop: '12px', display: 'grid', gap: '8px' }}>
-              {appointments.map((item, idx) => (
-                <article key={idx} className="route-card" style={{ marginBottom: '8px', minHeight: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 750 }}>{t(item.title)}</h4>
-                      <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0', fontSize: '12px' }}>{item.doctor}</p>
-                    </div>
-                    <span className="live-badge" style={{ background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', border: '1px solid var(--border-color)', fontSize: '10px', padding: '2px 8px', borderRadius: '4px' }}>{item.status}</span>
-                  </div>
-                  <div className="pill-row" style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    <span style={{ marginRight: '12px' }}>{item.meta}</span>
-                    {item.token && <span>Token: <strong>{item.token}</strong></span>}
-                  </div>
-                </article>
-              ))}
-              {appointments.length === 0 && (
-                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px' }}>No upcoming appointments</p>
-              )}
-            </div>
-          </section>
-
-          {/* Token History Registry */}
-          <section className="route-card wide-card" style={{ padding: '20px' }}>
-            <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <History style={{ color: 'var(--accent-cyan)' }} />
-              <h3 style={{ margin: 0 }}>ABHA OPD Token Registry & History</h3>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '12px', marginTop: 0, lineHeight: 1.5 }}>
-              This secure local ledger stores all generated ABDM Scan & Share OPD tokens for Janki Raman Hospital and DR AYESHAH HOMEO HEALTH MALL.
-            </p>
-            <div className="record-table" style={{ marginTop: '8px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div className="table-row table-head" style={{ fontWeight: 700, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '10px 12px', display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.2fr 0.8fr', gap: '8px' }}>
-                <span>Facility Name</span>
-                <span>Token Number</span>
-                <span>Date & Time</span>
-                <span>Status</span>
-              </div>
-              {tokenHistory.map((hist, index) => (
-                <div key={index} className="table-row" style={{ borderBottom: '1px solid var(--border-color)', padding: '10px 12px', fontSize: '12px', display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.2fr 0.8fr', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t(hist.facilityName)}</span>
-                  <span style={{ color: 'var(--accent-teal)', fontFamily: 'monospace', fontWeight: 700 }}>{hist.tokenNum}</span>
-                  <span>{hist.date} {hist.time}</span>
-                  <span><span style={{ color: 'var(--success)', fontWeight: 800 }}>✔ Active</span></span>
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+              {/* Shimmering consultations panel */}
+              <section className="route-card wide-card" style={{ border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '14px' }}>
+                  <div className="setu-skeleton setu-skeleton-avatar" style={{ width: '20px', height: '20px' }}></div>
+                  <div className="setu-skeleton setu-skeleton-title" style={{ width: '200px', height: '14px' }}></div>
                 </div>
-              ))}
-              {tokenHistory.length === 0 && (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px', fontSize: '12px' }}>No historical tokens generated yet.</div>
-              )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[1, 2].map((n) => (
+                    <div key={n} style={{ padding: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                        <div className="setu-skeleton setu-skeleton-title" style={{ width: '140px', height: '14px' }}></div>
+                        <div className="setu-skeleton" style={{ width: '70px', height: '18px', borderRadius: '4px' }}></div>
+                      </div>
+                      <div className="setu-skeleton setu-skeleton-text" style={{ width: '110px', height: '10px' }}></div>
+                      <div className="setu-skeleton setu-skeleton-text" style={{ width: '150px', height: '10px' }}></div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Shimmering Table */}
+              <section className="route-card wide-card" style={{ border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '14px' }}>
+                  <div className="setu-skeleton setu-skeleton-avatar" style={{ width: '20px', height: '20px' }}></div>
+                  <div className="setu-skeleton setu-skeleton-title" style={{ width: '220px', height: '14px' }}></div>
+                </div>
+                <div className="record-table" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--bg-secondary)', height: '40px', display: 'flex', alignItems: 'center', padding: '0 12px' }}>
+                    <div className="setu-skeleton" style={{ width: '90%', height: '12px', border: 'none !important' }}></div>
+                  </div>
+                  {[1, 2].map((n) => (
+                    <div key={n} style={{ height: '44px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', padding: '0 12px' }}>
+                      <div className="setu-skeleton" style={{ width: '85%', height: '10px', border: 'none !important' }}></div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
-          </section>
+          ) : (
+            <>
+              {/* Active / Confirmed Appointments */}
+              <section className="route-card wide-card">
+                <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Calendar style={{ color: 'var(--accent-teal)' }} />
+                  <h3 style={{ margin: 0 }}>Upcoming Consultations & Appointments</h3>
+                </div>
+                <div className="route-grid list-grid" style={{ marginTop: '12px', display: 'grid', gap: '8px' }}>
+                  {appointments.map((item, idx) => (
+                    <article key={idx} className="route-card" style={{ marginBottom: '8px', minHeight: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 750 }}>{t(item.title)}</h4>
+                          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0', fontSize: '12px' }}>{item.doctor}</p>
+                        </div>
+                        <span className="live-badge" style={{ background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-teal)', border: '1px solid var(--border-color)', fontSize: '10px', padding: '2px 8px', borderRadius: '4px' }}>{item.status}</span>
+                      </div>
+                      <div className="pill-row" style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span style={{ marginRight: '12px' }}>{item.meta}</span>
+                        {item.token && <span>Token: <strong>{item.token}</strong></span>}
+                      </div>
+                    </article>
+                  ))}
+                  {appointments.length === 0 && (
+                    <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px' }}>No upcoming appointments</p>
+                  )}
+                </div>
+              </section>
+
+              {/* Token History Registry */}
+              <section className="route-card wide-card" style={{ padding: '20px' }}>
+                <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <History style={{ color: 'var(--accent-cyan)' }} />
+                  <h3 style={{ margin: 0 }}>ABHA OPD Token Registry & History</h3>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '12px', marginTop: 0, lineHeight: 1.5 }}>
+                  This secure local ledger stores all generated ABDM Scan & Share OPD tokens for Janki Raman Hospital and DR AYESHAH HOMEO HEALTH MALL.
+                </p>
+                <div className="record-table" style={{ marginTop: '8px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div className="table-row table-head" style={{ fontWeight: 700, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '10px 12px', display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.2fr 0.8fr', gap: '8px' }}>
+                    <span>Facility Name</span>
+                    <span>Token Number</span>
+                    <span>Date & Time</span>
+                    <span>Status</span>
+                  </div>
+                  {tokenHistory.map((hist, index) => (
+                    <div key={index} className="table-row" style={{ borderBottom: '1px solid var(--border-color)', padding: '10px 12px', fontSize: '12px', display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.2fr 0.8fr', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t(hist.facilityName)}</span>
+                      <span style={{ color: 'var(--accent-teal)', fontFamily: 'monospace', fontWeight: 700 }}>{hist.tokenNum}</span>
+                      <span>{hist.date} {hist.time}</span>
+                      <span><span style={{ color: 'var(--success)', fontWeight: 800 }}>✔ Active</span></span>
+                    </div>
+                  ))}
+                  {tokenHistory.length === 0 && (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px', fontSize: '12px' }}>No historical tokens generated yet.</div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
         </div>
       )}
 
@@ -294,16 +425,16 @@ export default function AppointmentsPage() {
                 <div className="certificate-title">Medical Practitioner Credentials License</div>
                 <div className="certificate-recipient">
                   This is to verify medical registry status for
-                  <strong>{doctors[showCertIndex].name}</strong>
-                  Degree: <em>{doctors[showCertIndex].degree}</em>
+                  <strong>{doctorsList[showCertIndex].name}</strong>
+                  Degree: <em>{doctorsList[showCertIndex].degree}</em>
                 </div>
                 <div className="certificate-body">
                   Successfully enrolled in the ABDM Healthcare Professionals Registry (HPR). Authorized to conduct interoperable telemedicine, sign e-prescriptions, and link patient health records digitally.
                 </div>
                 <div className="certificate-footer">
                   <div>
-                    Registry ID: <strong>{doctors[showCertIndex].certificateId}</strong><br />
-                    Linked Facility: <strong>{doctors[showCertIndex].hfrId}</strong>
+                    Registry ID: <strong>{doctorsList[showCertIndex].certificateId}</strong><br />
+                    Linked Facility: <strong>{doctorsList[showCertIndex].hfrId}</strong>
                   </div>
                   <div className="nha-seal">NHA<br />VERIFIED</div>
                 </div>
@@ -326,7 +457,7 @@ export default function AppointmentsPage() {
             <div className="modal-body" style={{ padding: '20px' }}>
               <form className="form-grid" onSubmit={handleBookingSubmit} style={{ display: 'grid', gap: '12px' }}>
                 <label style={{ display: 'grid', gap: '4px' }}>Selected Professional
-                  <input type="text" readOnly value={`${doctors[showBookingIndex].name} (${doctors[showBookingIndex].role})`} />
+                  <input type="text" readOnly value={`${doctorsList[showBookingIndex].name} (${doctorsList[showBookingIndex].role})`} />
                 </label>
                 <label style={{ display: 'grid', gap: '4px' }}>Describe Active Symptoms
                   <input
@@ -345,7 +476,7 @@ export default function AppointmentsPage() {
                   </select>
                 </label>
                 <label style={{ display: 'grid', gap: '4px' }}>Consultation Ticket Fee
-                  <input type="text" readOnly value={doctors[showBookingIndex].fee} />
+                  <input type="text" readOnly value={doctorsList[showBookingIndex].fee} />
                 </label>
                 <button type="submit" className="join-btn" style={{ width: '100%', minHeight: '44px', marginTop: '12px' }}>
                   Confirm Booking & Generate OPD Token
