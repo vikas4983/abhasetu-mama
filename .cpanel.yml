@@ -1,4 +1,4 @@
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/sk7yjv94kzq4/public_html/
+    - export DEPLOYPATH=/home/sk7yjv94kzq4/public_html/abhasetu.com/st1.abhasetu.com/
     - /bin/cp -R * $DEPLOYPATH
