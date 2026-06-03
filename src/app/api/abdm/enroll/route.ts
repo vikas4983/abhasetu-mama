@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAbdmAccessToken } from '../../../../utils/abdm/session';
+import { encryptWithGatewayKey } from '../../../../utils/abdm/crypto';
 import crypto from 'crypto';
 
 export async function POST(request: Request) {
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
       // In real sandbox, call: POST {{gateway}}/v3/enrollment/request/otp
       const requestId = crypto.randomUUID();
       const timestamp = new Date().toISOString();
+      
+      // Encrypt Aadhaar using ABDM Gateway Certificate public key
+      const encryptedAadhaar = await encryptWithGatewayKey(aadhaar, token, gatewayUrl);
+
       const abdmRes = await fetch(`${gatewayUrl}/v3/enrollment/request/otp`, {
         method: 'POST',
         headers: {
@@ -42,9 +47,10 @@ export async function POST(request: Request) {
           'X-CM-ID': process.env.ABDM_CM_ID || 'sbx',
         },
         body: JSON.stringify({
+          txnId: "",
           scope: ['abha-enrol'],
           loginHint: 'aadhaar',
-          loginId: aadhaar, // Note: must be RSA encrypted with certificate public key in full prod
+          loginId: encryptedAadhaar,
           otpSystem: 'aadhaar',
         }),
       });
@@ -91,6 +97,10 @@ export async function POST(request: Request) {
       // In real sandbox, call: POST {{gateway}}/v3/enrollment/enrol/byAadhaar
       const requestId = crypto.randomUUID();
       const timestamp = new Date().toISOString();
+
+      // Encrypt OTP using ABDM Gateway Certificate public key
+      const encryptedOtp = await encryptWithGatewayKey(otp, token, gatewayUrl);
+
       const abdmRes = await fetch(`${gatewayUrl}/v3/enrollment/enrol/byAadhaar`, {
         method: 'POST',
         headers: {
@@ -102,7 +112,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           txnId: txnId,
-          otp: otp, // Encrypted in full production
+          otp: encryptedOtp,
         }),
       });
 

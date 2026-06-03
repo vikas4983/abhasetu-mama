@@ -151,3 +151,54 @@ export function decryptFhirPayload(
     }, null, 2);
   }
 }
+
+/**
+ * Fetches the ABDM Gateway public key certificate and RSA-encrypts data (e.g. Aadhaar or OTP).
+ * Uses the required RSA/ECB/OAEPWithSHA-1AndMGF1Padding scheme.
+ */
+export async function encryptWithGatewayKey(
+  data: string,
+  token: string,
+  gatewayUrl: string
+): Promise<string> {
+  try {
+    const requestId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+
+    const certRes = await fetch(`${gatewayUrl}/v3/profile/public/certificate`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'REQUEST-ID': requestId,
+        'TIMESTAMP': timestamp,
+      },
+    });
+
+    if (!certRes.ok) {
+      const errText = await certRes.text();
+      throw new Error(`Failed to fetch ABDM public key certificate: ${errText}`);
+    }
+
+    const certData = await certRes.json() as { publicKey: string; encryptionAlgorithm?: string };
+    const rawPublicKey = certData.publicKey;
+
+    // Convert raw base64 string to a valid public key PEM format
+    const pemKey = `-----BEGIN PUBLIC KEY-----\n${rawPublicKey.match(/.{1,64}/g)?.join('\n')}\n-----END PUBLIC KEY-----`;
+
+    // Encrypt the sensitive data using RSA OAEP SHA-1 padding
+    const encryptedBuffer = crypto.publicEncrypt(
+      {
+        key: pemKey,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha1',
+      },
+      Buffer.from(data, 'utf8')
+    );
+
+    return encryptedBuffer.toString('base64');
+  } catch (error) {
+    console.error('RSA encryption with Gateway public key failed:', error);
+    throw error;
+  }
+}
+
