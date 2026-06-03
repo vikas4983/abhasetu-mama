@@ -70,6 +70,22 @@ export default function SettingsPage() {
     }
   }, []);
 
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      const validCategories: Category[] = ['visual', 'branding', 'homepage', 'language', 'accessibility', 'notifications'];
+      if (hash && validCategories.includes(hash as Category)) {
+        setActiveCategory(hash as Category);
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
   const handleLogoChange = (logoPath: string) => {
     setSelectedLogo(logoPath);
     try {
@@ -369,52 +385,86 @@ export default function SettingsPage() {
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Status: <strong style={{ color: 'var(--success)' }}>ABDM Landmark Verified</strong></div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
                 {/* Default logo option */}
                 <button
-                  className={`prefill-btn ${selectedLogo === 'default' ? 'selected-card' : ''}`}
+                  className={`prefill-btn logo-select-card ${selectedLogo === 'default' ? 'selected-card' : ''}`}
                   onClick={() => handleLogoChange('default')}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px', height: 'auto', minHeight: '100px' }}
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: '10px', 
+                    padding: '16px', 
+                    height: 'auto', 
+                    minHeight: '140px',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    cursor: 'pointer',
+                  }}
                 >
-                  <div style={{ width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: 'linear-gradient(135deg, var(--accent-teal), var(--accent-cyan))' }}>
-                    <Plus style={{ width: '18px', height: '18px', color: '#fff' }} />
+                  <div className="logo-img-container" style={{ 
+                    width: '72px', 
+                    height: '72px', 
+                    borderRadius: '12px', 
+                    background: 'var(--bg-secondary)', 
+                    border: '1.5px solid var(--border-color)',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    overflow: 'hidden', 
+                    padding: '2px',
+                    transition: 'transform 0.3s ease, border-color 0.3s ease',
+                  }}>
+                    <img
+                      src="/assets/logos/logo7.png"
+                      alt="Default Pulse Heart Logo"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
                   </div>
-                  <span style={{ fontSize: '10.5px', fontWeight: 650, marginTop: '4px' }}>Default Brand Icon</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, marginTop: '4px', textAlign: 'center', color: 'var(--text-primary)' }}>Default (Pulse Heart 7)</span>
                 </button>
 
                 {/* Custom logos options */}
-                {[3, 4, 5, 6, 7, 8].map((num) => {
+                {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((num) => {
                   let label = `ABHA Logo ${num}`;
                   if (num === 6) label = 'Circle Bridge (6)';
                   if (num === 7) label = 'Pulse Heart (7)';
                   if (num === 8) label = 'Minimal Check (8)';
+                  if (num === 9) label = 'National Emblem Shield (9)';
+                  if (num === 10) label = 'Tri-Color Gate (10)';
+                  if (num === 11) label = 'Gold Crest Setu (11)';
+                  if (num === 12) label = 'Secure India Shield (12)';
+                  if (num === 13) label = 'Digital Setu Emblem (13)';
 
                   return (
                     <button
                       key={num}
-                      className={`prefill-btn ${selectedLogo === `/assets/logos/logo${num}.png` ? 'selected-card' : ''}`}
+                      className={`prefill-btn logo-select-card ${selectedLogo === `/assets/logos/logo${num}.png` ? 'selected-card' : ''}`}
                       onClick={() => handleLogoChange(`/assets/logos/logo${num}.png`)}
                       style={{ 
                         display: 'flex', 
                         flexDirection: 'column', 
                         alignItems: 'center', 
-                        gap: '8px', 
-                        padding: '10px', 
+                        gap: '10px', 
+                        padding: '16px', 
                         height: 'auto', 
-                        minHeight: '100px'
+                        minHeight: '140px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        cursor: 'pointer',
                       }}
                     >
-                      <div style={{
-                        width: '38px', 
-                        height: '38px', 
-                        borderRadius: '50%', 
+                      <div className="logo-img-container" style={{
+                        width: '72px', 
+                        height: '72px', 
+                        borderRadius: '12px', 
                         background: 'var(--bg-secondary)', 
-                        border: '1px solid var(--border-color)', 
+                        border: '1.5px solid var(--border-color)', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
                         overflow: 'hidden',
-                        padding: num >= 6 ? '2px' : '0'
+                        padding: num >= 6 ? '6px' : '2px',
+                        transition: 'transform 0.3s ease, border-color 0.3s ease',
                       }}>
                         <img
                           src={`/assets/logos/logo${num}.png`}
@@ -426,7 +476,7 @@ export default function SettingsPage() {
                           }}
                         />
                       </div>
-                      <span style={{ fontSize: '10.5px', fontWeight: 650, marginTop: '4px', textAlign: 'center' }}>{t(label)}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, marginTop: '4px', textAlign: 'center', color: 'var(--text-primary)' }}>{t(label)}</span>
                     </button>
                   );
                 })}

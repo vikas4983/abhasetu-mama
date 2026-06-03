@@ -20,6 +20,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
       if (state.theme) {
         setThemeState(state.theme);
+      } else {
+        const isMobile = window.innerWidth < 768;
+        const defaultTheme = isMobile ? 'abdm-sandbox' : 'dark-teal';
+        setThemeState(defaultTheme);
       }
     } catch (e) {
       console.error(e);

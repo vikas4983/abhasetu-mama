@@ -479,7 +479,26 @@ body.theme-light .theme-toggle-btn .moon-icon {
   margin-bottom: 0;
   font-size: 21px;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+  .hero h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .hero h2 {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 340px) {
+  .hero h2 {
+    font-size: 13.5px;
+  }
 }
 
 .hero-desktop-br {
@@ -2108,6 +2127,7 @@ body.theme-light .theme-toggle-btn .moon-icon {
     z-index: 1;
     font-size: 36px;
     max-width: 16ch !important;
+    white-space: normal !important;
   }
 
   .hero-desktop-br {
@@ -6336,6 +6356,93 @@ body.theme-abdm-sandbox button[style*="background: 'var(--accent-teal)'"] {
 body.theme-light button[style*="var(--accent-teal)"] svg,
 body.theme-abdm-sandbox button[style*="var(--accent-teal)"] svg {
   color: #ffffff !important;
+}
+
+/* ==================== EXECUTION ADDITIONS ==================== */
+
+/* Notification Count Badge white text override */
+.notification-badge {
+  color: #ffffff !important;
+  font-family: 'Inter', sans-serif !important;
+  text-shadow: none !important;
+}
+
+/* Language Dropdown Selector light mode contrast & hover states */
+body.theme-light .dropdown-item.active {
+  color: #0d9488 !important;
+  font-weight: 700 !important;
+  background: #ccfbf1 !important;
+}
+body.theme-light .dropdown-item:hover,
+body.theme-light .dropdown-item:focus {
+  color: #0f766e !important;
+  background: #f0fdfa !important;
+}
+
+/* Selectable Logo Cards hover zoom animation */
+.logo-select-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.logo-select-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-teal) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+}
+.logo-select-card:hover .logo-img-container {
+  transform: scale(1.15);
+  border-color: var(--accent-teal) !important;
+}
+
+/* Health Telemetry Chart Tabs styling compatibility */
+.chart-tab-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.chart-tab-btn.active {
+  background: var(--bg-card-hover) !important;
+  color: var(--accent-teal) !important;
+  border-bottom: 2.5px solid var(--accent-teal) !important;
+}
+body.theme-light .chart-tab-btn.active {
+  color: #0f766e !important;
+  border-bottom-color: #0f766e !important;
+  background: #e2e8f0 !important;
+}
+
+/* Mobile search layout tweaks */
+@media (max-width: 720px) {
+  .global-search.is-active .search-icon {
+    left: 28px !important;
+    top: 31px !important;
+  }
+  .global-search.is-active .search-close-btn {
+    right: 28px !important;
+    top: 25px !important;
+  }
+}
+
+/* Mobile ABHA Card responsive design stack */
+@media (max-width: 480px) {
+  .setu-abha-card-body {
+    grid-template-columns: 90px 1fr !important;
+    row-gap: 16px !important;
+  }
+  .setu-abha-card-qr-wrapper {
+    grid-column: 1 / -1 !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    border-top: 1.5px dashed rgba(15, 23, 42, 0.12) !important;
+    padding-top: 14px !important;
+    margin-top: 4px !important;
+  }
+  .setu-abha-card-seal {
+    top: 25px !important;
+    left: auto !important;
+    right: 20px !important;
+    transform: translate(0, 0) rotate(-8deg) !important;
+  }
 }
 
 

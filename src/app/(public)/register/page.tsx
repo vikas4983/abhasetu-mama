@@ -55,22 +55,17 @@ export default function RegisterPage() {
               width: '38px', 
               height: '38px', 
               borderRadius: '50%', 
-              background: selectedLogo !== 'default' ? 'transparent' : 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', 
+              background: 'transparent', 
               display: 'grid', 
               placeItems: 'center',
               overflow: 'hidden',
-              padding: selectedLogo !== 'default' && selectedLogo.includes('logo6') ? '2px' : '0'
             }}
           >
-            {selectedLogo === 'default' ? (
-              <Plus className="logo-plus" style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
-            ) : (
-              <img
-                src={selectedLogo}
-                alt="Brand Logo"
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              />
-            )}
+            <img
+              src={selectedLogo === 'default' ? '/assets/logos/logo7.png' : selectedLogo}
+              alt="Brand Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
           <div className="logo-text" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
             <h1 style={{ fontSize: '18px', margin: 0, fontWeight: 800, color: 'var(--text-primary)' }}>ABHA SETU</h1>

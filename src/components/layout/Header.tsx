@@ -36,7 +36,9 @@ import {
   FolderLock,
   Video,
   UserRound,
-  FileText
+  FileText,
+  ImageIcon,
+  Sparkles
 } from 'lucide-react';
 
 interface SearchItem {
@@ -302,12 +304,13 @@ export default function Header() {
             autoComplete="off"
             aria-label="Search services"
           />
-          {searchQuery && (
+          {(isSearchActive || searchQuery) && (
             <button
               className="search-close-btn"
               onClick={() => {
                 setSearchQuery('');
                 setSearchMatches([]);
+                setIsSearchActive(false);
               }}
               aria-label="Close search"
               type="button"
@@ -385,17 +388,14 @@ export default function Header() {
                       setLanguage(lang);
                       setIsLangOpen(false);
                     }}
-                    className={`dropdown-item ${language === lang ? 'active-lang' : ''}`}
+                    className={`dropdown-item ${language === lang ? 'active' : ''}`}
                     style={{
                       border: 0,
-                      background: 'transparent',
                       width: '100%',
                       textAlign: 'left',
                       cursor: 'pointer',
                       padding: '10px 14px',
                       display: 'block',
-                      color: language === lang ? 'var(--accent-teal)' : 'var(--text-primary)',
-                      fontWeight: language === lang ? '700' : 'normal',
                     }}
                   >
                     {lang === 'EN' && 'English (EN)'}
@@ -545,33 +545,46 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setIsProfileOpen(false);
-                      router.push('/settings');
-                    }}
-                    className="dropdown-item"
-                    role="menuitem"
-                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                  >
-                    <User className="small-icon" style={{ width: '14px', height: '14px' }} />
-                    <span>{t('Profile Settings')}</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings');
+                      router.push('/settings#visual');
                     }}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                   >
                     <Palette className="small-icon" style={{ width: '14px', height: '14px' }} />
-                    <span>{t('Theme Settings')}</span>
+                    <span>{t('Visual Theme')}</span>
                   </button>
 
                   <button
                     onClick={() => {
                       setIsProfileOpen(false);
-                      router.push('/settings');
+                      router.push('/settings#branding');
+                    }}
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    <ImageIcon className="small-icon" style={{ width: '14px', height: '14px' }} />
+                    <span>{t('App Branding & Logos')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push('/settings#homepage');
+                    }}
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    <Sparkles className="small-icon" style={{ width: '14px', height: '14px' }} />
+                    <span>{t('Homepage Preferences')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push('/settings#language');
                     }}
                     className="dropdown-item"
                     role="menuitem"
@@ -584,7 +597,7 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setIsProfileOpen(false);
-                      router.push('/settings');
+                      router.push('/settings#accessibility');
                     }}
                     className="dropdown-item"
                     role="menuitem"
@@ -592,6 +605,19 @@ export default function Header() {
                   >
                     <Accessibility className="small-icon" style={{ width: '14px', height: '14px' }} />
                     <span>{t('Accessibility Settings')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push('/settings#notifications');
+                    }}
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    <Bell className="small-icon" style={{ width: '14px', height: '14px' }} />
+                    <span>{t('Notification Preferences')}</span>
                   </button>
 
                   <button

@@ -100,8 +100,16 @@ export default function RootLayout({
               (function() {
                 try {
                   const state = JSON.parse(localStorage.getItem("setu_state") || "{}");
-                  if (state.theme && state.theme !== "dark-teal") {
-                    document.body.classList.add('theme-' + state.theme);
+                  let theme = state.theme;
+                  if (!theme) {
+                    const isMobile = window.innerWidth < 768;
+                    theme = isMobile ? 'abdm-sandbox' : 'dark-teal';
+                  }
+                  if (theme && theme !== "dark-teal") {
+                    document.body.classList.add('theme-' + theme);
+                  }
+                  if (theme === 'emerald-light' || theme === 'abdm-sandbox') {
+                    document.body.classList.add('theme-light');
                   }
                   if (state.accessibility) {
                     if (state.accessibility.largeFont) document.body.classList.add('accessibility-large-font');
