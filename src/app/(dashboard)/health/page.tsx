@@ -571,11 +571,11 @@ export default function HealthPage() {
                 position: 'absolute',
                 top: points[hoveredIdx].y < 65 ? `${points[hoveredIdx].y + 15}px` : `${points[hoveredIdx].y - 55}px`,
                 left: `${Math.min(Math.max(points[hoveredIdx].x - 60, 10), width - 130)}px`,
-                background: 'rgba(7, 21, 33, 0.95)',
+                background: 'var(--bg-card)',
                 border: `1.5px solid ${currentTrend.color}`,
                 borderRadius: '8px',
                 padding: '6px 10px',
-                boxShadow: `0 8px 24px rgba(0, 0, 0, 0.4), 0 0 10px ${currentTrend.color}22`,
+                boxShadow: 'var(--surface-shadow)',
                 fontSize: '11px',
                 zIndex: 10,
                 pointerEvents: 'none',
@@ -584,7 +584,7 @@ export default function HealthPage() {
               }}
             >
               <div style={{ color: 'var(--text-muted)', fontSize: '9px', textTransform: 'uppercase' }}>{points[hoveredIdx].date} status</div>
-              <div style={{ fontWeight: 850, color: '#fff', marginTop: '2px' }}>
+              <div style={{ fontWeight: 850, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {points[hoveredIdx].value} <span style={{ color: currentTrend.color, fontSize: '10px' }}>{currentTrend.unit}</span>
               </div>
             </div>

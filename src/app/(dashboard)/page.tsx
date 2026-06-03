@@ -216,19 +216,19 @@ export default function DashboardHome() {
             <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}><Stethoscope /></div>
             <span>{t('Consult Doctor')}</span>
           </div>
-          <div className="quick-item" onClick={() => handleQuickClick('/more')}>
+          <div className="quick-item" onClick={() => handleQuickClick('/pharmacy')}>
             <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)', '0 4px 14px rgba(255, 77, 109, 0.4)').style}><Pill /></div>
             <span>{t('Order Medicines')}</span>
           </div>
-          <div className="quick-item" onClick={() => handleQuickClick('/more')}>
+          <div className="quick-item" onClick={() => handleQuickClick('/lab-tests')}>
             <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)').style}><FlaskConical /></div>
             <span>{t('Book Lab Tests')}</span>
           </div>
-          <div className="quick-item" onClick={() => handleQuickClick('/records')}>
+          <div className="quick-item" onClick={() => handleQuickClick('/insurance')}>
             <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)').style}><ShieldCheck /></div>
             <span>{t('Manage Insurance')}</span>
           </div>
-          <div className="quick-item" onClick={() => handleQuickClick('/about')}>
+          <div className="quick-item" onClick={() => handleQuickClick('/courses')}>
             <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)').style}><GraduationCap /></div>
             <span>{t('Training & Courses')}</span>
           </div>

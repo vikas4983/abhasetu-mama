@@ -2789,7 +2789,8 @@ body.theme-light .prefill-btn:hover {
   border-color: var(--accent-teal) !important;
 }
 
-body.theme-light .prefill-btn.active {
+body.theme-light .prefill-btn.active,
+body.theme-light .prefill-btn.selected-card {
   background: color-mix(in srgb, var(--accent-teal) 10%, transparent) !important;
   border-color: var(--accent-teal) !important;
   color: var(--accent-teal) !important;
@@ -6405,9 +6406,9 @@ body.theme-light .dropdown-item:focus {
   border-bottom: 2.5px solid var(--accent-teal) !important;
 }
 body.theme-light .chart-tab-btn.active {
-  color: #0f766e !important;
-  border-bottom-color: #0f766e !important;
-  background: #e2e8f0 !important;
+  color: var(--accent-teal) !important;
+  border-bottom-color: var(--accent-teal) !important;
+  background: var(--bg-card-hover) !important;
 }
 
 /* Mobile search layout tweaks */

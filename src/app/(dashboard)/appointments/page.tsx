@@ -209,14 +209,14 @@ export default function AppointmentsPage() {
         <button
           className={`prefill-btn ${activeTab === 'roster' ? 'selected-card' : ''}`}
           onClick={() => setActiveTab('roster')}
-          style={{ padding: '8px 16px', minHeight: 'auto', background: activeTab === 'roster' ? 'var(--bg-secondary)' : 'transparent', border: activeTab === 'roster' ? '1px solid var(--border-color)' : 'none' }}
+          style={{ padding: '6px 14px', minHeight: 'auto', background: activeTab === 'roster' ? 'var(--bg-secondary)' : 'transparent', border: activeTab === 'roster' ? '1px solid var(--border-color)' : 'none', fontSize: '12px', fontWeight: '700', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {t('Book Consultation')}
         </button>
         <button
           className={`prefill-btn ${activeTab === 'my-tickets' ? 'selected-card' : ''}`}
           onClick={() => setActiveTab('my-tickets')}
-          style={{ padding: '8px 16px', minHeight: 'auto', background: activeTab === 'my-tickets' ? 'var(--bg-secondary)' : 'transparent', border: activeTab === 'my-tickets' ? '1px solid var(--border-color)' : 'none' }}
+          style={{ padding: '6px 14px', minHeight: 'auto', background: activeTab === 'my-tickets' ? 'var(--bg-secondary)' : 'transparent', border: activeTab === 'my-tickets' ? '1px solid var(--border-color)' : 'none', fontSize: '12px', fontWeight: '700', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {t('My Tickets & History')}
         </button>
@@ -376,7 +376,7 @@ export default function AppointmentsPage() {
               <section className="route-card wide-card">
                 <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <Calendar style={{ color: 'var(--accent-teal)' }} />
-                  <h3 style={{ margin: 0 }}>Upcoming Consultations & Appointments</h3>
+                  <h3 style={{ margin: 0, fontSize: '14.5px' }}>Upcoming Consultations & Appointments</h3>
                 </div>
                 <div className="route-grid list-grid" style={{ marginTop: '12px', display: 'grid', gap: '8px' }}>
                   {appointments.map((item, idx) => (
@@ -404,7 +404,7 @@ export default function AppointmentsPage() {
               <section className="route-card wide-card" style={{ padding: '20px' }}>
                 <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <History style={{ color: 'var(--accent-cyan)' }} />
-                  <h3 style={{ margin: 0 }}>ABHA OPD Token Registry & History</h3>
+                  <h3 style={{ margin: 0, fontSize: '14.5px' }}>ABHA OPD Token Registry & History</h3>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '12px', marginTop: 0, lineHeight: 1.5 }}>
                   This secure local ledger stores all generated ABDM Scan & Share OPD tokens for Janki Raman Hospital and DR AYESHAH HOMEO HEALTH MALL.

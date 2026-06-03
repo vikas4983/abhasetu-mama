@@ -86,6 +86,18 @@ export default function Header() {
     };
   }, []);
 
+  const navigateToSettings = (hash: string) => {
+    setIsProfileOpen(false);
+    if (typeof window !== 'undefined') {
+      const isSettings = window.location.pathname === '/settings' || window.location.pathname.endsWith('/settings');
+      if (isSettings) {
+        window.location.hash = hash;
+      } else {
+        router.push(`/settings#${hash}`);
+      }
+    }
+  };
+
   const langRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -543,10 +555,7 @@ export default function Header() {
               {isProfileOpen && (
                 <div className="profile-dropdown is-open" role="menu" id="profile-dropdown">
                   <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings#visual');
-                    }}
+                    onClick={() => navigateToSettings('visual')}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
@@ -556,10 +565,7 @@ export default function Header() {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings#branding');
-                    }}
+                    onClick={() => navigateToSettings('branding')}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
@@ -569,10 +575,7 @@ export default function Header() {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings#homepage');
-                    }}
+                    onClick={() => navigateToSettings('homepage')}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
@@ -582,10 +585,7 @@ export default function Header() {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings#language');
-                    }}
+                    onClick={() => navigateToSettings('language')}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
@@ -595,10 +595,7 @@ export default function Header() {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings#accessibility');
-                    }}
+                    onClick={() => navigateToSettings('accessibility')}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
@@ -608,10 +605,7 @@ export default function Header() {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/settings#notifications');
-                    }}
+                    onClick={() => navigateToSettings('notifications')}
                     className="dropdown-item"
                     role="menuitem"
                     style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}

@@ -324,7 +324,7 @@ export default function SandboxDocsPage() {
             </p>
           </div>
 
-          <h3 style={{ margin: '10px 0 0', fontSize: '15px', color: '#fff' }}>ABDM Gateway Endpoint Rosters</h3>
+          <h3 style={{ margin: '10px 0 0', fontSize: '15px', color: 'var(--text-primary)' }}>ABDM Gateway Endpoint Rosters</h3>
 
           {Object.entries(apis).map(([key, api]) => (
             <article key={key} className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px' }}>
@@ -334,7 +334,7 @@ export default function SandboxDocsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   {api.icon}
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '14px', color: '#fff' }}>{api.name}</h4>
+                    <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)' }}>{api.name}</h4>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ABDM Service Code: {key.toUpperCase()}</span>
                   </div>
                 </div>
@@ -471,7 +471,7 @@ export default function SandboxDocsPage() {
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '16px' }}>
                 <div>
-                  <h4 style={{ margin: 0, color: '#fff', fontSize: '14px' }}>{apis[selectedApi as keyof typeof apis].name}</h4>
+                  <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '14px' }}>{apis[selectedApi as keyof typeof apis].name}</h4>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Target API Route: {apis[selectedApi as keyof typeof apis].url}</span>
                 </div>
                 <span style={{ background: 'color-mix(in srgb, var(--accent-teal) 15%, transparent)', color: 'var(--accent-teal)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', fontFamily: 'monospace' }}>
@@ -493,7 +493,7 @@ export default function SandboxDocsPage() {
                         type="text"
                         value={apiInputs.aadhaar}
                         onChange={(e) => handleInputChange('aadhaar', e.target.value)}
-                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: '#fff', fontFamily: 'monospace' }}
+                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
                       />
                     </div>
                   )}
@@ -505,7 +505,7 @@ export default function SandboxDocsPage() {
                         type="text"
                         value={apiInputs.doctorId}
                         onChange={(e) => handleInputChange('doctorId', e.target.value)}
-                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: '#fff', fontFamily: 'monospace' }}
+                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
                       />
                     </div>
                   )}
@@ -517,7 +517,7 @@ export default function SandboxDocsPage() {
                         type="text"
                         value={apiInputs.facilityId}
                         onChange={(e) => handleInputChange('facilityId', e.target.value)}
-                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: '#fff', fontFamily: 'monospace' }}
+                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
                       />
                     </div>
                   )}
@@ -529,7 +529,7 @@ export default function SandboxDocsPage() {
                         type="text"
                         value={apiInputs.insuranceId}
                         onChange={(e) => handleInputChange('insuranceId', e.target.value)}
-                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: '#fff', fontFamily: 'monospace' }}
+                        style={{ padding: '6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
                       />
                     </div>
                   )}

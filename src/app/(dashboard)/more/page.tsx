@@ -22,7 +22,9 @@ import {
   Play,
   Navigation,
   CheckSquare,
-  Loader2
+  Loader2,
+  Pill,
+  BookOpen
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 
@@ -93,10 +95,14 @@ export default function MoreServicesPage() {
         return getIconConfig(iconStyle, 'linear-gradient(135deg, #4c9a2a 0%, #1e5a22 100%)', '0 4px 14px rgba(76, 154, 42, 0.4)');
       case 'settings':
         return getIconConfig(iconStyle, 'linear-gradient(135deg, #8338ec 0%, #3a0ca3 100%)', '0 4px 14px rgba(131, 56, 236, 0.4)');
-      case 'sample':
-        return getIconConfig(iconStyle, 'linear-gradient(135deg, #f77f00 0%, #d62828 100%)', '0 4px 14px rgba(247, 127, 0, 0.4)');
-      case 'equipment':
+      case 'pharmacy':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)');
+      case 'lab-tests':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)');
+      case 'insurance':
         return getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)');
+      case 'courses':
+        return getIconConfig(iconStyle, 'linear-gradient(135deg, #7209b7 0%, #f72585 100%)', '0 4px 14px rgba(114, 9, 183, 0.4)');
       case 'ambulance':
         return getIconConfig(iconStyle, 'linear-gradient(135deg, #ef233c 0%, #d90429 100%)', '0 4px 14px rgba(239, 35, 60, 0.4)');
       case 'drone':
@@ -132,8 +138,10 @@ export default function MoreServicesPage() {
     { id: 'connected', title: 'Connected Facilities', icon: <Building2 />, desc: 'Register OPD tokens and Scan & Share at linked smart hospitals instantly.' },
     { id: 'security', title: 'Security Audit Logs', icon: <ShieldCheck />, desc: 'Review HIPAA audit trails, masked credential logs, and JWT tokens.' },
     { id: 'settings', title: 'Preferences Settings', icon: <SettingsIcon />, desc: 'Accessibility font sizes, high contrast layout, and multilingual preferences.' },
-    { id: 'sample', title: 'Home Sample Collection', icon: <FlaskConical />, desc: 'Schedule certified phlebotomists for blood, urine, or lipid extractions.' },
-    { id: 'equipment', title: 'Medical Equipment Store', icon: <Stethoscope />, desc: 'Buy or rent verified BP cuffs, smart glucometers, and pulse oximeters.' },
+    { id: 'pharmacy', title: 'Order Medicines & Pharmacy', icon: <Pill />, desc: 'Compare health supplements, search SBL homeopathy, order generic medicines, and track deliveries.' },
+    { id: 'lab-tests', title: 'NABL Lab Test Booking', icon: <FlaskConical />, desc: 'Schedule certified phlebotomists for blood, urine, or lipid extractions and sync reports.' },
+    { id: 'insurance', title: 'Cashless Health Insurance', icon: <ShieldCheck />, desc: 'Compare PolicyBazaar quotes, cashless networks, and link issued policy cards.' },
+    { id: 'courses', title: 'NAPS Vocational Courses', icon: <BookOpen />, desc: 'Search clinical technician courses, review Skill India curricula, and simulate completions.' },
     { id: 'ambulance', title: 'Ambulance Booking SOS', icon: <Ambulance style={{ color: 'var(--danger)' }} />, desc: 'Simulate rapid emergency dispatch, ALS/BLS triage, and real-time GPS routes.' },
     { id: 'drone', title: 'Drone Delivery Simulator', icon: <Plane />, desc: 'Pre-flight NHA compliance checklists and medical cargo telemetry.' },
     { id: 'medicolegal', title: 'Medicolegal Grievances', icon: <Scale />, desc: 'DPDP consent artifacts, HIPAA guidelines, and digital secure records vault.' }
@@ -143,6 +151,10 @@ export default function MoreServicesPage() {
     if (id === 'connected') router.push('/connected');
     else if (id === 'security') router.push('/security');
     else if (id === 'settings') router.push('/settings');
+    else if (id === 'pharmacy') router.push('/pharmacy');
+    else if (id === 'lab-tests') router.push('/lab-tests');
+    else if (id === 'insurance') router.push('/insurance');
+    else if (id === 'courses') router.push('/courses');
     else setActivePanel(id);
   };
 
