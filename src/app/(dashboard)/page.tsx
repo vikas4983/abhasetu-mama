@@ -158,13 +158,15 @@ export default function DashboardHome() {
 
   return (
     <>
-      {/* Hero Section */}
       <section className="hero">
-        <div className="hero-content">
+        <div className="hero-text">
           <h2>
-            {t('Your Digital')}<br />
+            {t('Your Digital')}{' '}
+            <br className="hero-desktop-br" />
             <span className="gradient-text">{t('Healthcare Ecosystem')}</span>
           </h2>
+        </div>
+        <div className="hero-right">
           <div className="hero-ecg">
             <svg viewBox="0 0 300 60" className="ecg-line">
               <path
@@ -176,20 +178,28 @@ export default function DashboardHome() {
             </svg>
             <div className="ecg-grid"></div>
           </div>
-        </div>
-        <div className="hero-actions">
-          <button className="hero-btn" onClick={() => handleQuickClick('/appointments')}>
-            <Users className="btn-icon" style={{ width: '18px', height: '18px' }} />
-            <span>{t('Book Consultation')}</span>
-          </button>
-          <button className="hero-btn" onClick={() => handleQuickClick('/more')}>
-            <Monitor className="btn-icon" style={{ width: '18px', height: '18px' }} />
-            <span>{t('Health ATM')}</span>
-          </button>
-          <button className="hero-btn" onClick={() => handleQuickClick('/records')}>
-            <Lock className="btn-icon" style={{ width: '18px', height: '18px' }} />
-            <span>{t('Digital Locker')}</span>
-          </button>
+          <div className="hero-actions">
+            <button className="hero-btn consult-hero-btn" onClick={() => handleQuickClick('/appointments')}>
+              <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00d4aa 0%, #009688 100%)', '0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent)').style}>
+                <Stethoscope />
+              </div>
+              <span>{t('Book Doctor').toUpperCase()}</span>
+            </button>
+
+            <button className="hero-btn atm-hero-btn" onClick={() => handleQuickClick('/more')}>
+              <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%)', '0 4px 14px rgba(0, 245, 212, 0.4)').style}>
+                <HeartPulse />
+              </div>
+              <span>{t('Health ATM').toUpperCase()}</span>
+            </button>
+
+            <button className="hero-btn locker-hero-btn" onClick={() => handleQuickClick('/records')}>
+              <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}>
+                <FolderLock />
+              </div>
+              <span>{t('Health Locker').toUpperCase()}</span>
+            </button>
+          </div>
         </div>
       </section>
 

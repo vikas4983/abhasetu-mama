@@ -40,6 +40,13 @@ Abha Setu fully supports the following sandbox integration modules with high-fid
 *   **Pre-authorization Adjudication**: Submits estimated procedural costs alongside clinical history and receives cashless approvals (90% approved limit, 10% patient copay).
 *   **Direct Bank EFT Settlement**: Performs final discharge bill submissions via NHCX direct clearing, issuing Electronic Fund Transfer clearing UTRs.
 
+### 🎨 Visual Customizations & Accessibility Systems
+*   **Multiverse Color Themes**: Supports 7 distinct themes, including `Initial Theme (Default)`, `Slate Dark`, `Ocean Blue`, `Emerald Light`, `Saffron Emerald`, `Crimson Red`, and `ABDM Sandbox (Corporate)`.
+*   **Brand Typography Customization**: Offers dynamic font typeface settings (`Inter`, `Roboto`, `System Sans`) with standard inheritances across all input fields, drop-down selects, textareas, and buttons. Defaults to **Roboto** for the ABDM Sandbox theme to match the NHA design language.
+*   **Upgraded Hero Actions**: Arranges the three primary dashboard buttons (**BOOK CONSULTATION**, **HEALTH ATM**, and **DIGITAL LOCKER**) in a clean, compact horizontal row directly beneath the animated ECG graph inside a responsive 3-row, 2-column layout grid. The buttons' icons are fully integrated with the homepage **Icon Style Settings** (Glassmorphism, 3D Gradients, Clinical Minimalist) and scale smoothly on cursor hover.
+*   **Reactive Global Search Index**: Incorporates a live matching index that dynamically scans static directories (ABHA card, medicine order, diagnostics, developer sandbox api, settings) and links directly to live authenticated EMR clinical records, appointments, and HPR-registered doctors.
+*   **Layout & Contrast Optimization**: Improves tablet/desktop columns spacing, using a `1.3fr` width bias for footer contact info and a `24px` grid gap to prevent email wrapping, combined with a `var(--accent-teal)` hover state on glassmorphic icons.
+
 ---
 
 ## 🛠️ Automated Sandbox Compliance Test Suite

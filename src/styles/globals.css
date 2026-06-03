@@ -1,14 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700;900&display=swap');
 @import './variables.css';
 
-body.font-inter {
+body.font-inter,
+body.font-inter input,
+body.font-inter select,
+body.font-inter textarea,
+body.font-inter button {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
-body.font-roboto {
+body.font-roboto,
+body.font-roboto input,
+body.font-roboto select,
+body.font-roboto textarea,
+body.font-roboto button {
   font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
-body.font-system {
+body.font-system,
+body.font-system input,
+body.font-system select,
+body.font-system textarea,
+body.font-system button {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* ABDM Sandbox typography default (Roboto) unless overridden by manual accessibility font choice */
+body.theme-abdm-sandbox:not(.font-inter):not(.font-system),
+body.theme-abdm-sandbox:not(.font-inter):not(.font-system) input,
+body.theme-abdm-sandbox:not(.font-inter):not(.font-system) select,
+body.theme-abdm-sandbox:not(.font-inter):not(.font-system) textarea,
+body.theme-abdm-sandbox:not(.font-inter):not(.font-system) button {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
 }
 
 /* Reset */
@@ -415,12 +443,15 @@ body.theme-light .theme-toggle-btn .moon-icon {
 /* Hero */
 .hero {
   position: relative;
-  min-height: 228px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  min-height: auto !important;
   margin: 16px 0 20px;
   overflow: hidden;
   padding: 20px;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: 16px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--accent-teal) 12%, transparent), rgba(0, 180, 216, 0.06)),
     var(--bg-secondary);
@@ -437,18 +468,28 @@ body.theme-light .theme-toggle-btn .moon-icon {
   background: radial-gradient(circle, color-mix(in srgb, var(--accent-teal) 20%, transparent) 0%, transparent 70%);
 }
 
-.hero-content {
-  position: relative;
-  z-index: 1;
-  max-width: 520px;
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .hero h2 {
-  max-width: 14ch;
-  margin-bottom: 10px;
-  font-size: 26px;
+  max-width: 100% !important;
+  margin-bottom: 0;
+  font-size: 21px;
   font-weight: 800;
-  line-height: 1.17;
+  line-height: 1.2;
+}
+
+.hero-desktop-br {
+  display: none !important;
+}
+
+@media (min-width: 992px) {
+  .hero h2 {
+    font-size: 38px;
+  }
 }
 
 .gradient-text {
@@ -458,11 +499,20 @@ body.theme-light .theme-toggle-btn .moon-icon {
   -webkit-text-fill-color: transparent;
 }
 
+.hero-right {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
 .hero-ecg {
-  position: relative;
-  width: min(100%, 300px);
-  height: 68px;
-  margin-top: 14px;
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  height: 70px !important;
+  margin: 0 !important;
 }
 
 .ecg-line {
@@ -483,37 +533,194 @@ body.theme-light .theme-toggle-btn .moon-icon {
 .hero-actions {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 16px;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin-top: 12px !important;
 }
 
 .hero-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 12px 18px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: var(--bg-card);
-  color: var(--text-primary);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.25px;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  white-space: nowrap !important;
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  width: auto !important;
 }
 
-.hero-btn:hover {
-  border-color: var(--accent-teal);
-  background: var(--bg-card-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-teal) 18%, transparent);
+.hero-btn svg {
+  width: 15px !important;
+  height: 15px !important;
+  flex-shrink: 0;
+  transition: all 0.25s ease !important;
+  color: currentColor !important;
+}
+
+/* Quick icon overrides for buttons in hero actions */
+.hero-btn .quick-icon-glass,
+.hero-btn .quick-icon-3d,
+.hero-btn .quick-icon-minimal {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  border-radius: 8px !important;
+  margin-bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.hero-btn .quick-icon-glass svg,
+.hero-btn .quick-icon-3d svg,
+.hero-btn .quick-icon-minimal svg {
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0 !important;
+}
+
+.hero-btn:hover .quick-icon-glass,
+.hero-btn:hover .quick-icon-3d,
+.hero-btn:hover .quick-icon-minimal {
+  transform: scale(1.08) !important;
+}
+
+.hero-btn .quick-icon-3d svg {
+  color: #ffffff !important;
+}
+
+.consult-hero-btn .quick-icon-glass svg,
+.consult-hero-btn .quick-icon-minimal svg {
+  color: var(--accent-teal) !important;
+}
+
+.atm-hero-btn .quick-icon-glass svg,
+.atm-hero-btn .quick-icon-minimal svg {
+  color: var(--accent-cyan) !important;
+}
+
+.locker-hero-btn .quick-icon-glass svg,
+.locker-hero-btn .quick-icon-minimal svg {
+  color: var(--accent-blue) !important;
+}
+
+@media (max-width: 639px) {
+  .hero-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+    margin-top: 10px !important;
+  }
+  .hero-btn {
+    width: 100% !important;
+    font-size: 9px !important;
+    letter-spacing: -0.1px !important;
+    padding: 5px 6px !important;
+    min-height: 34px !important;
+    gap: 4px !important;
+  }
+  .hero-btn .quick-icon-glass,
+  .hero-btn .quick-icon-3d,
+  .hero-btn .quick-icon-minimal {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    border-radius: 5px !important;
+    margin-right: 0 !important;
+  }
+  .hero-btn .quick-icon-glass svg,
+  .hero-btn .quick-icon-3d svg,
+  .hero-btn .quick-icon-minimal svg {
+    width: 10px !important;
+    height: 10px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero-btn {
+    font-size: 8px !important;
+    letter-spacing: -0.2px !important;
+    padding: 4px 4px !important;
+    gap: 3px !important;
+  }
+  .hero-btn .quick-icon-glass,
+  .hero-btn .quick-icon-3d,
+  .hero-btn .quick-icon-minimal {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    border-radius: 4px !important;
+  }
+  .hero-btn .quick-icon-glass svg,
+  .hero-btn .quick-icon-3d svg,
+  .hero-btn .quick-icon-minimal svg {
+    width: 9px !important;
+    height: 9px !important;
+  }
+}
+
+/* Button-specific themes & glows */
+.consult-hero-btn {
+  border-color: color-mix(in srgb, var(--accent-teal) 18%, var(--border-color)) !important;
+  color: var(--accent-teal) !important;
+}
+.consult-hero-btn:hover {
+  background: var(--accent-teal) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-teal) !important;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent-teal) 25%, transparent) !important;
+  transform: translateY(-1px) !important;
+}
+.consult-hero-btn:hover svg {
+  color: #ffffff !important;
+  transform: scale(1.08);
+}
+
+.atm-hero-btn {
+  border-color: color-mix(in srgb, var(--accent-cyan) 18%, var(--border-color)) !important;
+  color: var(--accent-cyan) !important;
+}
+.atm-hero-btn:hover {
+  background: var(--accent-cyan) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent-cyan) 25%, transparent) !important;
+  transform: translateY(-1px) !important;
+}
+.atm-hero-btn:hover svg {
+  color: #ffffff !important;
+  transform: scale(1.08);
+}
+
+.locker-hero-btn {
+  border-color: color-mix(in srgb, var(--accent-blue) 18%, var(--border-color)) !important;
+  color: var(--accent-blue) !important;
+}
+.locker-hero-btn:hover {
+  background: var(--accent-blue) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent-blue) 25%, transparent) !important;
+  transform: translateY(-1px) !important;
+}
+.locker-hero-btn:hover svg {
+  color: #ffffff !important;
+  transform: scale(1.08);
 }
 
 .hero-btn:focus-visible {
@@ -1553,8 +1760,8 @@ body.theme-light .theme-toggle-btn .moon-icon {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: 1fr 1fr 1fr 1.3fr 0.7fr;
+  gap: 24px;
   padding: 20px 0;
 }
 
@@ -1824,10 +2031,6 @@ body.theme-light .theme-toggle-btn .moon-icon {
     display: flex;
   }
 
-  .hero-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .quick-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
@@ -1900,36 +2103,50 @@ body.theme-light .theme-toggle-btn .moon-icon {
     font-weight: 800;
   }
 
-  .hero-content {
-    position: static;
-  }
-
   .hero h2 {
     position: relative;
     z-index: 1;
+    font-size: 36px;
+    max-width: 16ch !important;
+  }
+
+  .hero-desktop-br {
+    display: inline !important;
   }
 
   .hero {
-    min-height: 250px;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) !important;
+    gap: 20px !important;
+    min-height: auto;
     padding: 26px;
   }
 
-  .hero h2 {
-    font-size: 36px;
+  .hero-right {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
   }
 
   .hero-ecg {
-    position: absolute;
-    top: 38px;
-    right: 22px;
-    width: 330px;
-    height: 96px;
-    margin: 0;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    height: 96px !important;
+    margin: 0 !important;
   }
 
   .hero-actions {
-    max-width: 620px;
-    margin-top: 34px;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin-top: 0 !important;
+    align-self: flex-start !important;
   }
 
   .section-header h3 {
@@ -2044,13 +2261,13 @@ body.theme-light .theme-toggle-btn .moon-icon {
   }
 
   .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 440px;
-    gap: 24px;
-    align-items: end;
-    min-height: 300px;
+    display: grid !important;
+    grid-template-columns: 1fr 1.5fr !important;
+    gap: 24px !important;
+    min-height: auto !important;
     margin-top: 24px;
     padding: 34px;
+    align-items: center !important;
   }
 
   .hero h2 {
@@ -2058,25 +2275,51 @@ body.theme-light .theme-toggle-btn .moon-icon {
     font-size: 48px;
   }
 
+  .hero-right {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+
   .hero-ecg {
-    top: 34px;
-    right: 40px;
-    width: 430px;
-    height: 130px;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    height: 120px !important;
+    margin: 0 !important;
   }
 
   .hero-actions {
-    grid-template-columns: 1fr;
-    align-self: end;
-    max-width: none;
-    margin-top: 0;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin-top: 0 !important;
+    align-self: flex-start !important;
   }
 
   .hero-btn {
-    justify-content: flex-start;
-    min-height: 58px;
-    padding: 14px 18px;
-    font-size: 14px;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    min-height: 40px !important;
+    padding: 8px 14px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--border-color) !important;
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    white-space: nowrap !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    width: auto !important;
   }
 
   .section {
@@ -2216,15 +2459,7 @@ body.theme-light .theme-toggle-btn .moon-icon {
   }
 
   .hero {
-    grid-template-columns: minmax(0, 1fr) 480px;
-  }
-
-  .hero-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .hero-btn {
-    justify-content: center;
+    grid-template-columns: 1fr 1.6fr !important;
   }
 
   .health-grid {
@@ -2350,9 +2585,120 @@ body.theme-light .hero-btn {
 }
 
 body.theme-light .hero-btn:hover {
-  background: #f1f5f9 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+body.theme-light .consult-hero-btn:hover {
+  background: var(--accent-teal) !important;
   border-color: var(--accent-teal) !important;
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-teal) 10%, transparent) !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-teal) 30%, transparent) !important;
+}
+
+body.theme-light .atm-hero-btn:hover {
+  background: var(--accent-cyan) !important;
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-cyan) 30%, transparent) !important;
+}
+
+body.theme-light .locker-hero-btn:hover {
+  background: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-blue) 30%, transparent) !important;
+}
+
+/* Ensure wrapper gets translucent background on hover in light mode */
+body.theme-light .hero-btn:hover .quick-icon-glass {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.theme-light .hero-btn:hover .quick-icon-minimal {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Ensure SVG icon is white on hover in light mode */
+body.theme-light .hero-btn:hover .quick-icon-glass svg,
+body.theme-light .hero-btn:hover .quick-icon-minimal svg,
+body.theme-light .hero-btn:hover .quick-icon-3d svg {
+  color: #ffffff !important;
+}
+
+/* Card Icon Hover Fixes in Light Mode (Ensure high contrast) */
+body.theme-light .quick-item:hover .quick-icon-glass,
+body.theme-light .market-item:hover .quick-icon-glass,
+body.theme-light .legal-item:hover .quick-icon-glass,
+body.theme-light .status-card:hover .quick-icon-glass,
+body.theme-light .metric-card:hover .quick-icon-glass {
+  background: color-mix(in srgb, var(--accent-teal) 18%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-teal) 32%, transparent) !important;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent-teal) 14%, transparent) !important;
+}
+
+body.theme-light .quick-item:hover .quick-icon-glass svg,
+body.theme-light .market-item:hover .quick-icon-glass svg,
+body.theme-light .legal-item:hover .quick-icon-glass svg,
+body.theme-light .status-card:hover .quick-icon-glass svg,
+body.theme-light .metric-card:hover .quick-icon-glass svg {
+  color: var(--accent-teal) !important;
+}
+
+body.theme-light .quick-item:hover .quick-icon-minimal,
+body.theme-light .market-item:hover .quick-icon-minimal,
+body.theme-light .legal-item:hover .quick-icon-minimal,
+body.theme-light .status-card:hover .quick-icon-minimal,
+body.theme-light .metric-card:hover .quick-icon-minimal {
+  background: var(--accent-teal) !important;
+  border-color: var(--accent-teal) !important;
+}
+
+body.theme-light .quick-item:hover .quick-icon-minimal svg,
+body.theme-light .market-item:hover .quick-icon-minimal svg,
+body.theme-light .legal-item:hover .quick-icon-minimal svg,
+body.theme-light .status-card:hover .quick-icon-minimal svg,
+body.theme-light .metric-card:hover .quick-icon-minimal svg {
+  color: #ffffff !important;
+}
+
+/* Global light-theme enhancements for quick access icons */
+body.theme-light .quick-icon-glass {
+  background: color-mix(in srgb, var(--accent-teal) 8%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-teal) 15%, rgba(0, 0, 0, 0.05)) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.02), inset 0 1px 1px rgba(255, 255, 255, 0.8) !important;
+}
+
+body.theme-light .quick-icon-minimal {
+  background: color-mix(in srgb, var(--accent-teal) 4%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-teal) 8%, rgba(0, 0, 0, 0.04)) !important;
+}
+
+/* Light mode pastel tints for hero button icons when not hovered */
+body.theme-light .consult-hero-btn .quick-icon-glass {
+  background: color-mix(in srgb, var(--accent-teal) 10%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-teal) 20%, transparent) !important;
+}
+body.theme-light .atm-hero-btn .quick-icon-glass {
+  background: color-mix(in srgb, var(--accent-cyan) 10%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-cyan) 20%, transparent) !important;
+}
+body.theme-light .locker-hero-btn .quick-icon-glass {
+  background: color-mix(in srgb, var(--accent-blue) 10%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-blue) 20%, transparent) !important;
+}
+
+body.theme-light .consult-hero-btn .quick-icon-minimal {
+  background: color-mix(in srgb, var(--accent-teal) 6%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-teal) 12%, transparent) !important;
+}
+body.theme-light .atm-hero-btn .quick-icon-minimal {
+  background: color-mix(in srgb, var(--accent-cyan) 6%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-cyan) 12%, transparent) !important;
+}
+body.theme-light .locker-hero-btn .quick-icon-minimal {
+  background: color-mix(in srgb, var(--accent-blue) 6%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-blue) 12%, transparent) !important;
 }
 
 /* Theme Footer Overrides */
@@ -5340,20 +5686,6 @@ body.accessibility-motion-reduction *::after {
   .hero-actions {
     gap: 6px !important;
     margin-top: 14px !important;
-  }
-  .hero-btn {
-    min-height: 38px !important;
-    padding: 6px 10px !important;
-    font-size: 11.5px !important;
-    border-radius: 8px !important;
-    gap: 5px !important;
-    white-space: nowrap !important;
-    flex: 1 !important;
-    justify-content: center !important;
-  }
-  .hero-btn .btn-icon {
-    width: 14px !important;
-    height: 14px !important;
   }
 }
 

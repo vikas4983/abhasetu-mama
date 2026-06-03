@@ -31,7 +31,12 @@ import {
   HeartPulse,
   BrainCircuit,
   Ambulance,
-  Droplet
+  Droplet,
+  QrCode,
+  FolderLock,
+  Video,
+  UserRound,
+  FileText
 } from 'lucide-react';
 
 interface SearchItem {
@@ -163,6 +168,10 @@ export default function Header() {
     // Replicate original search matches database
     const searchableItems: SearchItem[] = [
       { type: "Services", title: "ABHA Card", route: "abha", icon: "id-card", desc: "Create, view, download or verify ABHA Card." },
+      { type: "Services", title: "Digital Locker", route: "records", icon: "folder-lock", desc: "Access clinical records, consent history, and decrypted bundles." },
+      { type: "Services", title: "Health Dashboard", route: "health", icon: "activity", desc: "Real-time vitals, SpO2, heart rate, blood pressure, and Health ATM metrics." },
+      { type: "Services", title: "QR Code Scanner", route: "qr-scanner", icon: "qr-code", desc: "Scan HFR hospital QR codes for instant OPD registrations." },
+      { type: "Services", title: "About Us", route: "about", icon: "graduation-cap", desc: "Learn about Abha Setu and ABDM integration mission." },
       { type: "Services", title: "Order Medicines", route: "more", icon: "pill", desc: "Browse OTC/Prescription medicines, add to cart." },
       { type: "Services", title: "Book Lab Tests", route: "more", icon: "flask-conical", desc: "Book NABL diagnostics, check slots, and sync ABHA." },
       { type: "Services", title: "Hospitals Registry", route: "connected", icon: "building-2", desc: "Verified HFR hospitals directory, check-in queues." },
@@ -225,6 +234,11 @@ export default function Header() {
       case 'heart-pulse': return <HeartPulse className="small-icon" />;
       case 'brain-circuit': return <BrainCircuit className="small-icon" />;
       case 'ambulance': return <Ambulance className="small-icon" />;
+      case 'qr-code': return <QrCode className="small-icon" />;
+      case 'folder-lock': return <FolderLock className="small-icon" />;
+      case 'video': return <Video className="small-icon" />;
+      case 'user-round': return <UserRound className="small-icon" />;
+      case 'file-text': return <FileText className="small-icon" />;
       default: return <Search className="small-icon" />;
     }
   };
