@@ -4,11 +4,10 @@ const { parse } = require("url");
 const next = require("next");
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "localhost";
 const port = process.env.PORT || 3000;
 
 // Initialize Next.js in production mode
-const app = next({ dev, dir: __dirname, hostname, port });
+const app = next({ dev, dir: __dirname });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
