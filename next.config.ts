@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: any = {
   experimental: {
-    turbo: false, // ← disable turbopack
+    turbo: false,
+    cpus: 1,
+    workerThreads: false,
   },
 };
 
