@@ -33,6 +33,7 @@ interface LabPackage {
   reportHours: number;
   sampleType: string;
   description: string;
+  image: string;
 }
 
 const LAB_PACKAGES_DATABASE: LabPackage[] = [
@@ -46,7 +47,8 @@ const LAB_PACKAGES_DATABASE: LabPackage[] = [
     discount: 55,
     reportHours: 24,
     sampleType: 'Blood & Urine',
-    description: 'Complete screening of liver, kidney, blood sugar, cholesterol, thyroid, and blood counts.'
+    description: 'Complete screening of liver, kidney, blood sugar, cholesterol, thyroid, and blood counts.',
+    image: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'l2',
@@ -58,7 +60,8 @@ const LAB_PACKAGES_DATABASE: LabPackage[] = [
     discount: 50,
     reportHours: 12,
     sampleType: 'Blood',
-    description: 'Evaluates thyroid gland function and checks for hyperthyroidism or hypothyroidism.'
+    description: 'Evaluates thyroid gland function and checks for hyperthyroidism or hypothyroidism.',
+    image: 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'l3',
@@ -70,7 +73,8 @@ const LAB_PACKAGES_DATABASE: LabPackage[] = [
     discount: 51,
     reportHours: 8,
     sampleType: 'Blood (Fasting Required)',
-    description: 'Measures average blood sugar levels over the past 3 months and active fasting levels.'
+    description: 'Measures average blood sugar levels over the past 3 months and active fasting levels.',
+    image: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'l4',
@@ -82,7 +86,8 @@ const LAB_PACKAGES_DATABASE: LabPackage[] = [
     discount: 51,
     reportHours: 12,
     sampleType: 'Blood',
-    description: 'Helps assess risk of cardiovascular disease by measuring bad and good cholesterol ratios.'
+    description: 'Helps assess risk of cardiovascular disease by measuring bad and good cholesterol ratios.',
+    image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'l5',
@@ -94,7 +99,8 @@ const LAB_PACKAGES_DATABASE: LabPackage[] = [
     discount: 50,
     reportHours: 24,
     sampleType: 'Blood',
-    description: 'Identifies bone wellness, nervous health, and metabolic energy cofactor deficiencies.'
+    description: 'Identifies bone wellness, nervous health, and metabolic energy cofactor deficiencies.',
+    image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=300'
   }
 ];
 
@@ -102,6 +108,10 @@ export default function LabTestsPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { addRecord, logSecurityEvent } = useAuth();
+
+  // Infinite scroll mock packages state
+  const [packages, setPackages] = useState<LabPackage[]>(LAB_PACKAGES_DATABASE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Booking states
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -121,6 +131,67 @@ export default function LabTestsPage() {
     date: '',
     timeSlot: 'Morning (07:00 AM - 09:00 AM)'
   });
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (typeof window !== 'undefined') {
+        const threshold = 200; // pixels from bottom
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold) {
+          if (!isLoadingMore) {
+            loadMorePackages();
+          }
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [packages, isLoadingMore]);
+
+  const loadMorePackages = () => {
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      const nextBatch: LabPackage[] = [];
+      const startIdx = packages.length + 1;
+      const images = [
+        'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?auto=format&fit=crop&q=80&w=300',
+        'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?auto=format&fit=crop&q=80&w=300',
+        'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=300',
+        'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=300',
+        'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=300'
+      ];
+      const titles = [
+        'Executive Cardiac Screen', 'Senior Citizen Care Male', 'Senior Citizen Care Female',
+        'Kidney Function Wellness', 'Liver Health Evaluation', 'Advanced Allergy Screening',
+        'Hormonal Balance Profile', 'Vitamin & Calcium Duo'
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        const idNum = startIdx + i;
+        const title = titles[idNum % titles.length];
+        const basePrice = 699 + (idNum * 150) % 2000;
+        const discount = (idNum * 7) % 50 + 10;
+        const price = Math.round(basePrice * (1 - discount / 100));
+        
+        nextBatch.push({
+          id: `l_gen_${idNum}`,
+          name: title,
+          provider: idNum % 2 === 0 ? 'Max Labs' : 'Thyrocare Services',
+          price,
+          originalPrice: basePrice,
+          parameters: 12 + (idNum * 5) % 40,
+          discount,
+          reportHours: idNum % 2 === 0 ? 12 : 24,
+          sampleType: idNum % 3 === 0 ? 'Blood & Urine' : 'Blood',
+          description: `Comprehensive diagnostic profile evaluating ${title.toLowerCase()} factors with certified NABL reporting.`,
+          image: images[idNum % images.length]
+        });
+      }
+      
+      setPackages(prev => [...prev, ...nextBatch]);
+      setIsLoadingMore(false);
+    }, 800);
+  };
 
   // Today + 1 day default date setter
   useEffect(() => {
@@ -151,7 +222,7 @@ export default function LabTestsPage() {
   };
 
   const cartTotal = selectedPackages.reduce((sum, id) => {
-    const pkg = LAB_PACKAGES_DATABASE.find(p => p.id === id);
+    const pkg = packages.find(p => p.id === id);
     return sum + (pkg ? pkg.price : 0);
   }, 0);
 
@@ -164,12 +235,12 @@ export default function LabTestsPage() {
       setBookingStep('patient');
     } else if (bookingStep === 'patient') {
       // Complete booking log security event & link invoice record in Health Locker
-      const reportName = `Pending Lab PDF - ${LAB_PACKAGES_DATABASE.find(p => p.id === selectedPackages[0])?.name || 'Active Panel'}.pdf`;
+      const reportName = `Pending Lab PDF - ${packages.find(p => p.id === selectedPackages[0])?.name || 'Active Panel'}.pdf`;
       addRecord({
         name: reportName,
         type: 'Lab Invoice',
         date: new Date(schedule.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-        source: LAB_PACKAGES_DATABASE.find(p => p.id === selectedPackages[0])?.provider || 'Secure NABL Partner Lab'
+        source: packages.find(p => p.id === selectedPackages[0])?.provider || 'Secure NABL Partner Lab'
       });
 
       logSecurityEvent('Diagnostics Booked', `Scheduled phlebotomy panel of ₹${totalAmount} on ${schedule.date} at slot ${schedule.timeSlot}`);
@@ -232,89 +303,85 @@ export default function LabTestsPage() {
           Certified Diagnostic Packages & Profiles
         </h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
-          {LAB_PACKAGES_DATABASE.map(pkg => {
+        <div className="flipkart-grid">
+          {packages.map(pkg => {
             const isSelected = selectedPackages.includes(pkg.id);
             return (
               <article
                 key={pkg.id}
                 className={`route-card ${isSelected ? 'selected-card' : ''}`}
                 style={{
-                  padding: '20px',
+                  padding: '14px',
                   display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '16px',
                   border: isSelected ? '1.5px solid var(--accent-teal)' : '1px solid var(--border-color)',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  height: '100%'
                 }}
               >
                 
-                {/* Details side */}
-                <div style={{ flex: 1, minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 'bold', background: 'color-mix(in srgb, var(--accent-teal) 12%, transparent)', color: 'var(--accent-teal)', padding: '2px 8px', borderRadius: '4px' }}>
-                      {pkg.parameters} Parameters Checked
-                    </span>
-                    <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Activity style={{ width: '11px', height: '11px' }} />
-                      Sample: {pkg.sampleType}
-                    </span>
+                {/* Details side (with image) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="lab-image-container" style={{ width: '100%', height: '120px', borderRadius: '10px', overflow: 'hidden', background: 'var(--bg-secondary)', position: 'relative' }}>
+                    <img src={pkg.image} alt={pkg.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {pkg.discount > 0 && (
+                      <span style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 10, background: 'var(--danger)', color: '#fff', fontSize: '9px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px' }}>
+                        {pkg.discount}% OFF
+                      </span>
+                    )}
                   </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 'bold', background: 'color-mix(in srgb, var(--accent-teal) 12%, transparent)', color: 'var(--accent-teal)', padding: '2px 6px', borderRadius: '4px' }}>
+                        {pkg.parameters} Params
+                      </span>
+                      <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
+                        {pkg.sampleType}
+                      </span>
+                    </div>
 
-                  <h4 style={{ fontSize: '14.5px', margin: 0, fontWeight: 750, color: 'var(--text-primary)' }}>
-                    {pkg.name}
-                  </h4>
-                  
-                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                    Lab Partner: {pkg.provider}
-                  </span>
+                    <h4 style={{ fontSize: '13px', margin: '4px 0 0', fontWeight: 750, color: 'var(--text-primary)', lineClamp: 2, WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', height: '34px' }}>
+                      {pkg.name}
+                    </h4>
+                    
+                    <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)' }}>
+                      Lab Partner: {pkg.provider}
+                    </span>
 
-                  <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                    {pkg.description}
-                  </p>
-
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    <span>Report Generation: <strong>{pkg.reportHours} Hours</strong></span>
-                    <span>•</span>
-                    <span>Phlebotomy: <strong>Free Home Pick-up</strong></span>
+                    <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: '4px 0 0', lineHeight: 1.4, lineClamp: 3, WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', height: '44px' }}>
+                      {pkg.description}
+                    </p>
                   </div>
                 </div>
 
                 {/* Pricing & Selection side */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', minWidth: '130px' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    {pkg.discount > 0 && (
-                      <span style={{ fontSize: '9px', background: 'var(--danger)', color: '#fff', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginBottom: '4px' }}>
-                        SAVE {pkg.discount}%
-                      </span>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
-                      <strong style={{ fontSize: '18px', color: 'var(--accent-teal)' }}>₹{pkg.price}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: '4px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <strong style={{ fontSize: '14.5px', color: 'var(--accent-teal)' }}>₹{pkg.price}</strong>
                       {pkg.discount > 0 && (
-                        <span style={{ fontSize: '12px', textDecoration: 'line-through', color: 'var(--text-muted)' }}>₹{pkg.originalPrice}</span>
+                        <span style={{ fontSize: '10px', textDecoration: 'line-through', color: 'var(--text-muted)' }}>₹{pkg.originalPrice}</span>
                       )}
                     </div>
+                    <span style={{ fontSize: '8px', color: 'var(--text-muted)', display: 'block' }}>Report in {pkg.reportHours}h</span>
                   </div>
 
                   <button
                     onClick={() => handleTogglePackage(pkg.id)}
+                    className={isSelected ? "btn-solid-accent" : "btn-outline-accent"}
                     style={{
-                      background: isSelected ? 'var(--accent-teal)' : 'transparent',
-                      color: isSelected ? '#fff' : 'var(--accent-teal)',
-                      border: '1.5px solid var(--accent-teal)',
-                      padding: '8px 18px',
+                      padding: '4px 12px',
                       borderRadius: '30px',
-                      fontSize: '11.5px',
+                      fontSize: '11px',
                       fontWeight: 'bold',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
-                      width: '130px',
                       textAlign: 'center'
                     }}
                   >
-                    {isSelected ? t('SELECTED') : t('BOOK NOW')}
+                    {isSelected ? t('SELECTED') : t('BOOK')}
                   </button>
                 </div>
 
@@ -322,6 +389,14 @@ export default function LabTestsPage() {
             );
           })}
         </div>
+
+        {/* Infinite Scroll Loader indicator */}
+        {isLoadingMore && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px 0', gap: '8px', color: 'var(--accent-teal)' }}>
+            <div className="spinner" style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid var(--border-color)', borderTopColor: 'var(--accent-teal)', animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Loading more packages...</span>
+          </div>
+        )}
 
       </div>
 
@@ -373,7 +448,7 @@ export default function LabTestsPage() {
               {bookingStep === 'cart' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {selectedPackages.map(id => {
-                    const pkg = LAB_PACKAGES_DATABASE.find(p => p.id === id);
+                    const pkg = packages.find(p => p.id === id);
                     if (!pkg) return null;
                     return (
                       <div key={id} style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px' }}>

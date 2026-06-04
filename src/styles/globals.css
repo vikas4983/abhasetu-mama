@@ -4740,70 +4740,28 @@ body.theme-light .search-highlight {
   color: #047857 !important;
 }
 
-/* Fullscreen Search Overlay on Mobile Devices */
-@media (max-width: 720px) {
-  .global-search.is-active {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    background: var(--bg-primary) !important;
-    z-index: 2100 !important;
-    padding: 16px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-    animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-  }
-
-  .global-search.is-active input {
-    border-radius: 12px !important;
-    min-height: 48px !important;
-    padding-left: 44px !important;
-    padding-right: 48px !important;
-    background: var(--bg-secondary) !important;
-    color: var(--text-primary) !important;
-    border-color: var(--border-color) !important;
-  }
-
-  .global-search.is-active .search-suggestions {
-    position: static !important;
-    display: block !important;
-    max-height: none !important;
-    flex: 1 !important;
-    overflow-y: auto !important;
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    margin-top: 14px !important;
-    padding-bottom: 24px !important;
-  }
-
-  .global-search.is-active .search-close-btn {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    position: absolute !important;
-    right: 28px !important;
-    top: 26px !important;
-    background: transparent !important;
-    border: none !important;
-    color: var(--text-muted) !important;
-    cursor: pointer !important;
-    z-index: 10 !important;
-  }
-
-  .global-search.is-active .search-close-btn svg {
-    width: 22px !important;
-    height: 22px !important;
-  }
+.search-close-btn {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  z-index: 10;
+  transition: color 0.15s ease;
+}
+.search-close-btn:hover {
+  color: var(--accent-teal);
 }
 
-.search-close-btn {
-  display: none;
+@media (max-width: 639px) {
+  .global-search {
+    margin-top: 4px;
+  }
 }
 
 /* Light Theme Emerald-Light accessible styles override */
@@ -6411,17 +6369,6 @@ body.theme-light .chart-tab-btn.active {
   background: var(--bg-card-hover) !important;
 }
 
-/* Mobile search layout tweaks */
-@media (max-width: 720px) {
-  .global-search.is-active .search-icon {
-    left: 28px !important;
-    top: 31px !important;
-  }
-  .global-search.is-active .search-close-btn {
-    right: 28px !important;
-    top: 25px !important;
-  }
-}
 
 /* Mobile ABHA Card responsive design stack */
 @media (max-width: 480px) {
@@ -6446,4 +6393,241 @@ body.theme-light .chart-tab-btn.active {
   }
 }
 
+/* Responsive adjustments for Pharmacy, Lab Tests, and Insurance */
+@media (max-width: 768px) {
+  /* Pharmacy Portal */
+  .pharmacy-container {
+    flex-direction: column !important;
+  }
+  #desktop-filter-sidebar {
+    display: none !important;
+  }
+  #mobile-filter-toggle-btn {
+    display: flex !important;
+  }
+
+  /* Lab Tests Portal */
+  .lab-details-wrapper {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .lab-details-wrapper .lab-info-block {
+    align-items: center !important;
+  }
+  .lab-image-container {
+    width: 100px !important;
+    height: 100px !important;
+    margin-bottom: 8px;
+  }
+  .lab-info-block div {
+    justify-content: center !important;
+  }
+
+  /* Insurance Portal */
+  #matrix-stats-panel {
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  
+  /* Modal drawers (e.g. Shopping Cart & Appointment Scheduling sheets) */
+  .modal-overlay {
+    justify-content: center !important;
+    align-items: flex-end !important;
+  }
+  .modal-content {
+    max-width: 100% !important;
+    height: 80vh !important; /* height-limited sheet on mobile */
+    border-radius: 20px 20px 0 0 !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Lab test card full layout wrap */
+  .lab-package-card {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 16px !important;
+  }
+  .lab-package-card div {
+    align-items: center !important;
+  }
+}
+
+
+/* ==================== PHASE 3 ADDITIONS ==================== */
+
+/* Flipkart-style 2-column grid and layout */
+.flipkart-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+@media (max-width: 600px) {
+  .flipkart-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  /* Force small padding inside cards on mobile grid */
+  .flipkart-grid .route-card {
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+}
+
+/* Custom contrast-safe outline and solid action buttons for light/dark themes */
+.btn-outline-accent {
+  background: transparent !important;
+  color: var(--accent-teal) !important;
+  border: 1.5px solid var(--accent-teal) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-outline-accent:hover {
+  background: var(--accent-teal) !important;
+  color: #ffffff !important;
+}
+
+body.theme-light .btn-outline-accent,
+body.theme-abdm-sandbox .btn-outline-accent {
+  color: var(--accent-teal) !important;
+  border-color: var(--accent-teal) !important;
+}
+body.theme-light .btn-outline-accent:hover,
+body.theme-abdm-sandbox .btn-outline-accent:hover {
+  background: var(--accent-teal) !important;
+  color: #ffffff !important;
+}
+
+.btn-solid-accent {
+  background: var(--accent-teal) !important;
+  color: #ffffff !important;
+  border: 1.5px solid var(--accent-teal) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+.btn-solid-accent:hover {
+  opacity: 0.9 !important;
+}
+
+
+/* Route Hero compact breadcrumbs styles */
+.route-hero {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  padding: 8px 14px !important;
+  margin-bottom: 12px !important;
+  border-radius: 8px !important;
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.route-hero .back-link {
+  font-size: 11.5px !important;
+  color: var(--accent-teal) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-decoration: none !important;
+}
+
+.route-hero .back-link::after {
+  content: "/" !important;
+  margin-left: 8px !important;
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
+  pointer-events: none !important;
+}
+
+.route-hero > div {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+
+.route-hero h2 {
+  font-size: 12.5px !important;
+  font-weight: 750 !important;
+  color: var(--text-primary) !important;
+  margin: 0 !important;
+  display: inline !important;
+}
+
+.route-hero p {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  margin: 0 !important;
+  display: inline !important;
+}
+
+.route-hero p::before {
+  content: "—" !important;
+  margin: 0 6px !important;
+  color: var(--border-color) !important;
+}
+
+/* Hide route-hero descriptions on mobile viewports for clean look */
+@media (max-width: 768px) {
+  .route-hero p {
+    display: none !important;
+  }
+}
+
+/* Insurance Policy Card animations & mobile overrides */
+.policy-card-item {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.policy-card-item:hover {
+  transform: translateY(-2px) !important;
+  border-color: var(--accent-teal) !important;
+  box-shadow: var(--surface-shadow) !important;
+}
+
+.insurance-checkout-row {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 8px !important;
+  min-width: 130px !important;
+}
+
+@media (max-width: 768px) {
+  /* Restructure comparison stats as horizontal row on mobile */
+  #matrix-stats-panel {
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    width: 100% !important;
+    border-top: 1.5px solid var(--border-color) !important;
+    border-bottom: 1.5px solid var(--border-color) !important;
+    padding: 10px 0 !important;
+    margin: 8px 0 !important;
+  }
+  
+  /* Make cost/checkout take full horizontal space on mobile */
+  .insurance-checkout-row {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+  .insurance-checkout-row > div {
+    text-align: left !important;
+  }
+  .insurance-checkout-row button {
+    width: auto !important;
+    flex: 1 !important;
+    max-width: 200px !important;
+  }
+}
 

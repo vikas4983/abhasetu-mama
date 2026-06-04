@@ -780,31 +780,41 @@ export default function HealthPage() {
             {/* Common Inputs: Weight, Height */}
             <div style={{ display: 'grid', gap: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                <label>Weight (भार)</label>
+                <label htmlFor="weight-input">Weight (भार)</label>
                 <strong>{weightInput} kg</strong>
               </div>
               <input
+                id="weight-input"
                 type="range"
                 min="30"
                 max="180"
                 value={weightInput}
                 onChange={(e) => setWeightInput(Number(e.target.value))}
                 style={{ width: '100%', accentColor: 'var(--accent-teal)' }}
+                aria-label="Weight in kilograms"
+                aria-valuemin={30}
+                aria-valuemax={180}
+                aria-valuenow={weightInput}
               />
             </div>
 
             <div style={{ display: 'grid', gap: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                <label>Height (ऊंचाई)</label>
+                <label htmlFor="height-input">Height (ऊंचाई)</label>
                 <strong>{heightInput} cm</strong>
               </div>
               <input
+                id="height-input"
                 type="range"
                 min="100"
                 max="230"
                 value={heightInput}
                 onChange={(e) => setHeightInput(Number(e.target.value))}
                 style={{ width: '100%', accentColor: 'var(--accent-teal)' }}
+                aria-label="Height in centimeters"
+                aria-valuemin={100}
+                aria-valuemax={230}
+                aria-valuenow={heightInput}
               />
             </div>
 

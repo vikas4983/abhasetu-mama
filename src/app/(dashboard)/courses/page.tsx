@@ -315,12 +315,14 @@ export default function CoursesPage() {
                 <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Apprenticeship Sandbox Enrollment</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
+                    id="student-name-input"
                     type="text"
                     required
                     value={enrollmentName}
                     onChange={(e) => setEnrollmentName(e.target.value)}
                     placeholder="Enter student full name"
                     style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                    aria-label="Student full name for enrollment"
                   />
                   <button type="submit" style={{ padding: '8px 16px', background: 'var(--accent-teal)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11.5px', fontWeight: 'bold', cursor: 'pointer' }}>
                     Enroll Course

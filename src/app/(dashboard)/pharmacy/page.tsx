@@ -149,6 +149,10 @@ export default function PharmacyPage() {
   const { t } = useLanguage();
   const { addRecord, logSecurityEvent } = useAuth();
 
+  // Infinite scroll mock products state
+  const [products, setProducts] = useState<Product[]>(PRODUCTS_DATABASE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Search & Navigation States
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -178,6 +182,74 @@ export default function PharmacyPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi' | 'card'>('cod');
   const [cardDetails, setCardDetails] = useState({ number: '', expiry: '', cvv: '' });
   const [upiId, setUpiId] = useState('ananya.verma@okaxis');
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (typeof window !== 'undefined') {
+        const threshold = 200; // pixels from bottom
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold) {
+          if (!isLoadingMore) {
+            loadMoreProducts();
+          }
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [products, isLoadingMore]);
+
+  const loadMoreProducts = () => {
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      const nextBatch: Product[] = [];
+      const startIdx = products.length + 1;
+      const categories: Product['category'][] = ['prescription', 'wellness', 'homeopathy', 'ayurvedic', 'personal'];
+      const forms: Product['form'][] = ['Tablets', 'Capsules', 'Syrup', 'Liquid', 'Cream'];
+      const brands = ['Setu Labs', 'SBL Homeopathy', 'Himalaya Wellness', 'Dabur Health', 'Johnson & Johnson', 'Alkem Drugs'];
+      const images = [
+        'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=150',
+        'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&q=80&w=150',
+        'https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&q=80&w=150',
+        'https://images.unsplash.com/photo-1607619056574-7b8f304b3c8f?auto=format&fit=crop&q=80&w=150',
+        'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&q=80&w=150'
+      ];
+      
+      const meds = [
+        'Amoxicillin', 'Azithromycin', 'Metformin', 'Atorvastatin', 'Amlodipine',
+        'Vitamin C Drops', 'Zinc Immune Shield', 'Tulsi Herbal Cough Syrup', 'Chyawanprash Care', 'Baby Gentle Wash',
+        'Nux Vomica 30C', 'Rhus Tox Dilution', 'Neem Purifying Gel', 'Ashwagandha Vigor Capsule', 'Multivitamin Vitality'
+      ];
+
+      for (let i = 0; i < 6; i++) {
+        const idNum = startIdx + i;
+        const medName = meds[idNum % meds.length];
+        const category = categories[idNum % categories.length];
+        const form = forms[idNum % forms.length];
+        const brand = brands[idNum % brands.length];
+        const basePrice = 40 + (idNum * 12) % 300;
+        const discount = (idNum * 5) % 45;
+        const price = Math.round(basePrice * (1 - discount / 100));
+        
+        nextBatch.push({
+          id: `p_gen_${idNum}`,
+          name: medName + (form === 'Tablets' ? ' 650mg' : form === 'Capsules' ? ' 500mg' : ' 100ml'),
+          category,
+          brand,
+          form,
+          price,
+          originalPrice: basePrice,
+          discount,
+          rating: Number((4.0 + (idNum * 0.1) % 1.0).toFixed(1)),
+          image: images[idNum % images.length],
+          description: `Clinically formulated ${medName} designed for daily support and wellness.`
+        });
+      }
+      
+      setProducts(prev => [...prev, ...nextBatch]);
+      setIsLoadingMore(false);
+    }, 800);
+  };
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -243,7 +315,7 @@ export default function PharmacyPage() {
   };
 
   // Filters logic
-  let filteredProducts = PRODUCTS_DATABASE.filter(p => {
+  let filteredProducts = products.filter(p => {
     // 1. Category search
     if (activeCategory !== 'all' && p.category !== activeCategory) return false;
     
@@ -278,7 +350,7 @@ export default function PharmacyPage() {
   // Cart summary math
   const cartItemsCount = Object.values(cart).reduce((sum, q) => sum + q, 0);
   const cartSubtotal = Object.entries(cart).reduce((sum, [id, qty]) => {
-    const prod = PRODUCTS_DATABASE.find(p => p.id === id);
+    const prod = products.find(p => p.id === id);
     return sum + (prod ? prod.price * qty : 0);
   }, 0);
   const gstAmount = Math.round(cartSubtotal * 0.12);
@@ -352,7 +424,7 @@ export default function PharmacyPage() {
       </section>
 
       {/* Main Container */}
-      <div style={{ display: 'flex', gap: '20px', marginTop: '20px', alignItems: 'flex-start' }}>
+      <div className="pharmacy-container" style={{ display: 'flex', gap: '20px', marginTop: '20px', alignItems: 'flex-start' }}>
         
         {/* ================= FILTER SIDEBAR (Desktop) ================= */}
         <aside className="route-card" style={{ width: '260px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'sticky', top: '80px', flexShrink: 0 }} id="desktop-filter-sidebar">
@@ -417,11 +489,13 @@ export default function PharmacyPage() {
             <div className="global-search" style={{ flex: 1, padding: 0, height: '40px' }}>
               <Search className="search-icon" style={{ left: '12px' }} />
               <input
+                id="pharmacy-search"
                 type="text"
                 placeholder={t('Search medicines, syrups, brands or wellness components...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{ paddingLeft: '38px', borderRadius: '10px' }}
+                aria-label="Search medicines and wellness products"
               />
             </div>
             
@@ -478,7 +552,7 @@ export default function PharmacyPage() {
           </div>
 
           {/* Catalog grid */}
-          <section className="route-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '14px' }}>
+          <section className="flipkart-grid">
             {filteredProducts.map(prod => (
               <article key={prod.id} className="route-card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', position: 'relative' }}>
                 
@@ -537,6 +611,7 @@ export default function PharmacyPage() {
                     </div>
                   ) : (
                     <button
+                      className="btn-outline-accent"
                       onClick={() => handleAddToCart(prod.id)}
                       style={{
                         background: 'transparent',
@@ -564,6 +639,14 @@ export default function PharmacyPage() {
               </div>
             )}
           </section>
+
+          {/* Infinite Scroll Loader indicator */}
+          {isLoadingMore && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '24px 0', gap: '8px', color: 'var(--accent-teal)' }}>
+              <div className="spinner" style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid var(--border-color)', borderTopColor: 'var(--accent-teal)', animation: 'spin 0.8s linear infinite' }} />
+              <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Loading more medicines...</span>
+            </div>
+          )}
 
         </div>
 
@@ -617,7 +700,7 @@ export default function PharmacyPage() {
               {checkoutStep === 'cart' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {Object.entries(cart).map(([id, qty]) => {
-                    const prod = PRODUCTS_DATABASE.find(p => p.id === id);
+                    const prod = products.find(p => p.id === id);
                     if (!prod) return null;
                     return (
                       <div key={id} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '10px' }}>
@@ -650,7 +733,7 @@ export default function PharmacyPage() {
                   )}
 
                   {/* Prescription Warning Note */}
-                  {Object.keys(cart).some(id => PRODUCTS_DATABASE.find(p => p.id === id)?.category === 'prescription') && (
+                  {Object.keys(cart).some(id => products.find(p => p.id === id)?.category === 'prescription') && (
                     <div style={{ display: 'flex', gap: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px', borderRadius: '8px', fontSize: '10px', color: 'var(--danger)' }}>
                       <Info style={{ width: '14px', height: '14px', flexShrink: 0 }} />
                       <span>Contains RX medicines. Compliance with ABDM requires automatic check of your linked EHR cards for active e-prescriptions.</span>

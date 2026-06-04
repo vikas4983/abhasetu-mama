@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /settings
+Disallow: /security
+Disallow: /login
+Disallow: /register
 
 Sitemap: https://abhasetu.com/sitemap.xml

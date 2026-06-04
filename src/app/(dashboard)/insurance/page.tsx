@@ -251,18 +251,23 @@ export default function InsurancePage() {
                   <span style={{ color: 'var(--accent-teal)' }}>{oldestMemberAge} Years Old</span>
                 </div>
                 <input
+                  id="oldest-member-age"
                   type="range"
                   min="18"
                   max="75"
                   value={oldestMemberAge}
                   onChange={(e) => setOldestMemberAge(Number(e.target.value))}
                   style={{ width: '100%', accentColor: 'var(--accent-teal)' }}
+                  aria-label="Oldest Member Age"
+                  aria-valuemin={18}
+                  aria-valuemax={75}
+                  aria-valuenow={oldestMemberAge}
                 />
               </div>
 
               {/* Location Pin code */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '12px' }}>
-                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
+                <label style={{ flex: 1, minWidth: '200px', display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Residential Pincode
                   <input
                     type="text"
@@ -275,7 +280,7 @@ export default function InsurancePage() {
                   />
                 </label>
 
-                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <label style={{ flex: 1.2, minWidth: '200px', display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Pre-existing Illnesses
                   <select value={preExisting} onChange={(e) => setPreExisting(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
                     <option value="none">None of these</option>
@@ -349,16 +354,18 @@ export default function InsurancePage() {
               {INSURANCE_PLANS_DATABASE.map(plan => {
                 const adjustedMonthly = Math.round(plan.monthlyPremium * multiplier);
                 return (
-                  <article
+                                  <article
                     key={plan.id}
-                    className="route-card"
+                    className="route-card policy-card-item"
                     style={{
                       padding: '20px',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       flexWrap: 'wrap',
-                      gap: '20px'
+                      gap: '20px',
+                      border: '1px solid var(--border-color)',
+                      transition: 'all 0.2s'
                     }}
                   >
                     
@@ -406,7 +413,7 @@ export default function InsurancePage() {
                     </div>
 
                     {/* Premium cost / Buy button */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '130px' }}>
+                    <div className="insurance-checkout-row">
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', justifyContent: 'flex-end' }}>
                           <strong style={{ fontSize: '20px', color: 'var(--accent-teal)' }}>₹{adjustedMonthly}</strong>
