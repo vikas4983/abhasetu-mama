@@ -38,121 +38,26 @@ interface Product {
   description: string;
 }
 
-const PRODUCTS_DATABASE: Product[] = [
-  {
-    id: 'p1',
-    name: 'Paracetamol 650mg IP (SetuCure)',
-    category: 'prescription',
-    brand: 'Setu Labs',
-    form: 'Tablets',
-    price: 32,
-    originalPrice: 40,
-    discount: 20,
-    rating: 4.8,
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=150',
-    description: 'Fast acting fever reducer and pain reliever for moderate fever.'
-  },
-  {
-    id: 'p2',
-    name: 'Arnica Montana 30C Dilution',
-    category: 'homeopathy',
-    brand: 'SBL Homeopathy',
-    form: 'Liquid',
-    price: 95,
-    originalPrice: 110,
-    discount: 13,
-    rating: 4.9,
-    image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&q=80&w=150',
-    description: 'Excellent homeopathic remedy for muscle aches, bruises, and swelling.'
-  },
-  {
-    id: 'p3',
-    name: 'Multivitamin Complex & Zinc (SetuFit)',
-    category: 'wellness',
-    brand: 'Setu Labs',
-    form: 'Tablets',
-    price: 240,
-    originalPrice: 320,
-    discount: 25,
-    rating: 4.7,
-    image: 'https://images.unsplash.com/photo-1616671285410-67126132473c?auto=format&fit=crop&q=80&w=150',
-    description: 'Daily immune booster capsule with vitamins C, D3, B12 and Zinc.'
-  },
-  {
-    id: 'p4',
-    name: 'Ashwagandha Organic Stress-Free',
-    category: 'ayurvedic',
-    brand: 'Himalaya Wellness',
-    form: 'Capsules',
-    price: 180,
-    originalPrice: 200,
-    discount: 10,
-    rating: 4.6,
-    image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&q=80&w=150',
-    description: 'Rejuvenative tonic that supports stress management and vitality.'
-  },
-  {
-    id: 'p5',
-    name: 'Cough Relief Tulsi Honey Syrup',
-    category: 'prescription',
-    brand: 'Dabur Health',
-    form: 'Syrup',
-    price: 85,
-    originalPrice: 100,
-    discount: 15,
-    rating: 4.5,
-    image: 'https://images.unsplash.com/photo-1550572017-8894df051a80?auto=format&fit=crop&q=80&w=150',
-    description: 'All-natural throat relief formula with Holy Basil and Honey.'
-  },
-  {
-    id: 'p6',
-    name: 'Gentle Baby Moisturizing Wipes',
-    category: 'personal',
-    brand: 'Johnson & Johnson',
-    form: 'Cream',
-    price: 150,
-    originalPrice: 180,
-    discount: 16,
-    rating: 4.8,
-    image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=150',
-    description: 'Alcohol-free, pH balanced gentle wipes for sensitive baby skin.'
-  },
-  {
-    id: 'p7',
-    name: 'Amoxicillin Trihydrate 500mg IP',
-    category: 'prescription',
-    brand: 'Alkem Drugs',
-    form: 'Capsules',
-    price: 112,
-    originalPrice: 140,
-    discount: 20,
-    rating: 4.9,
-    image: 'https://images.unsplash.com/photo-1607619056574-7b8d304a3b24?auto=format&fit=crop&q=80&w=150',
-    description: 'Broad-spectrum antibiotic tablet for bacterial infections. Requires ABHA Rx upload.'
-  },
-  {
-    id: 'p8',
-    name: 'SootheEye Cool-Drops',
-    category: 'personal',
-    brand: 'Setu Labs',
-    form: 'Liquid',
-    price: 70,
-    originalPrice: 90,
-    discount: 22,
-    rating: 4.4,
-    image: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&q=80&w=150',
-    description: 'Relieves eye dryness, fatigue, and irritation from electronic screens.'
-  }
-];
-
 export default function PharmacyPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { addRecord, logSecurityEvent } = useAuth();
 
   // Infinite scroll mock products state
-  const [products, setProducts] = useState<Product[]>(PRODUCTS_DATABASE);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Fetch products dynamically from backend API
+  useEffect(() => {
+    fetch('/api/abdm/pharmacy/products')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && Array.isArray(data.products)) {
+          setProducts(data.products);
+        }
+      })
+      .catch(err => console.error('Error fetching pharmacy products:', err));
+  }, []);
 
   // Search & Navigation States
   const [searchQuery, setSearchQuery] = useState('');

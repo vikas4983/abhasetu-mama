@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { useAuth } from '../../../providers/AuthProvider';
@@ -34,57 +34,25 @@ interface InsurancePlan {
   features: string[];
 }
 
-const INSURANCE_PLANS_DATABASE: InsurancePlan[] = [
-  {
-    id: 'i1',
-    name: 'ReAssure 2.0 Titanium',
-    provider: 'Niva Bupa Health Insurance',
-    monthlyPremium: 654,
-    csr: '96.0%',
-    networkHospitals: 8400,
-    coverageAmount: '₹10 Lakhs',
-    copay: 'No Copay',
-    features: ['Unlimited Restore Benefit', 'Free Health Checkup', 'No Room Rent Capping']
-  },
-  {
-    id: 'i2',
-    name: 'Care Health Supreme Active',
-    provider: 'Care Health Insurance',
-    monthlyPremium: 712,
-    csr: '95.2%',
-    networkHospitals: 9200,
-    coverageAmount: '₹10 Lakhs',
-    copay: 'No Copay',
-    features: ['Opd Consult Cover', 'Global Health coverage', 'Maternity Cover included']
-  },
-  {
-    id: 'i3',
-    name: 'Star Health Assure Premium',
-    provider: 'Star Health Allied Insurance',
-    monthlyPremium: 585,
-    csr: '98.0%',
-    networkHospitals: 14000,
-    coverageAmount: '₹10 Lakhs',
-    copay: '10% Copay',
-    features: ['Largest Cashless Network', 'Auto Renewal Benefits', 'Ayurvedic treatments covered']
-  },
-  {
-    id: 'i4',
-    name: 'Optima Secure Platinum',
-    provider: 'HDFC ERGO Health Insurance',
-    monthlyPremium: 820,
-    csr: '99.1%',
-    networkHospitals: 12000,
-    coverageAmount: '₹10 Lakhs',
-    copay: 'No Copay',
-    features: ['Double Coverage from Day 1', 'No Claim Bonus up to 100%', 'Zero Deductibles']
-  }
-];
-
 export default function InsurancePage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { addRecord, logSecurityEvent } = useAuth();
+
+  const [insurancePlans, setInsurancePlans] = useState<InsurancePlan[]>([]);
+
+  useEffect(() => {
+    fetch('/api/abdm/insurance/policies')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && Array.isArray(data.policies)) {
+          setInsurancePlans(data.policies);
+        }
+      })
+      .catch(err => console.error('Error fetching policies:', err));
+  }, []);
+
+  const INSURANCE_PLANS_DATABASE = insurancePlans;
 
   // Quote input states
   const [coverageTargets, setCoverageTargets] = useState<string[]>(['self']);

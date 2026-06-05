@@ -36,82 +36,28 @@ interface LabPackage {
   image: string;
 }
 
-const LAB_PACKAGES_DATABASE: LabPackage[] = [
-  {
-    id: 'l1',
-    name: 'ABHA Active Full Body Health Checkup',
-    parameters: 54,
-    provider: 'Janki Raman Diagnostic Lab, Jabalpur',
-    price: 890,
-    originalPrice: 1990,
-    discount: 55,
-    reportHours: 24,
-    sampleType: 'Blood & Urine',
-    description: 'Complete screening of liver, kidney, blood sugar, cholesterol, thyroid, and blood counts.',
-    image: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?auto=format&fit=crop&q=80&w=300'
-  },
-  {
-    id: 'l2',
-    name: 'Thyroid Care Profile (T3, T4, TSH)',
-    parameters: 3,
-    provider: 'DR AYESHAH HOMEO LAB, Bhopal',
-    price: 350,
-    originalPrice: 700,
-    discount: 50,
-    reportHours: 12,
-    sampleType: 'Blood',
-    description: 'Evaluates thyroid gland function and checks for hyperthyroidism or hypothyroidism.',
-    image: 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?auto=format&fit=crop&q=80&w=300'
-  },
-  {
-    id: 'l3',
-    name: 'Comprehensive Diabetes Screening (HbA1c & Fasting)',
-    parameters: 4,
-    provider: 'Metro Diagnostics',
-    price: 290,
-    originalPrice: 600,
-    discount: 51,
-    reportHours: 8,
-    sampleType: 'Blood (Fasting Required)',
-    description: 'Measures average blood sugar levels over the past 3 months and active fasting levels.',
-    image: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=300'
-  },
-  {
-    id: 'l4',
-    name: 'Active Lipid & Cholesterol Profile',
-    parameters: 7,
-    provider: 'Janki Raman Diagnostic Lab, Jabalpur',
-    price: 390,
-    originalPrice: 800,
-    discount: 51,
-    reportHours: 12,
-    sampleType: 'Blood',
-    description: 'Helps assess risk of cardiovascular disease by measuring bad and good cholesterol ratios.',
-    image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=300'
-  },
-  {
-    id: 'l5',
-    name: 'Vitamin D & B12 Vitality Duo',
-    parameters: 2,
-    provider: 'Metro Diagnostics',
-    price: 750,
-    originalPrice: 1500,
-    discount: 50,
-    reportHours: 24,
-    sampleType: 'Blood',
-    description: 'Identifies bone wellness, nervous health, and metabolic energy cofactor deficiencies.',
-    image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=300'
-  }
-];
-
 export default function LabTestsPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { addRecord, logSecurityEvent } = useAuth();
 
-  // Infinite scroll mock packages state
-  const [packages, setPackages] = useState<LabPackage[]>(LAB_PACKAGES_DATABASE);
+  // Infinite scroll packages state
+  const [packages, setPackages] = useState<LabPackage[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Fetch lab packages dynamically from backend API
+  useEffect(() => {
+    fetch('/api/abdm/lab-tests/packages')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && Array.isArray(data.labPackages)) {
+          setPackages(data.labPackages);
+        }
+      })
+      .catch(err => console.error('Error fetching lab packages:', err));
+  }, []);
+
+  const LAB_PACKAGES_DATABASE = packages;
 
   // Booking states
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
