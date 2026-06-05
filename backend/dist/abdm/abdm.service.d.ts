@@ -32,9 +32,10 @@ export declare class AbdmService {
         sandboxMode: boolean;
         tokenPreview: any;
     }>;
+    private fetchLivePublicKey;
     requestAadhaarOtp(aadhaar: string): Promise<{
         status: string;
-        message: string;
+        message: any;
         txnId?: undefined;
     } | {
         status: string;

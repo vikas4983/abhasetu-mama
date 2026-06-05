@@ -185,24 +185,47 @@ let AbdmService = class AbdmService {
             };
         }
     }
+    async fetchLivePublicKey(token) {
+        if (!token || token.startsWith('sbx-jwt-simulated-access-token-placeholder') || token.startsWith('sbx-jwt-simulated-fallback-')) {
+            return 'MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAstWB95C5pHLXiYW59qyO4Xb+59KYVm9Hywbo77qETZVAyc6VIsxU+UWhd/k/YtjZibCznB+HaXWX9TVTFs9Nwgv7LRGq5uLczpZQDrU7dnGkl/urRA8p0Jv/f8T0MZdFWQgks91uFffeBmJOb58u68ZRxSYGMPe4hb9XXKDVsgoSJaRNYviH7RgAI2QhTCwLEiMqIaUX3p1SAc178ZlN8qHXSSGXvhDR1GKM+y2DIyJqlzfik7lD14mDY/I4lcbftib8cv7llkybtjX1AayfZp4XpmIXKWv8nRM488/jOAF81Bi13paKgpjQUUuwq9tb5Qd/DChytYgBTBTJFe7irDFCmTIcqPr8+IMB7tXA3YXPp3z605Z6cGoYxezUm2Nz2o6oUmarDUntDhq/PnkNergmSeSvS8gD9DHBuJkJWZweG3xOPXiKQAUBr92mdFhJGm6fitO5jsBxgpmulxpG0oKDy9lAOLWSqK92JMcbMNHn4wRikdI9HSiXrrI7fLhJYTbyU3I4v5ESdEsayHXuiwO/1C8y56egzKSw44GAtEpbAkTNEEfK5H5R0QnVBIXOvfeF4tzGvmkfOO6nNXU3o/WAdOyV3xSQ9dqLY5MEL4sJCGY1iJBIAQ452s8v0ynJG5Yq+8hNhsCVnklCzAlsIzQpnSVDUVEzv17grVAw078CAwEAAQ==';
+        }
+        try {
+            const response = await axios_1.default.get('https://abhasbx.abdm.gov.in/abha/api/v3/profile/public/certificate', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'REQUEST-ID': crypto.randomUUID(),
+                    TIMESTAMP: new Date().toISOString(),
+                    'X-CM-ID': 'sbx',
+                },
+            });
+            return response.data.publicKey || '';
+        }
+        catch (err) {
+            console.warn('Failed to fetch ABDM public key certificate:', err.message);
+            throw new Error(`Failed to fetch ABDM public key certificate: ${err.message}`);
+        }
+    }
     async requestAadhaarOtp(aadhaar) {
         if (!aadhaar || aadhaar.length !== 12 || !/^\d+$/.test(aadhaar)) {
             return { status: 'error', message: 'Invalid 12-digit Aadhaar number.' };
         }
+        const sessionRes = await this.getGatewaySession();
+        const token = sessionRes.tokenPreview;
         let publicKey = '';
-        const config = this.getConfig();
-        const gatewayUrl = config.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in';
         try {
-            const certRes = await axios_1.default.get(`${gatewayUrl}/v3/profile/public/certificate`);
-            publicKey = certRes.data.publicKey || '';
+            publicKey = await this.fetchLivePublicKey(token);
         }
         catch (e) {
-            publicKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA09d1yZc6F30v/T2e...';
+            return { status: 'error', message: e.message || 'Failed to fetch ABDM public key certificate' };
         }
         const encryptedAadhaar = this.cryptoService.encryptWithPublicKey(publicKey, aadhaar);
         const txnId = crypto.randomUUID();
+        const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
         try {
-            await axios_1.default.post(`${gatewayUrl}/v3/enrollment/request/otp`, {
+            if (!token || token.startsWith('sbx-jwt-simulated-access-token-placeholder') || token.startsWith('sbx-jwt-simulated-fallback-')) {
+                throw new Error('Simulated mode');
+            }
+            await axios_1.default.post(enrollmentUrl, {
                 txnId: '',
                 scope: ['abha-enrol'],
                 loginHint: 'aadhaar',
@@ -214,6 +237,7 @@ let AbdmService = class AbdmService {
                     'REQUEST-ID': crypto.randomUUID(),
                     TIMESTAMP: new Date().toISOString(),
                     'X-CM-ID': 'sbx',
+                    'Authorization': `Bearer ${token}`
                 },
             });
             this.addLog('Aadhaar OTP Requested', 'SUCCESS', `Aadhaar encrypted successfully and OTP request dispatched to Gateway (Txn ID: ${txnId})`);
@@ -228,17 +252,22 @@ let AbdmService = class AbdmService {
         if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
             return { status: 'error', message: 'Invalid 6-digit OTP.' };
         }
-        let publicKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA09d1yZc6F30v/T2e...';
-        const config = this.getConfig();
-        const gatewayUrl = config.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in';
+        const sessionRes = await this.getGatewaySession();
+        const token = sessionRes.tokenPreview;
+        let publicKey = '';
         try {
-            const certRes = await axios_1.default.get(`${gatewayUrl}/v3/profile/public/certificate`);
-            publicKey = certRes.data.publicKey || '';
+            publicKey = await this.fetchLivePublicKey(token);
         }
-        catch (e) { }
+        catch (e) {
+            return { status: 'error', message: e.message || 'Failed to fetch ABDM public key certificate' };
+        }
         const encryptedOtp = this.cryptoService.encryptWithPublicKey(publicKey, otp);
+        const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar';
         try {
-            const response = await axios_1.default.post(`${gatewayUrl}/v3/enrollment/enrol/byAadhaar`, {
+            if (!token || token.startsWith('sbx-jwt-simulated-access-token-placeholder') || token.startsWith('sbx-jwt-simulated-fallback-')) {
+                throw new Error('Simulated mode');
+            }
+            const response = await axios_1.default.post(verifyUrl, {
                 txnId,
                 otp: encryptedOtp,
             }, {
@@ -247,6 +276,7 @@ let AbdmService = class AbdmService {
                     'REQUEST-ID': crypto.randomUUID(),
                     TIMESTAMP: new Date().toISOString(),
                     'X-CM-ID': 'sbx',
+                    'Authorization': `Bearer ${token}`
                 },
             });
             this.addLog('Aadhaar OTP Verified', 'SUCCESS', `ABHA Number successfully issued: ${response.data.abhaNumber}`);
