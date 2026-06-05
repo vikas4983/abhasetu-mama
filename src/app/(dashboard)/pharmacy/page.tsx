@@ -19,6 +19,7 @@ import {
   Info,
   ChevronRight,
   Sparkles,
+  ArrowUpDown,
   ShoppingBag as CartIcon
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
@@ -163,6 +164,8 @@ export default function PharmacyPage() {
   const [priceSort, setPriceSort] = useState<'none' | 'asc' | 'desc'>('none');
   const [onlyDiscounted, setOnlyDiscounted] = useState(false);
   const [isFilterMobileOpen, setIsFilterMobileOpen] = useState(false);
+  const [isSortMobileOpen, setIsSortMobileOpen] = useState(false);
+  const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
 
   // Cart & Checkout States
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -260,6 +263,19 @@ export default function PharmacyPage() {
       console.error(e);
     }
   }, []);
+
+  // Keydown listener for Esc key to close product details
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedProductDetails(null);
+      }
+    };
+    if (selectedProductDetails) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedProductDetails]);
 
   // Sync cart to localStorage
   const saveCart = (newCart: Record<string, number>) => {
@@ -424,10 +440,10 @@ export default function PharmacyPage() {
       </section>
 
       {/* Main Container */}
-      <div className="pharmacy-container" style={{ display: 'flex', gap: '20px', marginTop: '20px', alignItems: 'flex-start' }}>
+      <div className="pharmacy-container">
         
         {/* ================= FILTER SIDEBAR (Desktop) ================= */}
-        <aside className="route-card" style={{ width: '260px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'sticky', top: '80px', flexShrink: 0 }} id="desktop-filter-sidebar">
+        <aside className="route-card" id="desktop-filter-sidebar">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             <span style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Filter style={{ width: '13px', height: '13px', color: 'var(--accent-teal)' }} />
@@ -482,43 +498,39 @@ export default function PharmacyPage() {
         </aside>
 
         {/* ================= CATALOG SECTION ================= */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="pharmacy-catalog-section">
           
-          {/* Search bar and mobile filter trigger */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div className="global-search" style={{ flex: 1, padding: 0, height: '40px' }}>
-              <Search className="search-icon" style={{ left: '12px' }} />
-              <input
-                id="pharmacy-search"
-                type="text"
-                placeholder={t('Search medicines, syrups, brands or wellness components...')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: '38px', borderRadius: '10px' }}
-                aria-label="Search medicines and wellness products"
-              />
-            </div>
-            
-            {/* Mobile Filter Toggle */}
-            <button
-              onClick={() => setIsFilterMobileOpen(true)}
-              className="prefill-btn"
-              style={{
-                display: 'none',
-                minHeight: 'auto',
-                height: '40px',
-                padding: '0 12px',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'var(--bg-secondary)',
-                border: '1.5px solid var(--border-color)',
-                borderRadius: '10px'
-              }}
-              id="mobile-filter-toggle-btn"
+          {/* Mobile Sticky Sort/Filter bar */}
+          <div className="mobile-sticky-sort-filter">
+            <button 
+              onClick={() => setIsSortMobileOpen(true)} 
+              className="mobile-sort-btn"
             >
-              <Filter style={{ width: '14px', height: '14px' }} />
-              <span>Filters</span>
+              <ArrowUpDown style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+              <span>Sort{priceSort !== 'none' ? ` (${priceSort === 'asc' ? 'Low-High' : 'High-Low'})` : ''}</span>
             </button>
+            <div className="mobile-divider" />
+            <button 
+              onClick={() => setIsFilterMobileOpen(true)} 
+              className="mobile-filter-btn"
+            >
+              <Filter style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+              <span>Filter{selectedForms.length + selectedBrands.length + (onlyDiscounted ? 1 : 0) > 0 ? ` (${selectedForms.length + selectedBrands.length + (onlyDiscounted ? 1 : 0)})` : ''}</span>
+            </button>
+          </div>
+
+          {/* Search bar */}
+          <div className="medicine-search-container">
+            <Search />
+            <input
+              id="pharmacy-search"
+              type="text"
+              className="medicine-search-input"
+              placeholder={t('Search medicines, syrups, brands or wellness components...')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search medicines and wellness products"
+            />
           </div>
 
           {/* Categories Tab selectors */}
@@ -554,7 +566,12 @@ export default function PharmacyPage() {
           {/* Catalog grid */}
           <section className="flipkart-grid">
             {filteredProducts.map(prod => (
-              <article key={prod.id} className="route-card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', position: 'relative' }}>
+              <article 
+                key={prod.id} 
+                className="route-card" 
+                onClick={() => setSelectedProductDetails(prod)}
+                style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', position: 'relative', cursor: 'pointer' }}
+              >
                 
                 {/* Discount Badge */}
                 {prod.discount > 0 && (
@@ -601,18 +618,18 @@ export default function PharmacyPage() {
                   {/* Quantity Add/Remove Controls */}
                   {cart[prod.id] ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '30px', padding: '2px 6px' }}>
-                      <button onClick={() => handleRemoveOne(prod.id)} style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleRemoveOne(prod.id); }} style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>
                         <Minus style={{ width: '10px', height: '10px' }} />
                       </button>
                       <strong style={{ fontSize: '11px', color: 'var(--text-primary)', minWidth: '10px', textAlign: 'center' }}>{cart[prod.id]}</strong>
-                      <button onClick={() => handleAddToCart(prod.id)} style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleAddToCart(prod.id); }} style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text-primary)' }}>
                         <Plus style={{ width: '10px', height: '10px' }} />
                       </button>
                     </div>
                   ) : (
                     <button
                       className="btn-outline-accent"
-                      onClick={() => handleAddToCart(prod.id)}
+                      onClick={(e) => { e.stopPropagation(); handleAddToCart(prod.id); }}
                       style={{
                         background: 'transparent',
                         border: '1.5px solid var(--accent-teal)',
@@ -656,21 +673,10 @@ export default function PharmacyPage() {
       {/* ==================== CART DRAWER / OVERLAY ==================== */}
       {/* ============================================================= */}
       {isCartOpen && (
-        <div className="modal-overlay" onClick={() => setIsCartOpen(false)} style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'stretch' }}>
+        <div className="checkout-modal-overlay" onClick={() => setIsCartOpen(false)}>
           <div 
-            className="modal-content" 
+            className="checkout-modal-content" 
             onClick={(e) => e.stopPropagation()} 
-            style={{ 
-              maxWidth: '440px', 
-              width: '100%', 
-              height: '100vh', 
-              margin: 0, 
-              borderRadius: 0, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              boxShadow: '-10px 0 30px rgba(0,0,0,0.15)',
-              background: 'var(--bg-card)'
-            }}
           >
             
             {/* Header */}
@@ -698,7 +704,7 @@ export default function PharmacyPage() {
               
               {/* STEP 1: REVIEW CART LIST */}
               {checkoutStep === 'cart' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="checkout-step-container" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {Object.entries(cart).map(([id, qty]) => {
                     const prod = products.find(p => p.id === id);
                     if (!prod) return null;
@@ -744,7 +750,7 @@ export default function PharmacyPage() {
 
               {/* STEP 2: ADDRESS ENTRY */}
               {checkoutStep === 'address' && (
-                <form id="address-form" onSubmit={handleCheckoutSubmit} style={{ display: 'grid', gap: '12px' }}>
+                <form id="address-form" onSubmit={handleCheckoutSubmit} className="checkout-step-container" style={{ display: 'grid', gap: '12px' }}>
                   <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                     Recipient Full Name
                     <input type="text" required value={shipping.name} onChange={(e) => setShipping({ ...shipping, name: e.target.value })} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
@@ -778,7 +784,7 @@ export default function PharmacyPage() {
 
               {/* STEP 3: PAYMENT TYPE SELECT */}
               {checkoutStep === 'payment' && (
-                <form id="payment-form" onSubmit={handleCheckoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <form id="payment-form" onSubmit={handleCheckoutSubmit} className="checkout-step-container" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     
                     {/* COD Option */}
@@ -826,7 +832,7 @@ export default function PharmacyPage() {
 
               {/* STEP 4: SUCCESS MODAL CONTENT */}
               {checkoutStep === 'success' && (
-                <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                <div className="checkout-step-container" style={{ textAlign: 'center', padding: '30px 10px' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 15%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
                     <CheckCircle style={{ width: '28px', height: '28px' }} />
                   </div>
@@ -998,7 +1004,7 @@ export default function PharmacyPage() {
               </div>
             </div>
 
-            <div className="modal-footer" style={{ display: 'flex', gap: '10px' }}>
+            <div className="modal-footer">
               <button onClick={() => { handleResetFilters(); setIsFilterMobileOpen(false); }} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-primary)', cursor: 'pointer' }}>
                 Reset All
               </button>
@@ -1007,6 +1013,175 @@ export default function PharmacyPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* ==================== MOBILE SORT BOTTOM SHEET ================= */}
+      {/* ============================================================= */}
+      {isSortMobileOpen && (
+        <div className="modal-overlay" onClick={() => setIsSortMobileOpen(false)} style={{ alignItems: 'flex-end' }}>
+          <div className="bottom-sheet-content" onClick={(e) => e.stopPropagation()}>
+            <div className="bottom-sheet-header">
+              <h4>Sort Options</h4>
+              <button className="modal-close" onClick={() => setIsSortMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X style={{ width: '18px', height: '18px' }} />
+              </button>
+            </div>
+            
+            <div className="bottom-sheet-body">
+              {[
+                { value: 'none', label: 'Popularity (Standard)' },
+                { value: 'asc', label: 'Price: Low to High' },
+                { value: 'desc', label: 'Price: High to Low' }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setPriceSort(opt.value as any);
+                    setIsSortMobileOpen(false);
+                  }}
+                  className="sort-option-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '14px 20px',
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: priceSort === opt.value ? '700' : '400',
+                    cursor: 'pointer',
+                    color: priceSort === opt.value ? 'var(--accent-teal)' : 'var(--text-primary)'
+                  }}
+                >
+                  <span>{opt.label}</span>
+                  {priceSort === opt.value && <CheckCircle style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* ==================== PRODUCT DETAILS MODAL ==================== */}
+      {/* ============================================================= */}
+      {selectedProductDetails && (
+        <div className="checkout-modal-overlay" onClick={() => setSelectedProductDetails(null)}>
+          <div 
+            className="checkout-modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: '480px' }}
+          >
+            {/* Header */}
+            <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--accent-teal)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles style={{ width: '15px', height: '15px' }} />
+                Product Details
+              </span>
+              <button className="modal-close" onClick={() => setSelectedProductDetails(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X style={{ width: '18px', height: '18px' }} />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* Image */}
+              <div style={{ width: '100%', height: '220px', background: 'var(--bg-secondary)', borderRadius: '12px', display: 'grid', placeItems: 'center', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                <img 
+                  src={selectedProductDetails.image} 
+                  alt={selectedProductDetails.name} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&q=80&w=150';
+                  }}
+                />
+              </div>
+
+              {/* Brand and Name */}
+              <div>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {selectedProductDetails.brand}
+                </span>
+                <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '4px 0 8px', color: 'var(--text-primary)' }}>
+                  {selectedProductDetails.name}
+                </h3>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '3px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                    {selectedProductDetails.form}
+                  </span>
+                  <span style={{ fontSize: '10px', background: 'color-mix(in srgb, var(--accent-teal) 8%, transparent)', color: 'var(--accent-teal)', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
+                    ★ {selectedProductDetails.rating} Rating
+                  </span>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Description</span>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                  {selectedProductDetails.description}
+                </p>
+              </div>
+
+              {/* Pricing & Add block */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>PRICE</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <strong style={{ fontSize: '20px', color: 'var(--accent-teal)' }}>₹{selectedProductDetails.price}</strong>
+                    {selectedProductDetails.discount > 0 && (
+                      <span style={{ fontSize: '12px', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
+                        ₹{selectedProductDetails.originalPrice}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add to Cart handler */}
+                <div>
+                  {cart[selectedProductDetails.id] ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '30px', padding: '4px 12px' }}>
+                      <button 
+                        onClick={() => handleRemoveOne(selectedProductDetails.id)} 
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: '4px' }}
+                      >
+                        <Minus style={{ width: '12px', height: '12px' }} />
+                      </button>
+                      <strong style={{ fontSize: '13px', color: 'var(--text-primary)', minWidth: '16px', textAlign: 'center' }}>
+                        {cart[selectedProductDetails.id]}
+                      </strong>
+                      <button 
+                        onClick={() => handleAddToCart(selectedProductDetails.id)} 
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: '4px' }}
+                      >
+                        <Plus style={{ width: '12px', height: '12px' }} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn-solid-accent"
+                      onClick={() => handleAddToCart(selectedProductDetails.id)}
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: '30px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px color-mix(in srgb, var(--accent-teal) 20%, transparent)'
+                      }}
+                    >
+                      ADD TO CART
+                    </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       )}

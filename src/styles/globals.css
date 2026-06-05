@@ -6302,18 +6302,28 @@ body.theme-abdm-sandbox button {
 
 body.theme-light button.join-btn,
 body.theme-abdm-sandbox button.join-btn,
-body.theme-light button[style*="var(--accent-teal)"],
-body.theme-abdm-sandbox button[style*="var(--accent-teal)"],
+body.theme-light button.btn-solid-accent,
+body.theme-abdm-sandbox button.btn-solid-accent,
 body.theme-light button[style*="background: var(--accent-teal)"],
 body.theme-abdm-sandbox button[style*="background: var(--accent-teal)"],
 body.theme-light button[style*="background: 'var(--accent-teal)'"],
-body.theme-abdm-sandbox button[style*="background: 'var(--accent-teal)'"] {
+body.theme-abdm-sandbox button[style*="background: 'var(--accent-teal)'"],
+body.theme-light button[style*="background-color: var(--accent-teal)"],
+body.theme-abdm-sandbox button[style*="background-color: var(--accent-teal)"] {
   color: #ffffff !important;
 }
 
-/* Ensure active/accent-teal icons are white inside active buttons */
-body.theme-light button[style*="var(--accent-teal)"] svg,
-body.theme-abdm-sandbox button[style*="var(--accent-teal)"] svg {
+/* Ensure active/accent-teal icons are white only inside solid active buttons */
+body.theme-light button.join-btn svg,
+body.theme-abdm-sandbox button.join-btn svg,
+body.theme-light button.btn-solid-accent svg,
+body.theme-abdm-sandbox button.btn-solid-accent svg,
+body.theme-light button[style*="background: var(--accent-teal)"] svg,
+body.theme-abdm-sandbox button[style*="background: var(--accent-teal)"] svg,
+body.theme-light button[style*="background: 'var(--accent-teal)'"] svg,
+body.theme-abdm-sandbox button[style*="background: 'var(--accent-teal)'"] svg,
+body.theme-light button[style*="background-color: var(--accent-teal)"] svg,
+body.theme-abdm-sandbox button[style*="background-color: var(--accent-teal)"] svg {
   color: #ffffff !important;
 }
 
@@ -6393,20 +6403,35 @@ body.theme-light .chart-tab-btn.active {
   }
 }
 
-/* Responsive adjustments for Pharmacy, Lab Tests, and Insurance */
-@media (max-width: 768px) {
-  /* Pharmacy Portal */
-  .pharmacy-container {
-    flex-direction: column !important;
-  }
-  #desktop-filter-sidebar {
-    display: none !important;
-  }
-  #mobile-filter-toggle-btn {
-    display: flex !important;
-  }
+/* Responsive adjustments for Pharmacy, Lab Tests, and Insurance (Mobile First Default) */
 
-  /* Lab Tests Portal */
+/* Pharmacy Container (Mobile-first stacked layout) */
+.pharmacy-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin-top: 20px !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
+
+#desktop-filter-sidebar {
+  display: none !important;
+  width: 260px !important;
+  padding: 20px !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  position: sticky !important;
+  top: 80px !important;
+  flex-shrink: 0 !important;
+}
+
+#mobile-filter-toggle-btn {
+  display: flex !important;
+}
+
+/* Lab Tests Portal */
+@media (max-width: 992px) {
   .lab-details-wrapper {
     flex-direction: column !important;
     align-items: center !important;
@@ -6431,17 +6456,80 @@ body.theme-light .chart-tab-btn.active {
     align-items: center !important;
     width: 100% !important;
   }
-  
-  /* Modal drawers (e.g. Shopping Cart & Appointment Scheduling sheets) */
+}
+
+/* Modal drawers & bottom-sheets (Mobile-first bottom sheets) */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2000 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent) !important;
+  backdrop-filter: blur(8px) !important;
+  padding: 0 !important;
+}
+
+body.theme-light .modal-overlay,
+body.theme-abdm-sandbox .modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+.modal-content {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 80vh !important; /* height-limited sheet on mobile */
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 20px 20px 0 0 !important;
+  box-shadow: var(--surface-shadow) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.modal-body {
+  flex: 1 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  padding: 20px !important;
+}
+
+.modal-footer {
+  padding: 16px !important;
+  border-top: 1px solid var(--border-color) !important;
+  background: var(--bg-card) !important;
+  display: flex !important;
+  gap: 10px !important;
+  flex-shrink: 0 !important;
+  width: 100% !important;
+}
+
+body.theme-light .modal-footer,
+body.theme-abdm-sandbox .modal-footer {
+  background: #ffffff !important;
+}
+
+@media (min-width: 992px) {
+  /* Desktop overrides for modals (Center dialog instead of bottom sheet) */
   .modal-overlay {
-    justify-content: center !important;
-    align-items: flex-end !important;
+    align-items: center !important;
+    padding: 16px !important;
   }
   .modal-content {
-    max-width: 100% !important;
-    height: 80vh !important; /* height-limited sheet on mobile */
-    border-radius: 20px 20px 0 0 !important;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+    max-width: 500px !important;
+    height: auto !important;
+    max-height: 85vh !important;
+    border-radius: 16px !important;
+    padding-bottom: 0 !important;
+  }
+  .modal-body {
+    flex: none !important;
+    max-height: 70vh !important;
   }
 }
 
@@ -6457,27 +6545,21 @@ body.theme-light .chart-tab-btn.active {
   }
 }
 
-
 /* ==================== PHASE 3 ADDITIONS ==================== */
 
-/* Flipkart-style 2-column grid and layout */
+/* Flipkart-style 2-column grid (Mobile-first default) */
 .flipkart-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
-  gap: 12px !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
   width: 100% !important;
+  box-sizing: border-box !important;
 }
 
-@media (max-width: 600px) {
-  .flipkart-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-  /* Force small padding inside cards on mobile grid */
-  .flipkart-grid .route-card {
-    padding: 10px !important;
-    gap: 8px !important;
-  }
+/* Force small padding inside cards on mobile grid */
+.flipkart-grid .route-card {
+  padding: 10px !important;
+  gap: 8px !important;
 }
 
 /* Custom contrast-safe outline and solid action buttons for light/dark themes */
@@ -6512,7 +6594,6 @@ body.theme-abdm-sandbox .btn-outline-accent:hover {
 .btn-solid-accent:hover {
   opacity: 0.9 !important;
 }
-
 
 /* Route Hero compact breadcrumbs styles */
 .route-hero {
@@ -6630,4 +6711,274 @@ body.theme-abdm-sandbox .btn-outline-accent:hover {
     max-width: 200px !important;
   }
 }
+
+/* Centered Checkout Modal Animations & Styles */
+@keyframes checkoutModalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes checkoutModalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.checkout-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(7, 21, 33, 0.7) !important;
+  backdrop-filter: blur(6px) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 1200 !important;
+  padding: 16px !important;
+  animation: checkoutModalFadeIn 0.2s ease-out forwards !important;
+}
+
+body.theme-light .checkout-modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+.checkout-modal-content {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 16px !important;
+  max-width: 500px !important;
+  width: 100% !important;
+  max-height: 85vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3) !important;
+  animation: checkoutModalScaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+  overflow: hidden !important;
+}
+
+@media (max-width: 600px) {
+  .checkout-modal-content {
+    max-height: 92vh !important;
+    border-radius: 12px !important;
+  }
+}
+
+.checkout-step-container {
+  animation: checkoutStepFadeIn 0.25s ease-out forwards !important;
+}
+
+@keyframes checkoutStepFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Mobile Sticky Sort/Filter styles (Mobile-first default) */
+.mobile-sticky-sort-filter {
+  position: sticky !important;
+  top: 72px !important; /* Stay under header */
+  z-index: 900 !important;
+  display: flex !important;
+  align-items: center !important;
+  background: var(--bg-card) !important;
+  border: 1.5px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  height: 44px !important;
+  width: 100% !important;
+  margin-bottom: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.theme-light .mobile-sticky-sort-filter,
+body.theme-abdm-sandbox .mobile-sticky-sort-filter {
+  background: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
+.mobile-sort-btn,
+.mobile-filter-btn {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  height: 100% !important;
+  color: var(--text-primary) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+
+.mobile-divider {
+  width: 1px !important;
+  height: 20px !important;
+  background: var(--border-color) !important;
+}
+
+/* Bottom sheet for mobile sort */
+.bottom-sheet-content {
+  background: var(--bg-card) !important;
+  border-top: 1px solid var(--border-color) !important;
+  border-radius: 16px 16px 0 0 !important;
+  width: 100% !important;
+  max-height: 50vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.25) !important;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  overflow: hidden !important;
+}
+
+.bottom-sheet-header {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.bottom-sheet-header h4 {
+  font-size: 14px !important;
+  font-weight: 750 !important;
+  margin: 0 !important;
+  color: var(--text-primary) !important;
+}
+
+.bottom-sheet-body {
+  padding: 10px 0 !important;
+  overflow-y: auto !important;
+}
+
+.sort-option-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 14px 20px !important;
+  background: transparent !important;
+  border: none !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: background 0.2s !important;
+  text-align: left !important;
+  color: var(--text-primary) !important;
+}
+
+.sort-option-btn:hover {
+  background: var(--bg-card-hover) !important;
+}
+
+/* Custom full-width medicine catalog search input styles */
+.medicine-search-container {
+  display: flex !important;
+  width: 100% !important;
+  position: relative !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.medicine-search-container svg {
+  position: absolute !important;
+  left: 14px !important;
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--text-muted) !important;
+  pointer-events: none !important;
+}
+
+.medicine-search-input {
+  width: 100% !important;
+  height: 42px !important;
+  padding: 10px 12px 10px 42px !important;
+  border: 1.5px solid var(--border-color) !important;
+  border-radius: 10px !important;
+  outline: none !important;
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  font-size: 13px !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.medicine-search-input:focus {
+  border-color: var(--accent-teal) !important;
+  background: var(--bg-secondary) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-teal) 12%, transparent) !important;
+}
+
+body.theme-light .medicine-search-input {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.theme-light .medicine-search-input:focus {
+  border-color: var(--accent-teal) !important;
+  background: #ffffff !important;
+}
+
+/* Pharmacy Catalog section layout wrapper */
+.pharmacy-catalog-section {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100% !important;
+  min-width: 0 !important; /* Forces children elements to stay inside viewport limits */
+}
+
+/* ==================== DESKTOP MEDIA QUERY OVERRIDES ==================== */
+@media (min-width: 992px) {
+  /* Layout container direction */
+  .pharmacy-container {
+    flex-direction: row !important;
+    gap: 20px !important;
+    align-items: flex-start !important;
+  }
+
+  /* Desktop Filter Sidebar visibility */
+  #desktop-filter-sidebar {
+    display: flex !important;
+  }
+
+  /* Mobile Sort/Filter bar hiding */
+  .mobile-sticky-sort-filter {
+    display: none !important;
+  }
+
+  /* Flipkart Product Grid columns scale */
+  .flipkart-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  /* Desktop Grid padding expansion */
+  .flipkart-grid .route-card {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+}
+
 
