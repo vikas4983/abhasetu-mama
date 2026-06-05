@@ -2,6 +2,8 @@
 
 Abha Setu is a dark-teal glassmorphic, mobile-first interoperable digital health suite designed to implement, simulate, and verify the complete standards of the **Ayushman Bharat Digital Mission (ABDM)**, the **Unified Health Interface (UHI)**, and the **National Health Claims Exchange (NHCX)**.
 
+It now features a standalone **NestJS Backend Service** proxy-integrated with the **Next.js Frontend Dashboard** to provide secure, production-ready routing, credentials configuration, and automated gateway session validation.
+
 ---
 
 ## 🌟 Key Features & Integrated Modules
@@ -32,7 +34,7 @@ Abha Setu fully supports the following sandbox integration modules with high-fid
 *   **Health UPI billing**: Retrieves outpatient diagnostic/medicine bills and settles them via the simulated Health UPI Network, generating bank UTRs.
 
 ### 6. Unified Health Interface (UHI Tele-Consultation)
-*   **Beckn Open Network Protocol**: Uses asynchronous lifecycle protocol methods (`search`, `select`, `init`, `confirm`) to unbundle healthcare consults.
+*   **Beckn Open Network Protocol**: Uses lifecycle protocol methods (`search`, `select`, `init`, `confirm`) to unbundle healthcare consults.
 *   **Appointment Slot Booking**: Discovers doctors, selects appointment slots, validates platform quotes, and completes payment to secure a virtual telehealth meet room.
 
 ### 7. National Health Claims Exchange (NHCX Cashless Claims)
@@ -40,82 +42,118 @@ Abha Setu fully supports the following sandbox integration modules with high-fid
 *   **Pre-authorization Adjudication**: Submits estimated procedural costs alongside clinical history and receives cashless approvals (90% approved limit, 10% patient copay).
 *   **Direct Bank EFT Settlement**: Performs final discharge bill submissions via NHCX direct clearing, issuing Electronic Fund Transfer clearing UTRs.
 
-### 🎨 Visual Customizations & Accessibility Systems
-*   **Multiverse Color Themes**: Supports 7 distinct themes, including `Initial Theme (Default)`, `Slate Dark`, `Ocean Blue`, `Emerald Light`, `Saffron Emerald`, `Crimson Red`, and `ABDM Sandbox (Corporate)`.
-*   **Brand Typography Customization**: Offers dynamic font typeface settings (`Inter`, `Roboto`, `System Sans`) with standard inheritances across all input fields, drop-down selects, textareas, and buttons. Defaults to **Roboto** for the ABDM Sandbox theme to match the NHA design language.
-*   **Upgraded Hero Actions**: Arranges the three primary dashboard buttons (**BOOK CONSULTATION**, **HEALTH ATM**, and **DIGITAL LOCKER**) in a clean, compact horizontal row directly beneath the animated ECG graph inside a responsive 3-row, 2-column layout grid. The buttons' icons are fully integrated with the homepage **Icon Style Settings** (Glassmorphism, 3D Gradients, Clinical Minimalist) and scale smoothly on cursor hover.
-*   **Reactive Global Search Index**: Incorporates a live matching index that dynamically scans static directories (ABHA card, medicine order, diagnostics, developer sandbox api, settings) and links directly to live authenticated EMR clinical records, appointments, and HPR-registered doctors.
-*   **Layout & Contrast Optimization**: Improves tablet/desktop columns spacing, using a `1.3fr` width bias for footer contact info and a `24px` grid gap to prevent email wrapping, combined with a `var(--accent-teal)` hover state on glassmorphic icons.
+---
+
+## 🖥️ New Backend Architecture & Admin Tools
+
+We have expanded the architecture by integrating a dedicated Node.js **NestJS API Backend Server**:
+
+### 1. NestJS Backend (`/backend`)
+A modular NestJS application that acts as the server-to-server security gateway to ABDM:
+*   **Persistent Static DB Layer**: Uses a lightweight, dynamic JSON-based file database ([db.json](file:///d:/ashish/abhasetu-mama/src/data/db.json)) to store configurations, products catalog, policies, lab checkups, and security logs.
+*   **ABDM Routing Controllers**: Implements controllers mapping standard operations under a global `/api/abdm` prefix.
+*   **Next.js Proxy rewriting**: Configured via Next.js rewrites to proxy all frontend `/api/abdm/:path*` network traffic seamlessly to port `3001` (NestJS).
+
+### 2. Admin Dashboard UI (`/admin`)
+A premium, dark-mode administrative control panel:
+*   **Config Controls**: Instantly updates sandbox bridge credentials (`clientId`, `clientSecret`, etc.).
+*   **Test Runner**: Triggers a live 14-endpoint ABDM health test suite validating sessions, enrollment, consents, HPR search, Scan & Share, UHI search, and NHCX checks.
+*   **Products Catalog CRUD**: Full Add, Edit, and Delete modal manager which immediately syncs the pharmacy stock list.
+*   **Real-time Audit Logs**: Viewer showing recent gateway callbacks, credentials changes, and encrypted record decryption logs.
+
+### 3. Swagger-style API Playground (`/api-docs`)
+An interactive developer sandbox:
+*   Lists all V3 endpoints with descriptors, request bodies, and expected payloads.
+*   Features an inline **JSON Request Body Editor** and a terminal-style **"Try It Out"** console to run live sandbox calls and inspect output statuses.
 
 ---
 
-## 🛠️ Automated Sandbox Compliance Test Suite
+## 🔒 Deep Dive: ABDM Milestone 1 (M1) & RSA Cryptography
 
-Abha Setu includes a comprehensive, dual-mode automated testing engine to verify all functional sandbox test cases required to exit the sandbox environment.
+ABDM guidelines mandate that sensitive patient PII—specifically **Aadhaar numbers** (`loginId`) and **OTP codes** (`otp`)—must never be sent in cleartext to the gateway. Instead, they must be encrypted asymmetrically using the Gateway's public certificate.
 
-### 1. Terminal / CLI Test Runner (TAP/Jest Output style)
-You can execute 20 complex end-to-end integration scenarios verifying cryptography, request/response formats, validation rejections, JWS signatures, and DHP/HL7 schemas:
+### Cryptographic Configuration Specifications:
+*   **Gateway Certificate Endpoint**: `GET {{gatewayUrl}}/v3/profile/public/certificate`
+*   **Cipher Scheme**: `RSA/ECB/OAEPWithSHA-1AndMGF1Padding`
+*   **Node.js Padding**: `crypto.constants.RSA_PKCS1_OAEP_PADDING`
+*   **Hashing Algorithm**: `sha1` (NHA default)
 
-```bash
-npm run test
-# or: node scripts/test-abdm.js
+### How it is Implemented (`crypto.service.ts`):
+```typescript
+import { Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
+
+@Injectable()
+export class CryptoService {
+  encryptWithPublicKey(publicKeyRaw: string, plainText: string): string {
+    // 1. Format the raw base64 string from Gateway into standard X.509 PEM format
+    let pemKey = publicKeyRaw;
+    if (!pemKey.includes('-----BEGIN PUBLIC KEY-----')) {
+      const cleaned = publicKeyRaw.replace(/\s+/g, '');
+      const formatted = cleaned.replace(/(.{64})/g, '$1\n');
+      pemKey = `-----BEGIN PUBLIC KEY-----\n${formatted.trim()}\n-----END PUBLIC KEY-----\n`;
+    }
+
+    // 2. Perform RSA public key encryption with OAEP SHA-1 padding
+    const buffer = Buffer.from(plainText, 'utf8');
+    const encrypted = crypto.publicEncrypt(
+      {
+        key: pemKey,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha1', // Mandated by NHA
+      },
+      buffer,
+    );
+    
+    return encrypted.toString('base64');
+  }
+}
 ```
 
-### 2. Interactive In-App Test Bench
-Navigate to the **Sandbox Tests** tab under the `/abha` dashboard to run all 20 certification test cases interactively!
-*   **Live Gate Logs**: Monitor high-fidelity gateway callback logs with color codes.
-*   **JSON Schema Previews**: Expand any test block to browse through request endpoints, checking assertion checklists and raw decrypted FHIR/Beckn JSON responses returned from the backend.
+### Milestone 1 Step-by-Step API Flow:
+1.  **Handshake**: Call `POST /sessions` with credentials to retrieve the Gateway `accessToken`.
+2.  **Get Public Key**: Query `GET /v3/profile/public/certificate` to fetch NHA’s public certificate.
+3.  **Generate OTP**:
+    *   Call `POST /v3/enrollment/request/otp` using the encrypted Aadhaar as `loginId` and `loginHint: "aadhaar"`.
+    *   Retrieve the transaction session code `txnId` from the response.
+4.  **Confirm Enrollment**:
+    *   Call `POST /v3/enrollment/enrol/byAadhaar` using the `txnId` and the encrypted OTP.
+    *   Receive the issued **ABHA Number** (`91-XXXX-XXXX-XXXX`) and demographics profile.
 
 ---
 
-## 📦 Developer Integration & Setup Guide
+## 🛠️ Setup & Execution Guide
 
-### 1. Secrets Environment Setup
-Before initiating official production calls, copy `.env.example` to `.env` in the root directory and update the credentials provided by the NHA Sandbox Bridge portal:
+### 1. Credentials Configuration
+1.  Copy `.env.example` in the root directory to `.env`:
+    ```bash
+    cp .env.example .env
+    ```
+2.  Also set up credentials for the backend. Copy `backend/.env.example` to `backend/.env`:
+    ```bash
+    cp backend/.env.example backend/.env
+    ```
+3.  Fill in the credentials provided by the NHA Sandbox Bridge portal (`ABDM_CLIENT_ID` and `ABDM_CLIENT_SECRET`).
 
+*Note: If credentials are left unconfigured, the app falls back to simulated mock mode, letting you test all flows offline.*
+
+### 2. Running the NestJS Backend Server
+Navigate to the `backend` folder, install packages, and boot the server on port `3001`:
 ```bash
-cp .env.example .env
+cd backend
+npm install
+npm run start:dev
 ```
 
-Set the following variables inside `.env`:
-*   `ABDM_CLIENT_ID`: Your assigned Bridge Client ID.
-*   `ABDM_CLIENT_SECRET`: Your Bridge Client Secret.
-*   `ABDM_GATEWAY_URL`: ABDM Gateway endpoint (Defaults to: `https://dev.abdm.gov.in`).
-*   `ABDM_CM_ID`: Consent Manager Namespace (e.g. `sbx`).
-
-> [!NOTE]
-> If credentials are left unconfigured, Abha Setu automatically activates its premium **Sandbox Mock Mode**, utilizing simulated gateway sessions, secure fallback cryptography derivations, and standard HL7 FHIR/DHP responses to ensure a smooth local development and demonstration experience.
-
-### 2. Project File Structure
-*   `src/app/(dashboard)/abha/page.tsx`: The 9-tab main digital health console dashboard.
-*   `src/app/api/abdm/tests/route.ts`: Programmatic compliance tests engine handler.
-*   `src/utils/abdm/crypto.ts`: Ephemeral keypairs, Diffie-Hellman key derivatives, HKDF-SHA256, and AES-GCM decrypters.
-*   `src/utils/abdm/session.ts`: Gateway JWT access token fetcher with built-in caching.
-*   `src/app/api/abdm/...`: Endpoints for `enroll`, `consent`, `hip`, `hpr`, `scan-share`, `uhi`, and `nhcx`.
-*   `scripts/test-abdm.js`: Standalone Node test executable.
-
-### 3. Local Installation & Development
-
-Ensure dependencies are installed and run the development server:
-
+### 3. Running the Next.js Frontend App
+In a separate terminal, install packages and start the frontend on port `3000` from the root directory:
 ```bash
 npm install
 npm run dev
 ```
-
-Open [http://localhost:3000/abha](http://localhost:3000/abha) on your browser (preferably in mobile view) to begin testing.
+Open [http://localhost:3000/abha](http://localhost:3000/abha) in your browser (preferably in mobile view) to begin testing.
 
 ### 4. Compilation Verification
-To check stable production build bundling:
-
-```bash
-npm run build
-```
-
----
-
-## 🔒 Security & Cryptographic Compliance
-To exit the NHA Sandbox, the system complies with the following constraints:
-1.  **Zero-Knowledge Headers**: Outbound clinical payloads are fully encrypted end-to-end between HIP and HIU. The ABDM Gateway only parses unencrypted routing headers.
-2.  **Diffie-Hellman Key Exchange (ECDH)**: Key material derived dynamically over elliptic curves (Curve25519) combined with transaction-level nonces.
-3.  **AES-256-GCM Verification**: Every clinical transaction employs authenticated encryption validating GCM tags to protect patient health records.
+To check type safety and optimized production compilation:
+*   **NestJS**: Run `npm run build` inside `backend/` folder.
+*   **Next.js**: Run `npx tsc --noEmit` and `npm run build` in the root folder.
