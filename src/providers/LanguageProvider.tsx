@@ -103,6 +103,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "System": "सिस्टम",
     "Speciality": "विशेषता",
     "Doctor": "डॉक्टर",
+    "Doctors": "डॉक्टर",
+    "Doctors Available": "डॉक्टर उपलब्ध",
     "Facility": "सुविधा",
     "Schedule": "अनुसूची",
     "Payment": "भुगतान",

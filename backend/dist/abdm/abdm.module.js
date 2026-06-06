@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const abdm_controller_1 = require("./abdm.controller");
 const abdm_service_1 = require("./abdm.service");
 const crypto_service_1 = require("./crypto.service");
+const auth_module_1 = require("../auth/auth.module");
 let AbdmModule = class AbdmModule {
 };
 exports.AbdmModule = AbdmModule;
 exports.AbdmModule = AbdmModule = __decorate([
     (0, common_1.Module)({
+        imports: [auth_module_1.AuthModule],
         controllers: [abdm_controller_1.AbdmController],
         providers: [abdm_service_1.AbdmService, crypto_service_1.CryptoService],
         exports: [abdm_service_1.AbdmService],

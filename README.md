@@ -33,9 +33,13 @@ Abha Setu fully supports the following sandbox integration modules with high-fid
 *   **OPD Counter Queue Tokens**: Automatically matches records and issues fast-track hospital OPD slip queue numbers (`SETU-OPD-XXX`).
 *   **Health UPI billing**: Retrieves outpatient diagnostic/medicine bills and settles them via the simulated Health UPI Network, generating bank UTRs.
 
-### 6. Unified Health Interface (UHI Tele-Consultation)
-*   **Beckn Open Network Protocol**: Uses lifecycle protocol methods (`search`, `select`, `init`, `confirm`) to unbundle healthcare consults.
-*   **Appointment Slot Booking**: Discovers doctors, selects appointment slots, validates platform quotes, and completes payment to secure a virtual telehealth meet room.
+### 6. Unified Health Interface (UHI Tele-Consultation Dashboard)
+*   **Beckn Open Network Protocol**: Simulates the search, select, init, and confirm lifecycle to book consultations.
+*   **Single-Page Booking Dashboard**: Consolidates the complex booking wizard into an interactive split-pane dashboard:
+    *   **Left Pane**: Practitioner directory with search and medical system filter cards (Modern Medicine vs Traditional Medicine/AYUSH) showing circular emoji bubbles and dynamic doctor counts (responsive 2-3 columns on mobile).
+    *   **Right Pane**: Inline progressive checkout panel containing date/time slot selectors, symptom logs, secure payment checkout, ABHA discovery and care context linking with transaction logs, and a live telehealth room featuring video feed, chat simulation, and signed FHIR prescription viewer.
+*   **Animations & Celebrations**: Uses `framer-motion` for page state transitions and triggers `canvas-confetti` upon successful ABHA linking.
+
 
 ### 7. National Health Claims Exchange (NHCX Cashless Claims)
 *   **Coverage Eligibility Check**: Queries insurer systems (Star Shield Plan) using FHIR R4 CoverageEligibilityRequest bundles.
@@ -155,5 +159,11 @@ Open [http://localhost:3000/abha](http://localhost:3000/abha) in your browser (p
 
 ### 4. Compilation Verification
 To check type safety and optimized production compilation:
-*   **NestJS**: Run `npm run build` inside `backend/` folder.
+*   **NestJS**: Run `npm run build` inside the `backend/` folder.
 *   **Next.js**: Run `npx tsc --noEmit` and `npm run build` in the root folder.
+
+### 5. Running Automated Test Suites
+*   **ABDM Protocol Backend Tests**: Run `npm test` to execute the simulated sandbox compliance runner (`scripts/test-abdm.js`).
+*   **React Unit Tests (Jest + React Testing Library)**: Run `npx jest src/__tests__/appointments.test.tsx` to verify component behaviors (filtering, selections, states).
+*   **E2E Integration Tests (Playwright)**: Run `npx playwright test playwright/appointments.spec.ts` to run full browser simulation scripts testing the single-page dashboard flow.
+
