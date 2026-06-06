@@ -1,19 +1,50 @@
 import { CryptoService } from './crypto.service';
+import { DbService } from '../db/db.service';
 export declare class AbdmService {
     private readonly cryptoService;
-    private dbPath;
-    constructor(cryptoService: CryptoService);
-    private readDb;
-    private writeDb;
-    getConfig(): any;
-    saveConfig(newConfig: any): {
+    private readonly db;
+    private cachedToken;
+    private cachedTokenExpiry;
+    constructor(cryptoService: CryptoService, db: DbService);
+    getConfig(): Promise<any>;
+    saveConfig(newConfig: any): Promise<{
         status: string;
         message: string;
-    };
-    getLogs(): any;
-    addLog(event: string, status: string, details: string): void;
-    getProducts(): any;
-    saveProduct(product: any): {
+    }>;
+    getLogs(): Promise<{
+        id: any;
+        timestamp: any;
+        event: any;
+        status: any;
+        details: any;
+    }[]>;
+    addLog(event: string, status: string, details: string): Promise<void>;
+    addDetailedLog(event: string, status: string, message: string, metadata: {
+        mobile?: string;
+        aadhaar?: string;
+        abhaId?: string;
+        abhaNumber?: string;
+        request?: any;
+        response?: any;
+        clientId?: string;
+        clientIp?: string;
+        userAgent?: string;
+    }): Promise<void>;
+    getProducts(): Promise<{
+        id: any;
+        name: any;
+        category: any;
+        brand: any;
+        form: any;
+        price: number;
+        originalPrice: number;
+        discount: any;
+        rating: number;
+        image: any;
+        description: any;
+        salt: any;
+    }[]>;
+    saveProduct(product: any): Promise<{
         status: string;
         message: string;
         data?: undefined;
@@ -21,26 +52,145 @@ export declare class AbdmService {
         status: string;
         data: any;
         message?: undefined;
-    };
-    deleteProduct(id: string): {
-        status: string;
-    };
-    getPolicies(): any;
-    getLabPackages(): any;
-    getGatewaySession(): Promise<{
-        status: string;
-        sandboxMode: boolean;
-        tokenPreview: any;
     }>;
-    private fetchLivePublicKey;
-    requestAadhaarOtp(aadhaar: string): Promise<{
+    deleteProduct(id: string): Promise<{
         status: string;
-        message: any;
-        txnId?: undefined;
+    }>;
+    getPolicies(): Promise<{
+        id: any;
+        name: any;
+        provider: any;
+        monthlyPremium: number;
+        csr: any;
+        networkHospitals: any;
+        coverageAmount: any;
+        copay: any;
+        features: any;
+    }[]>;
+    savePolicy(policy: any): Promise<{
+        status: string;
+        message: string;
+        data?: undefined;
     } | {
         status: string;
-        txnId: `${string}-${string}-${string}-${string}-${string}`;
+        data: any;
+        message?: undefined;
+    }>;
+    deletePolicy(id: string): Promise<{
+        status: string;
+    }>;
+    getLabPackages(): Promise<{
+        id: any;
+        name: any;
+        parameters: any;
+        provider: any;
+        price: number;
+        originalPrice: number;
+        discount: any;
+        reportHours: any;
+        sampleType: any;
+        description: any;
+        image: any;
+    }[]>;
+    saveLabPackage(lab: any): Promise<{
+        status: string;
+        message: string;
+        data?: undefined;
+    } | {
+        status: string;
+        data: any;
+        message?: undefined;
+    }>;
+    deleteLabPackage(id: string): Promise<{
+        status: string;
+    }>;
+    getGatewaySession(): Promise<{
+        status: string;
+        tokenPreview: any;
+        publicKey: any;
+    }>;
+    generateSessionToken(): Promise<{
+        status: string;
+        tokenPreview: any;
         message: string;
     }>;
-    verifyAadhaarOtp(otp: string, txnId: string): Promise<any>;
+    syncPublicKeyFromGateway(): Promise<{
+        status: string;
+        publicKey: any;
+    }>;
+    getOrFetchPublicKey(token: string): Promise<string>;
+    requestAadhaarOtp(aadhaar: string, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    verifyAadhaarOtp(otp: string, txnId: string, aadhaar?: string, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    requestMobileOtp(mobile: string, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    verifyMobileOtp(otp: string, txnId: string, mobile?: string, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    enrolByDocument(demographics: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    handleHip(body: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    handleConsent(body: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    handleScanShare(body: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    handleUhi(body: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    handleNhcx(body: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    handleHpr(body: any, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    runTests(context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<{
+        status: string;
+        summary: {
+            total: number;
+            passed: number;
+            failed: number;
+            successRate: number;
+            durationMs: number;
+            coveragePercent: number;
+            timestamp: string;
+        };
+        results: any[];
+    }>;
+    getSpecialtiesMatrix(): Promise<any>;
+    getDoctors(medicalSystem?: string, speciality?: string, specialistRole?: string, search?: string): Promise<any>;
+    saveDoctor(doctor: any): Promise<{
+        status: string;
+        message: string;
+        data?: undefined;
+    } | {
+        status: string;
+        data: any;
+        message?: undefined;
+    }>;
+    deleteDoctor(id: number): Promise<{
+        status: string;
+    }>;
 }

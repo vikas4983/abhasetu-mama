@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -30,7 +30,8 @@ import {
   QrCode,
   CreditCard,
   Shield,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -43,6 +44,135 @@ export default function AbhaPage() {
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<'card' | 'onboard' | 'consent' | 'hiplink' | 'nhpr' | 'scanshare' | 'uhi' | 'nhcx' | 'tests'>('card');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  // QR Scanner States
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannerTab, setScannerTab] = useState<'webcam' | 'upload'>('webcam');
+  const [scannerError, setScannerError] = useState('');
+  const scannerRef = useRef<any>(null);
+
+  // Load html5-qrcode script dynamically
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/html5-qrcode';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handleOpenScanner = () => {
+    setShowScannerModal(true);
+    setScannerTab('webcam');
+    setScannerError('');
+    // Start camera after dynamic modal DOM render
+    setTimeout(() => {
+      startWebcamScanner();
+    }, 100);
+  };
+
+  const handleCloseScanner = () => {
+    stopWebcamScanner();
+    setShowScannerModal(false);
+  };
+
+  const startWebcamScanner = () => {
+    setScannerError('');
+    if (typeof window === 'undefined' || !(window as any).Html5Qrcode) {
+      setScannerError('Scanner library not loaded. Please wait a moment.');
+      return;
+    }
+
+    try {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {}).then(() => {
+          initCamera();
+        });
+      } else {
+        initCamera();
+      }
+    } catch (e: any) {
+      setScannerError(`Failed to initialize camera: ${e.message}`);
+    }
+  };
+
+  const initCamera = () => {
+    const html5QrCode = new (window as any).Html5Qrcode("qr-reader");
+    scannerRef.current = html5QrCode;
+
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText: string) => {
+        // Successful scan
+        const abhaAddress = parseAbhaQrCode(decodedText);
+        setScanShareInputAddress(abhaAddress);
+        showToast(t('QR Code scanned successfully!'));
+        handleCloseScanner();
+      },
+      (errorMessage: string) => {
+        // Verbose scan failure log, ignore to avoid spamming
+      }
+    ).catch((err: any) => {
+      setScannerError(`Failed to start camera: ${err}`);
+    });
+  };
+
+  const stopWebcamScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (typeof window === 'undefined' || !(window as any).Html5Qrcode) {
+      setScannerError('Scanner library not loaded.');
+      return;
+    }
+
+    setScannerError('');
+    // Create a temporary element to bind the reader
+    const tempContainer = document.createElement('div');
+    tempContainer.id = 'temp-qr-reader';
+    tempContainer.style.display = 'none';
+    document.body.appendChild(tempContainer);
+
+    const html5QrCode = new (window as any).Html5Qrcode("temp-qr-reader");
+    html5QrCode.scanFile(file, true)
+      .then((decodedText: string) => {
+        const abhaAddress = parseAbhaQrCode(decodedText);
+        setScanShareInputAddress(abhaAddress);
+        showToast(t('QR image decoded successfully!'));
+        document.body.removeChild(tempContainer);
+        handleCloseScanner();
+      })
+      .catch((err: any) => {
+        setScannerError(`Failed to parse QR code from image: ${err}`);
+        document.body.removeChild(tempContainer);
+      });
+  };
+
+  const parseAbhaQrCode = (text: string) => {
+    try {
+      const data = JSON.parse(text);
+      if (data.abhaAddress) return data.abhaAddress;
+      if (data.abhaNo) return data.abhaNo;
+      if (data.address) return data.address;
+      if (data.id) return data.id;
+    } catch (e) {
+      // not json
+    }
+    const match = text.match(/[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+/);
+    if (match) {
+      return match[0];
+    }
+    return text.trim();
+  };
 
   // Tab 9: Sandbox Tests State
   const [testSummary, setTestSummary] = useState<any | null>(null);
@@ -538,11 +668,23 @@ export default function AbhaPage() {
   });
 
   // Tab 2: Onboarding (Milestone 1) State
+  const [onboardMethod, setOnboardMethod] = useState<'aadhaar' | 'mobile'>('aadhaar');
   const [aadhaarInput, setAadhaarInput] = useState('');
+  const [mobileInput, setMobileInput] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [txnId, setTxnId] = useState('');
-  const [onboardStep, setOnboardStep] = useState<'aadhaar' | 'otp' | 'completed'>('aadhaar');
+  const [onboardStep, setOnboardStep] = useState<'verification' | 'otp' | 'demographics' | 'completed'>('verification');
   const [loading, setLoading] = useState(false);
+
+  // Demographics state for Mobile onboarding
+  const [demoFirstName, setDemoFirstName] = useState('');
+  const [demoLastName, setDemoLastName] = useState('');
+  const [demoDob, setDemoDob] = useState('');
+  const [demoGender, setDemoGender] = useState<'Male' | 'Female' | 'Others'>('Male');
+  const [demoAddress, setDemoAddress] = useState('');
+  const [demoState, setDemoState] = useState('');
+  const [demoDistrict, setDemoDistrict] = useState('');
+  const [demoPinCode, setDemoPinCode] = useState('');
 
   // Tab 3: Consent & Exchange (Milestone 3) State
   const [abhaAddressInput, setAbhaAddressInput] = useState('ayesha.ali.9981057765@abdm');
@@ -594,17 +736,29 @@ export default function AbhaPage() {
   // Milestone 1 Onboarding API triggers
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (aadhaarInput.length !== 12 || isNaN(Number(aadhaarInput))) {
-      showToast(t('Please enter a valid 12-digit Aadhaar Number.'));
-      return;
+    
+    if (onboardMethod === 'aadhaar') {
+      if (aadhaarInput.length !== 12 || isNaN(Number(aadhaarInput))) {
+        showToast(t('Please enter a valid 12-digit Aadhaar Number.'));
+        return;
+      }
+    } else {
+      if (mobileInput.length !== 10 || isNaN(Number(mobileInput))) {
+        showToast(t('Please enter a valid 10-digit Mobile Number.'));
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      const res = await fetch('/api/abdm/enroll', {
+      const payload = onboardMethod === 'aadhaar' 
+        ? { loginHint: 'aadhaar', loginId: aadhaarInput }
+        : { loginHint: 'mobile', loginId: mobileInput };
+
+      const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'request-otp', aadhaar: aadhaarInput }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       
@@ -612,14 +766,15 @@ export default function AbhaPage() {
         setTxnId(data.txnId);
         setOnboardStep('otp');
         showToast(t(data.message));
-        logSecurityEvent('ABDM OTP Requested', 'Successfully initialized Aadhaar OTP simulation request.');
+        logSecurityEvent(
+          'ABDM OTP Requested', 
+          `Successfully initialized ${onboardMethod === 'aadhaar' ? 'Aadhaar' : 'Mobile'} OTP simulation request.`
+        );
       } else {
         showToast(t(data.message || 'OTP request failed'));
       }
-    } catch (err) {
-      showToast(t('Network error. Fallback simulation enabled.'));
-      setTxnId('simulated-txn-uuid');
-      setOnboardStep('otp');
+    } catch (err: any) {
+      showToast(t(err.message || 'Network error requesting OTP.'));
     } finally {
       setLoading(false);
     }
@@ -638,38 +793,165 @@ export default function AbhaPage() {
     // Immersive 1.8 seconds holographic decrypter sequence
     setTimeout(async () => {
       try {
-        const res = await fetch('/api/abdm/enroll', {
+        let url = '';
+        let payload = {};
+
+        if (onboardMethod === 'aadhaar') {
+          url = '/api/abdm/v3/enrollment/enrol/byAadhaar';
+          payload = {
+            txnId,
+            scope: ['abha-enrol'],
+            authData: {
+              authMethods: ['otp'],
+              otp: {
+                txnId,
+                otpValue: otpInput
+              }
+            },
+            consent: {
+              code: 'abha-enrollment',
+              version: '1.4'
+            }
+          };
+        } else {
+          url = '/api/abdm/v3/enrollment/auth/byAbdm';
+          payload = {
+            txnId,
+            scope: ['abha-enrol', 'mobile-verify'],
+            authData: {
+              authMethods: ['otp'],
+              otp: {
+                txnId,
+                otpValue: otpInput
+              }
+            },
+            consent: {
+              code: 'abha-enrollment',
+              version: '1.4'
+            }
+          };
+        }
+
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'verify-otp', otp: otpInput, txnId: txnId }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
 
         if (data.status === 'success') {
-          setAbhaDetails({
-            name: data.profile.name,
-            mobile: data.profile.mobile,
-            abhaId: data.abhaAddress,
-            abhaNumber: data.abhaNumber,
-            gender: data.profile.gender,
-            dob: data.profile.dob,
-            photo: data.profile.photo
-          });
-          
-          setOnboardStep('completed');
-          showToast(t(data.message));
-          logSecurityEvent('ABHA Generated', `Successfully generated dynamic ABHA: ${data.abhaNumber}`);
+          if (onboardMethod === 'aadhaar') {
+            setAbhaDetails({
+              name: data.profile.name,
+              mobile: data.profile.mobile,
+              abhaId: data.abhaAddress,
+              abhaNumber: data.abhaNumber,
+              gender: data.profile.gender,
+              dob: data.profile.dob,
+              photo: data.profile.photo
+            });
+            setOnboardStep('completed');
+            showToast(t(data.message || 'Aadhaar OTP verified successfully!'));
+            logSecurityEvent('ABHA Generated', `Successfully generated dynamic ABHA: ${data.abhaNumber}`);
+          } else {
+            setOnboardStep('demographics');
+            showToast(t('Mobile OTP verified successfully. Please enter demographics to generate ABHA.'));
+            logSecurityEvent('Mobile OTP Verified', 'Mobile OTP verified. Navigating to demographics entry.');
+          }
         } else {
           showToast(t(data.message || 'OTP verification failed.'));
         }
-      } catch (err) {
-        showToast(t('Verification error. Sandbox fallback complete.'));
-        setOnboardStep('completed');
+      } catch (err: any) {
+        showToast(t(err.message || 'Verification error. Please try again.'));
       } finally {
         setLoading(false);
         setIsVerifyingOtp(false);
       }
     }, 1800);
+  };
+
+  const handleEnrolByDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!demoFirstName.trim() || !demoLastName.trim()) {
+      showToast(t('Please enter first and last name.'));
+      return;
+    }
+    if (!demoDob) {
+      showToast(t('Please select date of birth.'));
+      return;
+    }
+    if (!demoAddress.trim() || !demoState.trim() || !demoDistrict.trim() || !demoPinCode.trim()) {
+      showToast(t('Please fill complete address details.'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Format DOB to DD-MM-YYYY as expected by ABDM Smart ID card display
+      let formattedDob = demoDob;
+      if (demoDob.includes('-')) {
+        const parts = demoDob.split('-');
+        if (parts[0].length === 4) {
+          formattedDob = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD to DD-MM-YYYY
+        }
+      }
+
+      const res = await fetch('/api/abdm/v3/enrollment/enrol/byDocument', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txnId,
+          scope: ['dl-flow'],
+          authData: {
+            authMethods: ['dl'],
+            document: {
+              documentType: 'DRIVING_LICENSE',
+              documentId: `DL-${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
+              firstName: demoFirstName,
+              middleName: '',
+              lastName: demoLastName,
+              dob: formattedDob,
+              gender: demoGender.toUpperCase().substring(0, 1),
+              frontSidePhoto: '',
+              backSidePhoto: '',
+              address: demoAddress,
+              state: demoState,
+              district: demoDistrict,
+              pinCode: demoPinCode,
+              mobile: mobileInput
+            }
+          },
+          consent: {
+            code: 'abha-enrollment',
+            version: '1.4'
+          }
+        }),
+      });
+      const data = await res.json();
+
+      if (data.status === 'success') {
+        setAbhaDetails({
+          name: data.profile.name,
+          mobile: data.profile.mobile,
+          abhaId: data.abhaAddress,
+          abhaNumber: data.abhaNumber,
+          gender: data.profile.gender,
+          dob: data.profile.dob,
+          photo: data.profile.photo || ''
+        });
+        
+        setOnboardStep('completed');
+        showToast(t('ABHA generated successfully via Mobile onboarding!'));
+        logSecurityEvent('ABHA Generated via Mobile', `Successfully issued ABHA Number: ${data.abhaNumber}`);
+      } else {
+        showToast(t(data.message || 'Failed to submit demographics.'));
+      }
+    } catch (err: any) {
+      showToast(t(err.message || 'Error creating ABHA card. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Milestone 3 Consent & Fidelius Data Exchange Simulation
@@ -1179,43 +1461,172 @@ export default function AbhaPage() {
         {/* ==================== TAB 2: MILESTONE 1 ONBOARD ==================== */}
         {activeTab === 'onboard' && (
           <article className="route-card" style={{ width: '100%', padding: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
                 <Fingerprint />
               </div>
               <div style={{ textAlign: 'left' }}>
                 <h3 style={{ margin: 0, fontSize: '16px' }}>{t('Create Your ABHA Card')}</h3>
-                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{t('Generate your 14-digit national health card securely using your Aadhaar number.')}</p>
+                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{t('Generate your 14-digit national health card securely via Aadhaar or Mobile number.')}</p>
               </div>
             </div>
 
-            {onboardStep === 'aadhaar' && (
-              <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>12-Digit Aadhaar Number</label>
-                  <input 
-                    type="text" 
-                    maxLength={12} 
-                    value={aadhaarInput}
-                    onChange={(e) => setAadhaarInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter Aadhaar Number (e.g. 543210987654)" 
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                  />
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    * In sandbox mode, enter any dummy 12-digit number to trigger secure OTP simulation.
-                  </span>
+            {/* Stepper Progress Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', width: '100%', padding: '0 10px', marginBottom: '24px' }}>
+              <div style={{ position: 'absolute', top: '15px', left: '10%', right: '10%', height: '2px', background: 'rgba(255,255,255,0.1)', zIndex: 0 }} />
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                left: '10%',
+                width: onboardStep === 'verification' ? '0%' : onboardStep === 'otp' ? (onboardMethod === 'aadhaar' ? '80%' : '40%') : onboardStep === 'demographics' ? '80%' : '80%',
+                height: '2px',
+                background: 'var(--accent-teal)',
+                transition: 'all 0.3s ease',
+                zIndex: 0
+              }} />
+
+              {/* Step 1 */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, cursor: onboardStep === 'verification' ? 'default' : 'pointer' }} onClick={() => onboardStep !== 'completed' && setOnboardStep('verification')}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'verification' ? 'var(--accent-teal)' : 'var(--bg-primary)', border: '2px solid var(--accent-teal)', display: 'grid', placeItems: 'center', color: onboardStep === 'verification' ? '#fff' : 'var(--accent-teal)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>1</div>
+                <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'verification' ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('Verify')}</span>
+              </div>
+
+              {/* Step 2 */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'otp' ? 'var(--accent-teal)' : (onboardStep === 'demographics' || onboardStep === 'completed') ? 'var(--accent-teal)' : 'var(--bg-primary)', border: `2px solid ${onboardStep === 'verification' ? 'rgba(255,255,255,0.1)' : 'var(--accent-teal)'}`, display: 'grid', placeItems: 'center', color: (onboardStep === 'otp' || onboardStep === 'demographics' || onboardStep === 'completed') ? '#fff' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>2</div>
+                <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'otp' ? 'var(--text-primary)' : (onboardStep === 'demographics' || onboardStep === 'completed') ? 'var(--accent-teal)' : 'var(--text-muted)' }}>{t('OTP')}</span>
+              </div>
+
+              {/* Step 3 (Mobile Onboarding Only) */}
+              {onboardMethod === 'mobile' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+                  <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'demographics' ? 'var(--accent-teal)' : onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--bg-primary)', border: `2px solid ${(onboardStep === 'verification' || onboardStep === 'otp') ? 'rgba(255,255,255,0.1)' : 'var(--accent-teal)'}`, display: 'grid', placeItems: 'center', color: (onboardStep === 'demographics' || onboardStep === 'completed') ? '#fff' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>3</div>
+                  <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'demographics' ? 'var(--text-primary)' : onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--text-muted)' }}>{t('Profile')}</span>
                 </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                >
-                  {loading ? <RefreshCw className="animate-spin" /> : <Send style={{ width: '16px', height: '16px' }} />}
-                  <span>Request Aadhaar OTP</span>
-                </button>
-              </form>
+              )}
+
+              {/* Step 4 */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--bg-primary)', border: `2px solid ${onboardStep === 'completed' ? 'var(--accent-teal)' : 'rgba(255,255,255,0.1)'}`, display: 'grid', placeItems: 'center', color: onboardStep === 'completed' ? '#fff' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>
+                  {onboardStep === 'completed' ? '✓' : onboardMethod === 'mobile' ? '4' : '3'}
+                </div>
+                <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--text-muted)' }}>{t('Done')}</span>
+              </div>
+            </div>
+
+            {/* Step 1: Verification Form */}
+            {onboardStep === 'verification' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                
+                {/* Method Switcher */}
+                <div style={{ display: 'flex', background: 'var(--bg-primary)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border-color)', marginBottom: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setOnboardMethod('aadhaar')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      background: onboardMethod === 'aadhaar' ? 'var(--accent-teal)' : 'transparent',
+                      color: onboardMethod === 'aadhaar' ? '#ffffff' : 'var(--text-secondary)',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Fingerprint style={{ width: '14px', height: '14px' }} />
+                    <span>Aadhaar eKYC</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOnboardMethod('mobile')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      background: onboardMethod === 'mobile' ? 'var(--accent-teal)' : 'transparent',
+                      color: onboardMethod === 'mobile' ? '#ffffff' : 'var(--text-secondary)',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <FileText style={{ width: '14px', height: '14px' }} />
+                    <span>Mobile & Docs</span>
+                  </button>
+                </div>
+
+                {/* Aadhaar Verification Input */}
+                {onboardMethod === 'aadhaar' ? (
+                  <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>12-Digit Aadhaar Number</label>
+                      <input 
+                        type="text" 
+                        maxLength={12} 
+                        value={aadhaarInput}
+                        onChange={(e) => setAadhaarInput(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter Aadhaar Number (e.g. 543210987654)" 
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                        * In sandbox mode, enter any dummy 12-digit number to trigger secure OTP simulation.
+                      </span>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      {loading ? <RefreshCw className="animate-spin" /> : <Send style={{ width: '16px', height: '16px' }} />}
+                      <span>Request Aadhaar OTP</span>
+                    </button>
+                  </form>
+                ) : (
+                  // Mobile Verification Input
+                  <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>10-Digit Mobile Number</label>
+                      <input 
+                        type="text" 
+                        maxLength={10} 
+                        value={mobileInput}
+                        onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter Mobile Number (e.g. 9876543210)" 
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                        * Verify your communication mobile via OTP. Afterwards, complete profile registration.
+                      </span>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      {loading ? <RefreshCw className="animate-spin" /> : <Send style={{ width: '16px', height: '16px' }} />}
+                      <span>Request Mobile OTP</span>
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
 
+            {/* Step 2: OTP Form */}
             {onboardStep === 'otp' && (
               <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
                 <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1239,11 +1650,144 @@ export default function AbhaPage() {
                   style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
                   {loading ? <RefreshCw className="animate-spin" /> : <Key style={{ width: '16px', height: '16px' }} />}
-                  <span>Verify & Create ABHA</span>
+                  <span>Verify OTP</span>
                 </button>
               </form>
             )}
 
+            {/* Step 3: Demographics Form (Mobile only) */}
+            {onboardStep === 'demographics' && (
+              <form onSubmit={handleEnrolByDocument} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
+                  <span>Mobile OTP verified! Enter demographic details below to register and issue your official ABHA card.</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>First Name</label>
+                    <input 
+                      type="text" 
+                      value={demoFirstName}
+                      onChange={(e) => setDemoFirstName(e.target.value)}
+                      placeholder="First Name (e.g. Aarav)" 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Last Name</label>
+                    <input 
+                      type="text" 
+                      value={demoLastName}
+                      onChange={(e) => setDemoLastName(e.target.value)}
+                      placeholder="Last Name (e.g. Sharma)" 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Date of Birth</label>
+                    <input 
+                      type="date" 
+                      value={demoDob}
+                      onChange={(e) => setDemoDob(e.target.value)}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Gender</label>
+                    <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-primary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
+                      {(['Male', 'Female', 'Others'] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setDemoGender(g)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            border: 'none',
+                            borderRadius: '6px',
+                            background: demoGender === g ? 'var(--accent-teal)' : 'transparent',
+                            color: demoGender === g ? '#ffffff' : 'var(--text-secondary)',
+                            fontWeight: 600,
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Street Address</label>
+                  <input 
+                    type="text" 
+                    value={demoAddress}
+                    onChange={(e) => setDemoAddress(e.target.value)}
+                    placeholder="Flat, Road, Area (e.g. H-402, Green Valley Apartments)" 
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>State</label>
+                    <input 
+                      type="text" 
+                      value={demoState}
+                      onChange={(e) => setDemoState(e.target.value)}
+                      placeholder="State (e.g. Haryana)" 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>District</label>
+                    <input 
+                      type="text" 
+                      value={demoDistrict}
+                      onChange={(e) => setDemoDistrict(e.target.value)}
+                      placeholder="District (e.g. Gurgaon)" 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Pin Code</label>
+                    <input 
+                      type="text" 
+                      maxLength={6}
+                      value={demoPinCode}
+                      onChange={(e) => setDemoPinCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="122011" 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}
+                >
+                  {loading ? <RefreshCw className="animate-spin" /> : <ShieldCheck style={{ width: '16px', height: '16px' }} />}
+                  <span>Create & Issue ABHA Card</span>
+                </button>
+              </form>
+            )}
+
+            {/* Step 4: Onboarding Completed */}
             {onboardStep === 'completed' && (
               <div style={{ textAlign: 'center', padding: '10px 0' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
@@ -1259,7 +1803,7 @@ export default function AbhaPage() {
                   <strong>ABHA Address:</strong> {abhaDetails.abhaId}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="prefill-btn" style={{ flex: 1 }} onClick={() => setOnboardStep('aadhaar')}>Register Another</button>
+                  <button className="prefill-btn" style={{ flex: 1 }} onClick={() => setOnboardStep('verification')}>Register Another</button>
                   <button className="join-btn" style={{ flex: 1, margin: 0 }} onClick={() => setActiveTab('card')}>View Smart Card</button>
                 </div>
               </div>
@@ -1796,13 +2340,34 @@ export default function AbhaPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Patient ABHA Address</label>
-                  <input 
-                    type="text" 
-                    value={scanShareInputAddress}
-                    onChange={(e) => setScanShareInputAddress(e.target.value)}
-                    placeholder="Enter Patient Address (e.g. user@sbx)" 
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'monospace' }}
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="text" 
+                      value={scanShareInputAddress}
+                      onChange={(e) => setScanShareInputAddress(e.target.value)}
+                      placeholder="Enter Patient Address (e.g. user@sbx)" 
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'monospace' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleOpenScanner}
+                      style={{
+                        padding: '10px 16px',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid var(--accent-teal)',
+                        borderRadius: '8px',
+                        color: 'var(--accent-teal)',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <QrCode style={{ width: '16px', height: '16px' }} />
+                      <span>Scan QR</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
@@ -2453,6 +3018,134 @@ export default function AbhaPage() {
           </div>
         )}
       </div>
+
+      {/* QR Scanner Modal */}
+      {showScannerModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0,0,0,0.8)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px'
+        }}>
+          <div className="route-card" style={{
+            maxWidth: '480px',
+            width: '100%',
+            padding: '24px',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            position: 'relative',
+            textAlign: 'left'
+          }}>
+            <button
+              onClick={handleCloseScanner}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer'
+              }}
+            >
+              <X style={{ width: '20px', height: '20px' }} />
+            </button>
+
+            <h3 style={{ margin: '0 0 16px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+              <QrCode style={{ color: 'var(--accent-teal)' }} />
+              Scan Patient QR Code
+            </h3>
+
+            {/* Tabs for Webcam vs Image Upload */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => { setScannerTab('webcam'); startWebcamScanner(); }}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  background: scannerTab === 'webcam' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  border: scannerTab === 'webcam' ? '1px solid var(--accent-teal)' : '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  color: scannerTab === 'webcam' ? 'var(--accent-teal)' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Camera Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => { setScannerTab('upload'); stopWebcamScanner(); }}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  background: scannerTab === 'upload' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  border: scannerTab === 'upload' ? '1px solid var(--accent-teal)' : '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  color: scannerTab === 'upload' ? 'var(--accent-teal)' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Upload Image
+              </button>
+            </div>
+
+            {scannerError && (
+              <div style={{ padding: '8px 12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', borderRadius: '6px', color: 'var(--danger)', fontSize: '11px', marginBottom: '12px' }}>
+                {scannerError}
+              </div>
+            )}
+
+            {scannerTab === 'webcam' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                <div id="qr-reader" style={{ width: '100%', background: '#000', borderRadius: '8px', overflow: 'hidden', minHeight: '260px' }}></div>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
+                  Position the Patient QR code within the camera frame.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', padding: '20px 0' }}>
+                <label style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '24px',
+                  width: '100%',
+                  background: 'var(--bg-primary)',
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}>
+                  <QrCode style={{ width: '32px', height: '32px', color: 'var(--text-muted)' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Click to upload QR image file</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Supports PNG, JPG, JPEG</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

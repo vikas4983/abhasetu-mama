@@ -48,26 +48,91 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AbdmController = void 0;
 const common_1 = require("@nestjs/common");
 const abdm_service_1 = require("./abdm.service");
+const auth_service_1 = require("../auth/auth.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const express = __importStar(require("express"));
 let AbdmController = class AbdmController {
     abdmService;
-    constructor(abdmService) {
+    authService;
+    constructor(abdmService, authService) {
         this.abdmService = abdmService;
+        this.authService = authService;
     }
-    async getSessions() {
-        return this.abdmService.getGatewaySession();
+    async adminLogin(body) {
+        const { email, password } = body;
+        return this.authService.validateAndLogin(email, password);
     }
-    async enroll(body, res) {
-        const { action, aadhaar, otp, txnId } = body;
+    async getSessions(res) {
+        try {
+            const result = await this.abdmService.getGatewaySession();
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: error.message || 'Failed to retrieve gateway session.'
+            });
+        }
+    }
+    async generateSession(res) {
+        try {
+            const result = await this.abdmService.generateSessionToken();
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: error.message || 'Failed to generate session token.'
+            });
+        }
+    }
+    async fetchPublicKey(res) {
+        try {
+            const result = await this.abdmService.syncPublicKeyFromGateway();
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: error.message || 'Failed to sync public key.'
+            });
+        }
+    }
+    async enroll(body, res, req) {
+        const { action, aadhaar, mobile, otp, txnId } = body;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
         if (action === 'request-otp') {
-            const result = await this.abdmService.requestAadhaarOtp(aadhaar);
+            const result = await this.abdmService.requestAadhaarOtp(aadhaar, context);
             if (result.status === 'error') {
                 return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
             }
             return res.status(common_1.HttpStatus.OK).json(result);
         }
         if (action === 'verify-otp') {
-            const result = await this.abdmService.verifyAadhaarOtp(otp, txnId);
+            const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, aadhaar, context);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        if (action === 'request-mobile-otp') {
+            const result = await this.abdmService.requestMobileOtp(mobile, context);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        if (action === 'verify-mobile-otp') {
+            const result = await this.abdmService.verifyMobileOtp(otp, txnId, mobile, context);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        if (action === 'enrol-by-document') {
+            const result = await this.abdmService.enrolByDocument(body, context);
             if (result.status === 'error') {
                 return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
             }
@@ -75,121 +140,544 @@ let AbdmController = class AbdmController {
         }
         return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'Invalid onboarding action.' });
     }
-    getConfig() {
-        return this.abdmService.getConfig();
+    async v3RequestOtp(body, res, req) {
+        const { loginHint, loginId } = body;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        if (loginHint === 'aadhaar') {
+            const result = await this.abdmService.requestAadhaarOtp(loginId, context);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json({
+                status: 'success',
+                txnId: result.txnId,
+                message: result.message || 'OTP sent to Aadhaar-linked mobile.'
+            });
+        }
+        else if (loginHint === 'mobile') {
+            const result = await this.abdmService.requestMobileOtp(loginId, context);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json({
+                status: 'success',
+                txnId: result.txnId,
+                message: result.message || 'OTP sent to mobile number.'
+            });
+        }
+        return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'Invalid loginHint.' });
     }
-    saveConfig(body) {
+    async v3EnrolByAadhaar(body, res, req) {
+        const { txnId, authData } = body;
+        const otp = authData?.otp?.otpValue;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, undefined, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async v3AuthByAbdm(body, res, req) {
+        const { txnId, authData } = body;
+        const otp = authData?.otp?.otpValue;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.verifyMobileOtp(otp, txnId, undefined, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json({
+            status: 'success',
+            txnId: result.txnId,
+            message: result.message || 'Mobile OTP verified successfully.'
+        });
+    }
+    async v3EnrolByDocument(body, res, req) {
+        const { txnId, authData } = body;
+        const doc = authData?.document;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const demographics = {
+            txnId,
+            firstName: doc?.firstName,
+            lastName: doc?.lastName,
+            dob: doc?.dob,
+            gender: doc?.gender,
+            mobile: doc?.mobile,
+            address: doc?.address,
+            state: doc?.state,
+            district: doc?.district,
+            pinCode: doc?.pinCode
+        };
+        const result = await this.abdmService.enrolByDocument(demographics, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async getConfig() {
+        const config = await this.abdmService.getConfig();
+        return { status: 'success', config };
+    }
+    async saveConfig(body) {
         return this.abdmService.saveConfig(body);
     }
-    getLogs() {
-        return this.abdmService.getLogs();
+    async getLogs() {
+        const logs = await this.abdmService.getLogs();
+        return { status: 'success', logs };
     }
-    addLog(body) {
+    async addLog(body) {
         const { event, status, details } = body;
-        this.abdmService.addLog(event, status, details);
+        await this.abdmService.addLog(event, status, details);
         return { status: 'success' };
     }
-    getProducts() {
-        return this.abdmService.getProducts();
+    async getProducts() {
+        const products = await this.abdmService.getProducts();
+        return { status: 'success', products };
     }
-    addProduct(body) {
+    async addProduct(body) {
         return this.abdmService.saveProduct(body);
     }
-    updateProduct(body) {
+    async updateProduct(body) {
         return this.abdmService.saveProduct(body);
     }
-    deleteProduct(id) {
+    async deleteProduct(id) {
         return this.abdmService.deleteProduct(id);
     }
-    getPolicies() {
-        return this.abdmService.getPolicies();
+    async getPolicies() {
+        const policies = await this.abdmService.getPolicies();
+        return { status: 'success', policies };
     }
-    getLabPackages() {
-        return this.abdmService.getLabPackages();
+    async addPolicy(body) {
+        return this.abdmService.savePolicy(body);
+    }
+    async updatePolicy(body) {
+        return this.abdmService.savePolicy(body);
+    }
+    async deletePolicy(id) {
+        return this.abdmService.deletePolicy(id);
+    }
+    async getLabPackages() {
+        const labPackages = await this.abdmService.getLabPackages();
+        return { status: 'success', labPackages };
+    }
+    async addLabPackage(body) {
+        return this.abdmService.saveLabPackage(body);
+    }
+    async updateLabPackage(body) {
+        return this.abdmService.saveLabPackage(body);
+    }
+    async deleteLabPackage(id) {
+        return this.abdmService.deleteLabPackage(id);
+    }
+    async hip(body, res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.handleHip(body, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async consent(body, res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.handleConsent(body, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async scanShare(body, res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.handleScanShare(body, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async uhi(body, res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.handleUhi(body, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async nhcx(body, res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.handleNhcx(body, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async hpr(body, res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.handleHpr(body, context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async tests(res, req) {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.runTests(context);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async getSpecialtiesMatrix(res) {
+        try {
+            const data = await this.abdmService.getSpecialtiesMatrix();
+            return res.status(common_1.HttpStatus.OK).json({ status: 'success', specialties: data });
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async getDoctors(medicalSystem, speciality, specialistRole, search, res) {
+        try {
+            const data = await this.abdmService.getDoctors(medicalSystem, speciality, specialistRole, search);
+            return res.status(common_1.HttpStatus.OK).json({ status: 'success', doctors: data });
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async saveDoctor(body, res) {
+        try {
+            const data = await this.abdmService.saveDoctor(body);
+            return res.status(common_1.HttpStatus.OK).json(data);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async deleteDoctor(id, res) {
+        try {
+            const data = await this.abdmService.deleteDoctor(Number(id));
+            return res.status(common_1.HttpStatus.OK).json(data);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
     }
 };
 exports.AbdmController = AbdmController;
 __decorate([
-    (0, common_1.Get)('sessions'),
+    (0, common_1.Post)('admin/login'),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "adminLogin", null);
+__decorate([
+    (0, common_1.Get)('sessions'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "getSessions", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('admin/session/generate'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "generateSession", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('admin/fetch-public-key'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "fetchPublicKey", null);
 __decorate([
     (0, common_1.Post)('enroll'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "enroll", null);
 __decorate([
+    (0, common_1.Post)('v3/enrollment/request/otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3RequestOtp", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/enrol/byAadhaar'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3EnrolByAadhaar", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/auth/byAbdm'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3AuthByAbdm", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/enrol/byDocument'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3EnrolByDocument", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)('admin/config'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "getConfig", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)('admin/config'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "saveConfig", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)('admin/logs'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "getLogs", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)('admin/logs'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "addLog", null);
 __decorate([
     (0, common_1.Get)('pharmacy/products'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "getProducts", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)('pharmacy/products'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "addProduct", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Put)('pharmacy/products'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "updateProduct", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Delete)('pharmacy/products'),
     __param(0, (0, common_1.Query)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "deleteProduct", null);
 __decorate([
     (0, common_1.Get)('insurance/policies'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "getPolicies", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('insurance/policies'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "addPolicy", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Put)('insurance/policies'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "updatePolicy", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Delete)('insurance/policies'),
+    __param(0, (0, common_1.Query)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "deletePolicy", null);
 __decorate([
     (0, common_1.Get)('lab-tests/packages'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "getLabPackages", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('lab-tests/packages'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "addLabPackage", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Put)('lab-tests/packages'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "updateLabPackage", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Delete)('lab-tests/packages'),
+    __param(0, (0, common_1.Query)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "deleteLabPackage", null);
+__decorate([
+    (0, common_1.Post)('hip'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "hip", null);
+__decorate([
+    (0, common_1.Post)('consent'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "consent", null);
+__decorate([
+    (0, common_1.Post)('scan-share'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "scanShare", null);
+__decorate([
+    (0, common_1.Post)('uhi'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "uhi", null);
+__decorate([
+    (0, common_1.Post)('nhcx'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "nhcx", null);
+__decorate([
+    (0, common_1.Post)('hpr'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "hpr", null);
+__decorate([
+    (0, common_1.Get)('tests'),
+    __param(0, (0, common_1.Res)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "tests", null);
+__decorate([
+    (0, common_1.Get)('doctor-consultation/specialties'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "getSpecialtiesMatrix", null);
+__decorate([
+    (0, common_1.Get)('doctor-consultation/doctors'),
+    __param(0, (0, common_1.Query)('medicalSystem')),
+    __param(1, (0, common_1.Query)('speciality')),
+    __param(2, (0, common_1.Query)('specialistRole')),
+    __param(3, (0, common_1.Query)('search')),
+    __param(4, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "getDoctors", null);
+__decorate([
+    (0, common_1.Post)('doctor-consultation/doctors'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "saveDoctor", null);
+__decorate([
+    (0, common_1.Delete)('doctor-consultation/doctors'),
+    __param(0, (0, common_1.Query)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "deleteDoctor", null);
 exports.AbdmController = AbdmController = __decorate([
     (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [abdm_service_1.AbdmService])
+    __metadata("design:paramtypes", [abdm_service_1.AbdmService,
+        auth_service_1.AuthService])
 ], AbdmController);
 //# sourceMappingURL=abdm.controller.js.map

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export interface User {
   email: string;
-  role: 'admin' | 'doctor' | 'patient' | 'operator';
+  role: 'admin' | 'doctor' | 'patient' | 'operator' | 'master_admin';
   name: string;
   abhaId?: string;
   photo?: string;
@@ -59,6 +59,8 @@ interface AuthContextType {
   activeToken: ActiveToken | null;
   setActiveToken: (token: ActiveToken | null) => void;
   login: (email: string, pass: string) => Promise<boolean>;
+  loginWithJwt: (token: string, user: User) => Promise<void>;
+  loginWithOtp: (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string) => Promise<boolean>;
   logout: () => void;
   register: (name: string, email: string, mobile: string) => void;
   logSecurityEvent: (event: string, details: string) => void;
@@ -78,6 +80,12 @@ export const demoCredentials = {
   doctor: { email: "doctor@abhasetu.com", pass: "Doctor@123", name: "Dr. Ayesha Ali", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
   patient: { email: "patient@abhasetu.com", pass: "Patient@123", name: "Dr. Ayesha Ali", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
   operator: { email: "operator@abhasetu.com", pass: "Operator@123", name: "OPD Desk Operator" }
+};
+
+export const demoOtpCredentials = {
+  patient: { name: "Aarav Sharma", mobile: "9876543210", aadhaar: "123456789012", abha: "91-1234-5678-9012", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
+  doctor: { name: "Dr. Ayesha Ali", mobile: "9981057765", aadhaar: "987654321098", abha: "91-9876-5432-1098", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
+  operator: { name: "OPD Desk Operator", mobile: "8888888888", aadhaar: "888888888888", abha: "91-8888-8888-8888", photo: "" }
 };
 
 const DEFAULT_APPOINTMENTS: Appointment[] = [
@@ -226,8 +234,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logSecurityEvent("User Logout", `Signed out session for ${currentUser.name}`);
     }
     setCurrentUser(null);
+    localStorage.removeItem('adminToken');
     syncToLocalStorage({ currentUser: null });
     router.push('/login');
+  };
+
+  const loginWithJwt = async (token: string, user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('adminToken', token);
+    syncToLocalStorage({ currentUser: user });
+    logSecurityEvent("JWT Admin Login", `Authenticated via secure JWT as ${user.name} (${user.role.toUpperCase()})`);
+    addNotification("Secure Login", `Logged in as ${user.role === 'master_admin' ? 'Master Admin' : 'Admin'}`, "security");
+  };
+
+  const loginWithOtp = async (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string): Promise<boolean> => {
+    if (otp !== '123456') {
+      logSecurityEvent("OTP Login Failed", `Invalid OTP entered for role: ${role.toUpperCase()}`);
+      return false;
+    }
+
+    const creds = demoOtpCredentials[role];
+    if (!creds) return false;
+
+    const cleanedIdentifier = identifier.replace(/[-\s]/g, '');
+    const cleanedMobile = creds.mobile.replace(/[-\s]/g, '');
+    const cleanedAadhaar = creds.aadhaar.replace(/[-\s]/g, '');
+    const cleanedAbha = creds.abha.replace(/[-\s]/g, '');
+
+    if (
+      cleanedIdentifier !== cleanedMobile &&
+      cleanedIdentifier !== cleanedAadhaar &&
+      cleanedIdentifier !== cleanedAbha
+    ) {
+      logSecurityEvent("OTP Login Failed", `Identifier mismatch for role: ${role.toUpperCase()}`);
+      return false;
+    }
+
+    const newUser: User = {
+      email: `${role}@abhasetu.com`,
+      role,
+      name: creds.name,
+      photo: creds.photo || "",
+      abhaId: role === 'patient' ? 'aarav.sharma@sbx' : undefined
+    };
+
+    setCurrentUser(newUser);
+    syncToLocalStorage({ currentUser: newUser });
+    logSecurityEvent("User OTP Login", `Authenticated via OTP as ${creds.name} (${role.toUpperCase()})`);
+    addNotification("Login Successful", `OTP verified. Welcomed ${creds.name}.`, "security");
+    return true;
   };
 
   const register = (name: string, email: string, mobile: string) => {
@@ -313,7 +368,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Route security shield
   useEffect(() => {
-    if (!currentUser && pathname !== '/login' && pathname !== '/register') {
+    const isPublicPath = 
+      pathname === '/login' || 
+      pathname === '/register' || 
+      pathname === '/admin/login';
+
+    if (!currentUser && !isPublicPath) {
       // Check if we have loaded from localStorage
       const data = localStorage.getItem('setu_state');
       if (data) {
@@ -339,6 +399,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activeToken,
       setActiveToken,
       login,
+      loginWithJwt,
+      loginWithOtp,
       logout,
       register,
       logSecurityEvent,

@@ -1,26 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAbdmAccessToken } from '../../../../utils/abdm/session';
 
 export async function GET() {
   try {
-    const token = await getAbdmAccessToken();
-    const isSimulated = token.includes('simulated');
-    
-    return NextResponse.json({
-      status: 'success',
-      message: 'ABDM session established successfully.',
-      sandboxMode: isSimulated,
-      tokenPreview: `${token.substring(0, 15)}...`,
-      timestamp: new Date().toISOString(),
+    const backendRes = await fetch('http://localhost:3001/api/abdm/sessions', {
+      method: 'GET',
     });
+
+    const data = await backendRes.json();
+    return NextResponse.json(data, { status: backendRes.status });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: 'Failed to connect to ABDM gateway.',
-        error: error.message || error,
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ status: 'error', message: error.message || error }, { status: 500 });
   }
 }
