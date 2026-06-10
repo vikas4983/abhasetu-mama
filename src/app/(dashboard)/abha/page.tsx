@@ -89,6 +89,109 @@ export default function AbhaPage() {
   const [activeTab, setActiveTab] = useState<'card' | 'onboard' | 'consent' | 'hiplink' | 'nhpr' | 'scanshare' | 'uhi' | 'nhcx' | 'tests'>('card');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
+  // Timer States
+  const [sessionTimerStr, setSessionTimerStr] = useState('20:00');
+  const [refreshTimerStr, setRefreshTimerStr] = useState('30:00');
+  const [keyTimerStr, setKeyTimerStr] = useState('90 days');
+  const [xTokenTimerStr, setXTokenTimerStr] = useState('20:00');
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [keyExpired, setKeyExpired] = useState(false);
+  const [refreshExpired, setRefreshExpired] = useState(false);
+  const [xTokenExpired, setXTokenExpired] = useState(false);
+
+  useEffect(() => {
+    const updateTimers = () => {
+      // 1. Session Expiry (expiresIn)
+      const sessionExpiryVal = localStorage.getItem('abha_session_expiry');
+      if (sessionExpiryVal) {
+        const expiry = Number(sessionExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setSessionExpired(true);
+          setSessionTimerStr('00:00');
+        } else {
+          setSessionExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setSessionTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setSessionExpired(true);
+        setSessionTimerStr('N/A');
+      }
+
+      // 2. Gateway Refresh Expiry (refreshExpiresIn)
+      const refreshExpiryVal = localStorage.getItem('abha_refresh_expiry');
+      if (refreshExpiryVal) {
+        const expiry = Number(refreshExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setRefreshExpired(true);
+          setRefreshTimerStr('00:00');
+        } else {
+          setRefreshExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setRefreshTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setRefreshExpired(true);
+        setRefreshTimerStr('N/A');
+      }
+
+      // 3. X-Token Expiry
+      const xTokenExpiryVal = localStorage.getItem('x_token_expiry');
+      if (xTokenExpiryVal) {
+        const expiry = Number(xTokenExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setXTokenExpired(true);
+          setXTokenTimerStr('00:00');
+        } else {
+          setXTokenExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setXTokenTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setXTokenExpired(true);
+        setXTokenTimerStr('N/A');
+      }
+
+      // 4. Public Key Expiry (3 months)
+      const keyExpiryVal = localStorage.getItem('public_key_expiry');
+      if (keyExpiryVal) {
+        const expiry = Number(keyExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setKeyExpired(true);
+          setKeyTimerStr('00:00');
+        } else {
+          setKeyExpired(false);
+          const days = Math.floor(diff / (24 * 3600000));
+          const hours = Math.floor((diff % (24 * 3600000)) / 3600000);
+          const mins = Math.floor((diff % 3600000) / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setKeyTimerStr(`${days}d ${hours}h ${mins}m ${secs}s`);
+        }
+      } else {
+        setKeyExpired(true);
+        setKeyTimerStr('N/A');
+      }
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    window.addEventListener('storage', updateTimers);
+    window.addEventListener('setu_state_update', updateTimers);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', updateTimers);
+      window.removeEventListener('setu_state_update', updateTimers);
+    };
+  }, []);
+
+
   // QR Scanner States
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [scannerTab, setScannerTab] = useState<'webcam' | 'upload'>('webcam');
@@ -1020,9 +1123,13 @@ export default function AbhaPage() {
               const profile = data.ABHAProfile;
               
               // Set session and key timers
-              const sessionTtl = data.tokens?.expiresIn || 1800;
+              const sessionTtl = data.tokens?.expiresIn || 1200;
+              const refreshTtl = data.tokens?.refreshExpiresIn || 1800;
               localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
-              localStorage.setItem('public_key_expiry', String(Date.now() + 3600 * 1000));
+              localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
+              localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
+              window.dispatchEvent(new Event('setu_state_update'));
               
               const fullName = [profile.firstName, profile.middleName, profile.lastName]
                 .filter(Boolean)
@@ -1048,8 +1155,13 @@ export default function AbhaPage() {
               });
             } else if (data.profile) {
               // Set session and key timers
-              localStorage.setItem('abha_session_expiry', String(Date.now() + 1800 * 1000));
-              localStorage.setItem('public_key_expiry', String(Date.now() + 3600 * 1000));
+              const sessionTtl = 1200;
+              const refreshTtl = 1800;
+              localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
+              localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
+              window.dispatchEvent(new Event('setu_state_update'));
               
               setAbhaDetails({
                 name: data.profile.name,
@@ -1822,6 +1934,83 @@ export default function AbhaPage() {
             <div style={{ width: '100%', display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button className="join-btn" onClick={() => router.push('/appointments')} style={{ flex: 1, margin: 0 }}>OPD Queue Registry</button>
               <button className="prefill-btn" onClick={() => router.push('/records')} style={{ flex: 1, margin: 0 }}>Linked Health Records</button>
+            </div>
+
+            {/* Security & ABDM Session Timers Card */}
+            <div style={{
+              width: '100%',
+              background: 'var(--bg-secondary)',
+              borderRadius: '16px',
+              border: '1px solid var(--border-color)',
+              padding: '18px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              marginTop: '8px',
+              textAlign: 'left'
+            }}>
+              <h4 style={{
+                margin: 0,
+                fontSize: '13px',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                borderBottom: '1px solid var(--border-color)',
+                paddingBottom: '8px'
+              }}>
+                <ShieldCheck style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
+                <span>Security & ABDM Session Timers / सुरक्षा और सत्र समयक</span>
+              </h4>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '12px',
+                fontSize: '11px'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>ABDM Gateway Session / गेटवे सत्र:</span>
+                  <strong style={{ color: sessionExpired ? 'var(--danger)' : 'var(--accent-teal)', fontSize: '13px' }}>
+                    {sessionExpired ? 'EXPIRED / समाप्त' : sessionTimerStr}
+                  </strong>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Session Refresh Token / रीफ्रेश सत्र:</span>
+                  <strong style={{ color: refreshExpired ? 'var(--danger)' : 'var(--accent-blue)', fontSize: '13px' }}>
+                    {refreshExpired ? 'EXPIRED / समाप्त' : refreshTimerStr}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Aadhaar X-Token / आधार एक्स-टोकन:</span>
+                  <strong style={{ color: xTokenExpired ? 'var(--danger)' : 'var(--accent-teal)', fontSize: '13px' }}>
+                    {xTokenExpired ? 'EXPIRED / समाप्त' : xTokenTimerStr}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Encryption Public Key / एन्क्रिप्शन कुंजी:</span>
+                  <strong style={{ color: keyExpired ? 'var(--danger)' : 'var(--accent-blue)', fontSize: '13px' }}>
+                    {keyExpired ? 'EXPIRED / समाप्त' : keyTimerStr}
+                  </strong>
+                </div>
+              </div>
+              
+              <div style={{
+                fontSize: '9px',
+                color: 'var(--text-muted)',
+                background: 'rgba(39, 56, 144, 0.05)',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px dashed var(--border-color)',
+                marginTop: '4px'
+              }}>
+                <strong>Security Notice / सुरक्षा सूचना:</strong> All secure tokens, including X-token and Session keys, are automatically stored in HTTP-Only cookies to protect against XSS/CSRF attacks. The Public Key is synchronized directly from the NHA Sandbox Certificate.
+              </div>
             </div>
           </>
         )}

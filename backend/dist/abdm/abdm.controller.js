@@ -51,6 +51,18 @@ const abdm_service_1 = require("./abdm.service");
 const auth_service_1 = require("../auth/auth.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const express = __importStar(require("express"));
+function getCookie(cookieHeader, name) {
+    if (!cookieHeader)
+        return '';
+    const cookies = cookieHeader.split(';');
+    for (const cookie of cookies) {
+        const [key, val] = cookie.trim().split('=');
+        if (key === name) {
+            return decodeURIComponent(val || '');
+        }
+    }
+    return '';
+}
 let AbdmController = class AbdmController {
     abdmService;
     authService;
@@ -158,7 +170,7 @@ let AbdmController = class AbdmController {
             return res.status(common_1.HttpStatus.OK).json(result);
         }
         if (action === 'request-mobile-otp') {
-            const result = await this.abdmService.requestMobileOtp(mobile, context);
+            const result = await this.abdmService.requestMobileOtp(mobile, undefined, context);
             if (result.status === 'error') {
                 return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
             }
@@ -197,7 +209,8 @@ let AbdmController = class AbdmController {
             });
         }
         else if (loginHint === 'mobile') {
-            const result = await this.abdmService.requestMobileOtp(loginId, context);
+            const txnId = getCookie(req.headers.cookie, 'txn_id') || body.txnId || '';
+            const result = await this.abdmService.requestMobileOtp(loginId, txnId, context);
             if (result.status === 'error') {
                 return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
             }
@@ -248,6 +261,14 @@ let AbdmController = class AbdmController {
             }
         }
         catch (e) { }
+        if (result.txnId) {
+            res.cookie('txn_id', result.txnId, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 3600 * 1000
+            });
+        }
         return res.status(common_1.HttpStatus.OK).json(result);
     }
     async v3AuthByAbdm(body, res, req) {
@@ -260,11 +281,23 @@ let AbdmController = class AbdmController {
         if (result.status === 'error') {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
         }
-        return res.status(common_1.HttpStatus.OK).json({
-            status: 'success',
-            txnId: result.txnId,
-            message: result.message || 'Mobile OTP verified successfully.'
-        });
+        if (result.tokens?.token) {
+            res.cookie('session_id', result.tokens.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: result.tokens.expiresIn * 1000
+            });
+        }
+        if (result.tokens?.refreshToken) {
+            res.cookie('refresh_token', result.tokens.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: result.tokens.refreshExpiresIn * 1000
+            });
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
     }
     async v3EnrolByDocument(body, res, req) {
         const { txnId, authData } = body;

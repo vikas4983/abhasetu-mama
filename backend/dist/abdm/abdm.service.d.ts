@@ -108,6 +108,8 @@ export declare class AbdmService {
         status: string;
         tokenPreview: any;
         publicKey: any;
+        expiresIn: any;
+        refreshExpiresIn: any;
     }>;
     generateSessionToken(): Promise<{
         status: string;
@@ -127,7 +129,7 @@ export declare class AbdmService {
         ip?: string;
         userAgent?: string;
     }): Promise<any>;
-    requestMobileOtp(mobile: string, context?: {
+    requestMobileOtp(mobile: string, txnId?: string, context?: {
         ip?: string;
         userAgent?: string;
     }): Promise<any>;

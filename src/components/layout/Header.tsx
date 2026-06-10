@@ -86,7 +86,7 @@ const getGenderDisplay = (gender: string | undefined): string => {
 };
 
 export default function Header() {
-  const { currentUser, logout, notifications, records, appointments, clearNotifications, deleteNotification, markNotificationRead, addRecord } = useAuth();
+  const { currentUser, logout, notifications, records, appointments, clearNotifications, deleteNotification, markNotificationRead, addRecord, updateCurrentUser } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { theme, cycleTheme } = useTheme();
   const router = useRouter();
@@ -101,10 +101,24 @@ export default function Header() {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Timer States
-  const [sessionTimerStr, setSessionTimerStr] = useState('30:00');
-  const [keyTimerStr, setKeyTimerStr] = useState('60:00');
+  const [sessionTimerStr, setSessionTimerStr] = useState('20:00');
+  const [refreshTimerStr, setRefreshTimerStr] = useState('30:00');
+  const [keyTimerStr, setKeyTimerStr] = useState('90 days');
+  const [xTokenTimerStr, setXTokenTimerStr] = useState('20:00');
   const [sessionExpired, setSessionExpired] = useState(false);
   const [keyExpired, setKeyExpired] = useState(false);
+  const [refreshExpired, setRefreshExpired] = useState(false);
+  const [xTokenExpired, setXTokenExpired] = useState(false);
+
+  // Update Mobile Number States
+  const [profileView, setProfileView] = useState<'details' | 'update-mobile'>('details');
+  const [updateStep, setUpdateStep] = useState<'input' | 'otp'>('input');
+  const [updateMobile, setUpdateMobile] = useState('');
+  const [updateOtp, setUpdateOtp] = useState('');
+  const [updateTxnId, setUpdateTxnId] = useState('');
+  const [updateTimer, setUpdateTimer] = useState(60);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   const handleSaveToLocker = (cardName = 'ABHA_Smart_Card.pdf') => {
     if (!addRecord) return;
@@ -195,9 +209,49 @@ export default function Header() {
     }
   };
 
+  // Initial session loader and timer synchronizer
+  useEffect(() => {
+    const fetchSessionTimers = async () => {
+      try {
+        const res = await fetch('/api/abdm/sessions');
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          const sessionTtl = data.expiresIn || 1200;
+          const refreshTtl = data.refreshExpiresIn || 1800;
+          localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+          localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
+          
+          if (!localStorage.getItem('public_key_expiry')) {
+            localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
+          }
+          if (!localStorage.getItem('x_token_expiry')) {
+            localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+          }
+          window.dispatchEvent(new Event('setu_state_update'));
+        }
+      } catch (e) {
+        console.warn('Failed to fetch gateway session on mount:', e);
+      }
+    };
+    fetchSessionTimers();
+  }, []);
+
+  // Update update-mobile OTP timer countdown
+  useEffect(() => {
+    let timerId: any;
+    if (profileView === 'update-mobile' && updateStep === 'otp' && updateTimer > 0) {
+      timerId = setInterval(() => {
+        setUpdateTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [profileView, updateStep, updateTimer]);
+
   useEffect(() => {
     const updateTimers = () => {
-      // 1. Session Expiry
+      // 1. Session Expiry (expiresIn)
       const sessionExpiryVal = localStorage.getItem('abha_session_expiry');
       if (sessionExpiryVal) {
         const expiry = Number(sessionExpiryVal);
@@ -213,10 +267,48 @@ export default function Header() {
         }
       } else {
         setSessionExpired(true);
-        setSessionTimerStr('N/A (Not Verified)');
+        setSessionTimerStr('N/A');
       }
 
-      // 2. Public Key Expiry
+      // 2. Gateway Refresh Expiry (refreshExpiresIn)
+      const refreshExpiryVal = localStorage.getItem('abha_refresh_expiry');
+      if (refreshExpiryVal) {
+        const expiry = Number(refreshExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setRefreshExpired(true);
+          setRefreshTimerStr('00:00');
+        } else {
+          setRefreshExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setRefreshTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setRefreshExpired(true);
+        setRefreshTimerStr('N/A');
+      }
+
+      // 3. X-Token Expiry
+      const xTokenExpiryVal = localStorage.getItem('x_token_expiry');
+      if (xTokenExpiryVal) {
+        const expiry = Number(xTokenExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setXTokenExpired(true);
+          setXTokenTimerStr('00:00');
+        } else {
+          setXTokenExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setXTokenTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setXTokenExpired(true);
+        setXTokenTimerStr('N/A');
+      }
+
+      // 4. Public Key Expiry (3 months)
       const keyExpiryVal = localStorage.getItem('public_key_expiry');
       if (keyExpiryVal) {
         const expiry = Number(keyExpiryVal);
@@ -226,13 +318,15 @@ export default function Header() {
           setKeyTimerStr('00:00');
         } else {
           setKeyExpired(false);
-          const mins = Math.floor(diff / 60000);
+          const days = Math.floor(diff / (24 * 3600000));
+          const hours = Math.floor((diff % (24 * 3600000)) / 3600000);
+          const mins = Math.floor((diff % 3600000) / 60000);
           const secs = Math.floor((diff % 60000) / 1000);
-          setKeyTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+          setKeyTimerStr(`${days}d ${hours}h ${mins}m ${secs}s`);
         }
       } else {
         setKeyExpired(true);
-        setKeyTimerStr('N/A (Not Synced)');
+        setKeyTimerStr('N/A');
       }
     };
 
@@ -279,6 +373,87 @@ export default function Header() {
       } else {
         router.push(`/settings#${hash}`);
       }
+    }
+  };
+
+  const handleRequestUpdateOtp = async () => {
+    if (updateMobile.length !== 10) return;
+    setUpdateLoading(true);
+    setUpdateError('');
+    try {
+      const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loginHint: 'mobile',
+          loginId: updateMobile
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setUpdateTxnId(data.txnId);
+        setUpdateStep('otp');
+        setUpdateTimer(60);
+        showToast(t('OTP code sent successfully.'));
+      } else {
+        setUpdateError(data.message || 'Failed to request OTP');
+      }
+    } catch (e: any) {
+      setUpdateError(e.message || 'Network error requesting OTP');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const handleVerifyUpdateOtp = async () => {
+    if (updateOtp.length !== 6) return;
+    setUpdateLoading(true);
+    setUpdateError('');
+    try {
+      const res = await fetch('/api/abdm/v3/enrollment/auth/byAbdm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txnId: updateTxnId,
+          authData: {
+            authMethods: ['otp'],
+            otp: {
+              txnId: updateTxnId,
+              otpValue: updateOtp
+            }
+          }
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        if (!currentUser || !currentUser.abhaProfile) {
+          setUpdateError('No active user profile session.');
+          return;
+        }
+        const updatedProfile = { ...currentUser.abhaProfile, mobile: updateMobile };
+        
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.currentUser) {
+          state.currentUser.abhaProfile = updatedProfile;
+          localStorage.setItem('setu_state', JSON.stringify(state));
+        }
+        
+        updateCurrentUser({
+          abhaProfile: updatedProfile
+        });
+
+        showToast(t('Mobile number updated successfully!'));
+        setProfileView('details');
+        setUpdateStep('input');
+        setUpdateMobile('');
+        setUpdateOtp('');
+      } else {
+        setUpdateError(data.message || 'Invalid OTP code');
+      }
+    } catch (e: any) {
+      setUpdateError(e.message || 'Network error verifying OTP');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -699,6 +874,21 @@ export default function Header() {
             )}
           </div>
 
+          {/* Desktop Only Session Expiration Widget */}
+          {!sessionExpired && (
+            <div className="desktop-only-timers" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 10px', background: 'rgba(39, 56, 144, 0.08)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '11px', color: 'var(--text-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Session:</span>
+                <strong style={{ color: 'var(--accent-teal)' }}>{sessionTimerStr}</strong>
+              </div>
+              <div style={{ width: '1px', height: '12px', background: 'var(--border-color)' }}></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Refresh:</span>
+                <strong style={{ color: 'var(--accent-blue)' }}>{refreshTimerStr}</strong>
+              </div>
+            </div>
+          )}
+
           {/* Theme Toggle */}
           <button
             className="theme-toggle-btn"
@@ -739,18 +929,32 @@ export default function Header() {
               {isProfileOpen && (
                 <div className="profile-dropdown is-open" role="menu" id="profile-dropdown">
                   {/* Active Timers Panel */}
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px 12px 0 0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <span>Session Expiry:</span>
-                      <span style={{ fontWeight: 'bold', color: sessionExpired ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px 12px 0 0', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Session Expiry / सत्र समाप्ति:</span>
+                      <strong style={{ color: sessionExpired ? 'var(--danger)' : 'var(--accent-teal)' }}>
                         {sessionExpired ? 'EXPIRED' : sessionTimerStr}
-                      </span>
+                      </strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Key Expiry:</span>
-                      <span style={{ fontWeight: 'bold', color: keyExpired ? 'var(--danger)' : 'var(--accent-blue)' }}>
+                      <span>Refresh Expiry / रीफ्रेश सत्र:</span>
+                      <strong style={{ color: refreshExpired ? 'var(--danger)' : 'var(--accent-blue)' }}>
+                        {refreshExpired ? 'EXPIRED' : refreshTimerStr}
+                      </strong>
+                    </div>
+                    {currentUser?.abhaProfile && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>X-Token Expiry / एक्स-टोकन:</span>
+                        <strong style={{ color: xTokenExpired ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                          {xTokenExpired ? 'EXPIRED' : xTokenTimerStr}
+                        </strong>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Key Expiry / कुंजी समाप्ति:</span>
+                      <strong style={{ color: keyExpired ? 'var(--danger)' : 'var(--accent-blue)' }}>
                         {keyExpired ? 'EXPIRED' : keyTimerStr}
-                      </span>
+                      </strong>
                     </div>
                   </div>
 
@@ -758,7 +962,7 @@ export default function Header() {
                     <button
                       onClick={() => {
                         setIsProfileOpen(false);
-                        setShowProfileModal(true);
+                        router.push('/profile');
                       }}
                       className="dropdown-item"
                       role="menuitem"
@@ -881,297 +1085,6 @@ export default function Header() {
           )}
         </div>
       </div>
-      
-      {/* Premium Profile Modal Overlay */}
-      {showProfileModal && currentUser?.abhaProfile && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }} onClick={() => setShowProfileModal(false)}>
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '520px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            animation: 'fadeIn 0.3s ease-out'
-          }} onClick={(e) => e.stopPropagation()}>
-            
-            {/* Modal Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--border-color)',
-              background: 'var(--bg-secondary)'
-            }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                <ShieldCheck style={{ color: 'var(--accent-teal)' }} />
-                <span>Verified ABHA Profile</span>
-              </h3>
-              <button 
-                onClick={() => setShowProfileModal(false)}
-                style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px' }}
-              >
-                <X style={{ width: '18px', height: '18px' }} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div style={{ padding: '20px', overflowY: 'auto', maxHeight: '75vh', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
-              {/* Smart Card representation */}
-              <article 
-                id="abha-card-capture-header"
-                className="setu-abha-card" 
-                style={{ 
-                  width: '100%',
-                  margin: 0,
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  border: '1px solid #cbd5e1',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-                  fontFamily: "'Inter', sans-serif"
-                }}
-              >
-                <div 
-                  className="setu-abha-card-header" 
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '10px 14px', 
-                    background: '#273890', 
-                    borderBottom: '2px solid #10b981' 
-                  }}
-                >
-                  <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <img
-                      src="/nha.png"
-                      alt="NHA Logo"
-                      style={{ height: '100%', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
-                    />
-                  </div>
-                  <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
-                    <span style={{ fontSize: '9px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
-                  </div>
-                  <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <img
-                      src="/abdm_new.png"
-                      alt="ABDM Logo"
-                      style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
-                    />
-                  </div>
-                </div>
-                
-                <div 
-                  className="setu-abha-card-body" 
-                  style={{ 
-                    position: 'relative', 
-                    display: 'flex', 
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'stretch',
-                    gap: '12px', 
-                    padding: '14px', 
-                    background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', 
-                    color: '#0f172a' 
-                  }}
-                >
-                  
-                  <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                    <div className="setu-abha-card-avatar" style={{ width: '75px', height: '95px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <img
-                        src={getPhotoSrc(currentUser.abhaProfile.photo)}
-                        alt={currentUser.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=150';
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="setu-abha-card-details" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left', minWidth: 0 }}>
-                    <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
-                      <strong className="setu-abha-card-value" style={{ fontSize: '11px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {[currentUser.abhaProfile.firstName, currentUser.abhaProfile.middleName, currentUser.abhaProfile.lastName].filter(Boolean).join(' ')}
-                      </strong>
-                    </div>
-                    
-                    <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
-                      <strong className="setu-abha-card-value token-num" style={{ fontSize: '11px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>
-                        {currentUser.abhaProfile.ABHANumber || currentUser.abhaProfile.abhaNumber}
-                      </strong>
-                    </div>
-                    
-                    <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
-                      <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>
-                        {currentUser.abhaProfile.preferredAddress || currentUser.abhaProfile.abhaAddress}
-                      </strong>
-                    </div>
-                    
-                    <div className="setu-abha-card-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginTop: '2px' }}>
-                      <div className="setu-abha-card-field">
-                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
-                        <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>
-                          {getGenderDisplay(currentUser.abhaProfile.gender)}
-                        </span>
-                      </div>
-                      <div className="setu-abha-card-field">
-                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
-                        <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{currentUser.abhaProfile.dob}</span>
-                      </div>
-                      <div className="setu-abha-card-field" style={{ gridColumn: 'span 2' }}>
-                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
-                        <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{currentUser.abhaProfile.mobile}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="setu-abha-card-qr-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="setu-abha-card-qr" style={{ padding: '4px', background: '#ffffff', borderRadius: '6px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${currentUser.abhaProfile.ABHANumber || currentUser.abhaProfile.abhaNumber};${currentUser.abhaProfile.preferredAddress || currentUser.abhaProfile.abhaAddress}`}
-                        alt="ABHA QR"
-                        style={{ width: '68px', height: '68px', display: 'block' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </article>
-
-              {/* Action Buttons: Download, Locker, Share inside modal */}
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                <button
-                  onClick={handleDownloadCard}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: 'var(--accent-teal)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Download style={{ width: '14px', height: '14px' }} />
-                  <span>Download ABHA Card (PNG)</span>
-                </button>
-
-                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                  <button
-                    onClick={() => handleSaveToLocker(`ABHA_Smart_Card_${currentUser.abhaProfile.ABHANumber || currentUser.abhaProfile.abhaNumber}.pdf`)}
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-color)',
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Database style={{ width: '12px', height: '12px', color: 'var(--accent-teal)' }} />
-                    <span>Save to Locker</span>
-                  </button>
-
-                  <button
-                    onClick={handleShareCard}
-                    style={{
-                      flex: 1,
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-color)',
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Send style={{ width: '12px', height: '12px', color: 'var(--accent-blue)' }} />
-                    <span>Share Card</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Extended Details Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '11px', textAlign: 'left' }}>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Mobile Number</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.mobile || 'N/A'}</span>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Status</span>
-                  <span style={{ fontWeight: 800, color: 'var(--success)' }}>{currentUser.abhaProfile.abhaStatus || 'ACTIVE'}</span>
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Street Address</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.address || 'N/A'}</span>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>District & State</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.districtName}, {currentUser.abhaProfile.stateName}</span>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Pin Code</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.pinCode || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ display: 'flex', gap: '8px', padding: '14px 20px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-              <button 
-                onClick={() => setShowProfileModal(false)}
-                style={{ flex: 1, padding: '10px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

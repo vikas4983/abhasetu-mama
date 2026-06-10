@@ -5179,7 +5179,7 @@ html {
   position: relative;
   width: 100%;
   max-width: 440px;
-  min-height: auto !important;
+  min-height: 195px !important;
   margin: 0 auto;
   border-radius: 16px;
   overflow: hidden;
@@ -7010,5 +7010,13 @@ body.theme-light .medicine-search-input:focus {
     gap: 10px !important;
   }
 }
+
+/* Hide desktop-only session timers on mobile/tablet viewports */
+@media (max-width: 767px) {
+  .desktop-only-timers {
+    display: none !important;
+  }
+}
+
 
 

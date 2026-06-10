@@ -14,6 +14,18 @@ import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import * as express from 'express';
 
+function getCookie(cookieHeader: string | undefined, name: string): string {
+  if (!cookieHeader) return '';
+  const cookies = cookieHeader.split(';');
+  for (const cookie of cookies) {
+    const [key, val] = cookie.trim().split('=');
+    if (key === name) {
+      return decodeURIComponent(val || '');
+    }
+  }
+  return '';
+}
+
 @Controller()
 export class AbdmController {
   constructor(
@@ -143,7 +155,7 @@ export class AbdmController {
 
     // Mobile Onboarding
     if (action === 'request-mobile-otp') {
-      const result = await this.abdmService.requestMobileOtp(mobile, context);
+      const result = await this.abdmService.requestMobileOtp(mobile, undefined, context);
       if (result.status === 'error') {
         return res.status(HttpStatus.BAD_REQUEST).json(result);
       }
@@ -189,7 +201,8 @@ export class AbdmController {
         message: result.message || 'OTP sent to Aadhaar-linked mobile.'
       });
     } else if (loginHint === 'mobile') {
-      const result = await this.abdmService.requestMobileOtp(loginId, context);
+      const txnId = getCookie(req.headers.cookie, 'txn_id') || body.txnId || '';
+      const result = await this.abdmService.requestMobileOtp(loginId, txnId, context);
       if (result.status === 'error') {
         return res.status(HttpStatus.BAD_REQUEST).json(result);
       }
@@ -246,6 +259,15 @@ export class AbdmController {
       }
     } catch (e) {}
 
+    if (result.txnId) {
+      res.cookie('txn_id', result.txnId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 3600 * 1000 // 1 hour
+      });
+    }
+
     return res.status(HttpStatus.OK).json(result);
   }
 
@@ -261,11 +283,26 @@ export class AbdmController {
     if (result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
-    return res.status(HttpStatus.OK).json({
-      status: 'success',
-      txnId: result.txnId,
-      message: result.message || 'Mobile OTP verified successfully.'
-    });
+
+    // Securely store user session id (token) and refresh token in httpOnly cookies
+    if (result.tokens?.token) {
+      res.cookie('session_id', result.tokens.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: result.tokens.expiresIn * 1000
+      });
+    }
+    if (result.tokens?.refreshToken) {
+      res.cookie('refresh_token', result.tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: result.tokens.refreshExpiresIn * 1000
+      });
+    }
+
+    return res.status(HttpStatus.OK).json(result);
   }
 
   @Post('v3/enrollment/enrol/byDocument')

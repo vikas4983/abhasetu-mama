@@ -330,10 +330,13 @@ export class AbdmService {
 
     // Return cached token if valid
     if (this.cachedToken && Date.now() < this.cachedTokenExpiry) {
+      const remainingSecs = Math.max(0, Math.round((this.cachedTokenExpiry - Date.now()) / 1000));
       return {
         status: 'success',
         tokenPreview: this.cachedToken,
         publicKey: config.ABDM_PUBLIC_KEY || '',
+        expiresIn: remainingSecs,
+        refreshExpiresIn: remainingSecs + 600,
       };
     }
 
@@ -357,6 +360,7 @@ export class AbdmService {
 
       const token = response.data.accessToken;
       const expiresIn = response.data.expiresIn || 1200;
+      const refreshExpiresIn = response.data.refreshExpiresIn || 1800;
       this.cachedToken = token;
       this.cachedTokenExpiry = Date.now() + (expiresIn - 60) * 1000;
 
@@ -364,6 +368,8 @@ export class AbdmService {
         status: 'success',
         tokenPreview: token,
         publicKey: config.ABDM_PUBLIC_KEY || '',
+        expiresIn,
+        refreshExpiresIn,
       };
     } catch (err: any) {
       console.warn('ABDM Sandbox Gateway authentication failed:', err.message);
@@ -606,7 +612,7 @@ export class AbdmService {
     }
   }
 
-  async requestMobileOtp(mobile: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
+  async requestMobileOtp(mobile: string, txnId?: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
     if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
       return { status: 'error', message: 'Invalid 10-digit mobile number.' };
     }
@@ -624,13 +630,14 @@ export class AbdmService {
 
     // Encrypt Mobile using RSA OAEP SHA-1
     const encryptedMobile = this.cryptoService.encryptWithPublicKey(publicKey, mobile);
-    const txnId = crypto.randomUUID();
+    const finalTxnId = txnId || crypto.randomUUID();
 
     const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
     try {
       const response = await axios.post(
         enrollmentUrl,
         {
+          txnId: finalTxnId,
           scope: ['abha-enrol', 'mobile-verify'],
           loginHint: 'mobile',
           loginId: encryptedMobile,

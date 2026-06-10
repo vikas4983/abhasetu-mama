@@ -301,10 +301,13 @@ let AbdmService = class AbdmService {
             throw new Error('ABDM Gateway credentials (Client ID / Secret) are not configured in database or environment.');
         }
         if (this.cachedToken && Date.now() < this.cachedTokenExpiry) {
+            const remainingSecs = Math.max(0, Math.round((this.cachedTokenExpiry - Date.now()) / 1000));
             return {
                 status: 'success',
                 tokenPreview: this.cachedToken,
                 publicKey: config.ABDM_PUBLIC_KEY || '',
+                expiresIn: remainingSecs,
+                refreshExpiresIn: remainingSecs + 600,
             };
         }
         try {
@@ -322,12 +325,15 @@ let AbdmService = class AbdmService {
             });
             const token = response.data.accessToken;
             const expiresIn = response.data.expiresIn || 1200;
+            const refreshExpiresIn = response.data.refreshExpiresIn || 1800;
             this.cachedToken = token;
             this.cachedTokenExpiry = Date.now() + (expiresIn - 60) * 1000;
             return {
                 status: 'success',
                 tokenPreview: token,
                 publicKey: config.ABDM_PUBLIC_KEY || '',
+                expiresIn,
+                refreshExpiresIn,
             };
         }
         catch (err) {
@@ -536,7 +542,7 @@ let AbdmService = class AbdmService {
             return { status: 'error', message: `ABDM Gateway Error: ${errMsg}`, details: e.response?.data };
         }
     }
-    async requestMobileOtp(mobile, context) {
+    async requestMobileOtp(mobile, txnId, context) {
         if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
             return { status: 'error', message: 'Invalid 10-digit mobile number.' };
         }
@@ -551,10 +557,11 @@ let AbdmService = class AbdmService {
             return { status: 'error', message: e.message || 'Failed to fetch/sync ABDM public key certificate.' };
         }
         const encryptedMobile = this.cryptoService.encryptWithPublicKey(publicKey, mobile);
-        const txnId = crypto.randomUUID();
+        const finalTxnId = txnId || crypto.randomUUID();
         const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
         try {
             const response = await axios_1.default.post(enrollmentUrl, {
+                txnId: finalTxnId,
                 scope: ['abha-enrol', 'mobile-verify'],
                 loginHint: 'mobile',
                 loginId: encryptedMobile,
