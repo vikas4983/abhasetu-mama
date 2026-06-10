@@ -829,7 +829,14 @@ export default function AbhaPage() {
   const [onboardStep, setOnboardStep] = useState<'verification' | 'otp' | 'demographics' | 'completed'>('verification');
   const [loading, setLoading] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(120);
+  const [otpTimer, setOtpTimer] = useState(30);
+  const [otpError, setOtpError] = useState('');
+  const [shakeOtp, setShakeOtp] = useState(false);
+
+  const triggerShake = () => {
+    setShakeOtp(true);
+    setTimeout(() => setShakeOtp(false), 500);
+  };
 
   useEffect(() => {
     let timer: any;
@@ -1026,8 +1033,9 @@ export default function AbhaPage() {
       
       if (data.status === 'success') {
         setTxnId(data.txnId);
+        setOtpError('');
         if (onboardMethod === 'aadhaar') {
-          setOtpTimer(120);
+          setOtpTimer(30);
           setShowOtpModal(true);
         } else {
           setOnboardStep('otp');
@@ -1213,10 +1221,12 @@ export default function AbhaPage() {
             logSecurityEvent('Mobile OTP Verified', 'Mobile OTP verified. Navigating to demographics entry.');
           }
         } else {
-          showToast(t(data.message || 'OTP verification failed.'));
+          setOtpError(data.message || 'OTP verification failed.');
+          triggerShake();
         }
       } catch (err: any) {
-        showToast(t(err.message || 'Verification error. Please try again.'));
+        setOtpError(err.message || 'Verification error. Please try again.');
+        triggerShake();
       } finally {
         setLoading(false);
         setIsVerifyingOtp(false);
@@ -1242,14 +1252,17 @@ export default function AbhaPage() {
       const data = await res.json();
       if (data.status === 'success') {
         setTxnId(data.txnId);
-        setOtpTimer(120);
+        setOtpTimer(30);
+        setOtpError('');
         showToast(t('OTP resent successfully.'));
         logSecurityEvent('ABDM OTP Resent', 'Successfully resent Aadhaar OTP.');
       } else {
-        showToast(t(data.message || 'OTP request failed'));
+        setOtpError(data.message || 'OTP request failed');
+        triggerShake();
       }
     } catch (err: any) {
-      showToast(t(err.message || 'Network error requesting OTP.'));
+      setOtpError(err.message || 'Network error requesting OTP.');
+      triggerShake();
     } finally {
       setLoading(false);
     }
@@ -3841,21 +3854,24 @@ export default function AbhaPage() {
         onClick={(e) => {
           e.stopPropagation();
         }}>
-          <div style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '440px',
-            padding: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            color: 'var(--text-primary)',
-            position: 'relative'
-          }}
-          onClick={(e) => e.stopPropagation()}>
+          <div 
+            className={shakeOtp ? 'shake-modal' : ''}
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '440px',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              color: 'var(--text-primary)',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3901,6 +3917,12 @@ export default function AbhaPage() {
                 <span>Enter the OTP sent to your Aadhaar-linked mobile. <strong>Enter "123456" for instant sandbox pass.</strong></span>
               </div>
             </div>
+
+            {otpError && (
+              <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'left', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                {otpError}
+              </div>
+            )}
 
             {/* Countdown Timer Row */}
             <div style={{

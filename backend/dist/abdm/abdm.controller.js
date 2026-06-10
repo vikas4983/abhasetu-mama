@@ -209,6 +209,12 @@ let AbdmController = class AbdmController {
             });
         }
         else if (loginHint === 'mobile') {
+            if (body.currentMobile && loginId === body.currentMobile) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                    status: 'error',
+                    message: 'New mobile number cannot be the same as your current mobile number.'
+                });
+            }
             const txnId = getCookie(req.headers.cookie, 'txn_id') || body.txnId || '';
             const result = await this.abdmService.requestMobileOtp(loginId, txnId, context);
             if (result.status === 'error') {
@@ -349,7 +355,13 @@ let AbdmController = class AbdmController {
         return res.send(Buffer.from(result.data));
     }
     async requestEmailVerificationLink(body, req, res) {
-        const { email } = body;
+        const { email, currentEmail } = body;
+        if (currentEmail && email === currentEmail) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'New email address cannot be the same as your current email address.'
+            });
+        }
         const xToken = getCookie(req.headers.cookie, 'x_token');
         if (!xToken) {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json({
@@ -413,6 +425,13 @@ let AbdmController = class AbdmController {
         const { event, status, details } = body;
         await this.abdmService.addLog(event, status, details);
         return { status: 'success' };
+    }
+    async addTransaction(body) {
+        return this.abdmService.addTransaction(body);
+    }
+    async getTransactions() {
+        const transactions = await this.abdmService.getTransactions();
+        return { status: 'success', transactions };
     }
     async getProducts() {
         const products = await this.abdmService.getProducts();
@@ -683,6 +702,20 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "addLog", null);
+__decorate([
+    (0, common_1.Post)('appointments/transaction'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "addTransaction", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)('admin/transactions'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "getTransactions", null);
 __decorate([
     (0, common_1.Get)('pharmacy/products'),
     __metadata("design:type", Function),

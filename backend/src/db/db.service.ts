@@ -160,6 +160,22 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         hfr_id VARCHAR(50) NOT NULL,
         certificate_id VARCHAR(50) NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS transactions (
+        id VARCHAR(100) PRIMARY KEY,
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        user_mobile_masked VARCHAR(50),
+        user_aadhaar_masked VARCHAR(50),
+        user_abha_masked VARCHAR(100),
+        appointment_type VARCHAR(100) NOT NULL,
+        doctor_name VARCHAR(255) NOT NULL,
+        hospital_name VARCHAR(255),
+        fee NUMERIC NOT NULL,
+        platform_fee NUMERIC NOT NULL,
+        total_fee NUMERIC NOT NULL,
+        payment_method VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL
+      );
     `;
     await this.pool.query(queryText);
   }

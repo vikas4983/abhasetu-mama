@@ -106,6 +106,41 @@ export class AbdmService {
     );
   }
 
+  async getTransactions() {
+    const res = await this.db.query('SELECT id, timestamp, user_mobile_masked, user_aadhaar_masked, user_abha_masked, appointment_type, doctor_name, hospital_name, fee, platform_fee, total_fee, payment_method, status FROM transactions ORDER BY timestamp DESC');
+    return res.rows;
+  }
+
+  async addTransaction(txn: any) {
+    const id = txn.id || `TXN-SETU-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    await this.db.query(
+      `INSERT INTO transactions (id, timestamp, user_mobile_masked, user_aadhaar_masked, user_abha_masked, appointment_type, doctor_name, hospital_name, fee, platform_fee, total_fee, payment_method, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        id,
+        new Date().toISOString(),
+        txn.userMobileMasked,
+        txn.userAadhaarMasked || 'N/A',
+        txn.userAbhaMasked || 'N/A',
+        txn.appointmentType,
+        txn.doctorName,
+        txn.hospitalName || 'N/A',
+        txn.fee,
+        txn.platformFee || 99,
+        txn.totalFee || (Number(txn.fee) + 99),
+        txn.paymentMethod,
+        txn.status || 'SUCCESS'
+      ]
+    );
+    // Write an audit log as well
+    await this.addLog(
+      'Transaction Settled',
+      txn.status || 'SUCCESS',
+      `Revenue of Rs. ${txn.totalFee || (Number(txn.fee) + 99)} collected. Doctor: ${txn.doctorName}. Patient: ${txn.userAbhaMasked || txn.userMobileMasked}`
+    );
+    return { status: 'success', id };
+  }
+
   /**
    * @description Writes an audit log entry with detailed metadata, ensuring sensitive PHI fields like Aadhaar, mobile, and email are masked.
    * @param {string} event - The name of the event being logged.

@@ -208,6 +208,12 @@ export class AbdmController {
         message: result.message || 'OTP sent to Aadhaar-linked mobile.'
       });
     } else if (loginHint === 'mobile') {
+      if (body.currentMobile && loginId === body.currentMobile) {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          status: 'error',
+          message: 'New mobile number cannot be the same as your current mobile number.'
+        });
+      }
       const txnId = getCookie(req.headers.cookie, 'txn_id') || body.txnId || '';
       const result = await this.abdmService.requestMobileOtp(loginId, txnId, context);
       if (result.status === 'error') {
@@ -395,7 +401,13 @@ export class AbdmController {
    */
   @Post('v3/profile/account/request/emailVerificationLink')
   async requestEmailVerificationLink(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
-    const { email } = body;
+    const { email, currentEmail } = body;
+    if (currentEmail && email === currentEmail) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'New email address cannot be the same as your current email address.'
+      });
+    }
     const xToken = getCookie(req.headers.cookie, 'x_token');
 
     if (!xToken) {
@@ -486,6 +498,18 @@ export class AbdmController {
     const { event, status, details } = body;
     await this.abdmService.addLog(event, status, details);
     return { status: 'success' };
+  }
+
+  @Post('appointments/transaction')
+  async addTransaction(@Body() body: any) {
+    return this.abdmService.addTransaction(body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/transactions')
+  async getTransactions() {
+    const transactions = await this.abdmService.getTransactions();
+    return { status: 'success', transactions };
   }
 
   // --- PHARMACY PRODUCTS CATALOG CRUD ---

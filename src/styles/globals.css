@@ -7018,5 +7018,16 @@ body.theme-light .medicine-search-input:focus {
   }
 }
 
+/* Shake animation for errors in modals */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-6px); }
+  30%, 60%, 90% { transform: translateX(6px); }
+}
+.shake-modal {
+  animation: shake 0.5s ease-in-out !important;
+}
+
+
 
 

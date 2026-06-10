@@ -4,6 +4,7 @@
 /node_modules
 /backend/node_modules
 /backend/dist
+/backend/coverage
 /.pnp
 .pnp.*
 .yarn/*

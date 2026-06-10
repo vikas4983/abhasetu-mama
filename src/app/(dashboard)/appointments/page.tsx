@@ -82,8 +82,19 @@ export default function AppointmentsPage() {
   const [linkingTxnId, setLinkingTxnId] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [linkOtp, setLinkOtp] = useState('');
-  const [linkingSuccess, setLinkingSuccess] = useState(false);
   const [linkedReference, setLinkedReference] = useState('');
+  const [linkingSuccess, setLinkingSuccess] = useState(false);
+  
+  // Booking modal states
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingStep, setBookingStep] = useState<1 | 2>(1);
+  const [bookingError, setBookingError] = useState('');
+  const [shakeBooking, setShakeBooking] = useState(false);
+
+  const triggerBookingShake = () => {
+    setShakeBooking(true);
+    setTimeout(() => setShakeBooking(false), 500);
+  };
 
   // Telehealth consultation room states
   const [joinedVideoConsult, setJoinedVideoConsult] = useState(false);
@@ -238,21 +249,69 @@ export default function AppointmentsPage() {
     setSymptoms('');
   };
 
-  // Checkout Payment
-  const handlePaymentCheckout = (e: React.FormEvent) => {
+  // Checkout Payment (Modal Step 2 Confirm)
+  const handlePaymentCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDoctor) return;
-    if (!symptoms.trim()) {
-      showToast(t('Please describe your active symptoms first.'));
-      return;
+
+    try {
+      const maskValue = (str: string, keep = 4) => {
+        if (!str) return 'N/A';
+        const s = str.trim();
+        if (s.length <= keep) return s;
+        return '*'.repeat(s.length - keep) + s.slice(-keep);
+      };
+
+      const maskedMobile = maskValue(currentUser?.abhaProfile?.mobile || currentUser?.mobile || '');
+      const maskedAadhaar = maskValue(currentUser?.abhaProfile?.aadhaar || '');
+      const maskedAbha = currentUser?.abhaProfile?.preferredAddress || currentUser?.abhaProfile?.abhaAddress || 'N/A';
+
+      const txnBody = {
+        userMobileMasked: maskedMobile,
+        userAadhaarMasked: maskedAadhaar,
+        userAbhaMasked: maskedAbha,
+        appointmentType: consultMode,
+        doctorName: selectedDoctor.name,
+        hospitalName: selectedDoctor.hospitalName,
+        fee: getDoctorFee(),
+        platformFee: 99,
+        totalFee: getDoctorFee() + 99,
+        paymentMethod: paymentMethod,
+        status: 'SUCCESS'
+      };
+
+      const res = await fetch('/api/abdm/appointments/transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(txnBody)
+      });
+      const data = await res.json();
+
+      if (res.ok && data.status === 'success') {
+        const tokenNum = `SETU-TKN-${Math.floor(100 + Math.random() * 900)}`;
+        setGeneratedToken(tokenNum);
+        setIsPaymentSettled(true);
+        setShowBookingModal(false);
+
+        // Save appointment to context
+        addAppointment({
+          title: `${consultMode} - ${symptoms || 'General Checkup'}`,
+          doctor: selectedDoctor.name,
+          meta: `${selectedDate}, ${selectedTime}`,
+          status: "Confirmed",
+          token: tokenNum
+        });
+
+        logSecurityEvent("OPD Payment Settled", `Payment settled for ${selectedDoctor.name}. Total: Rs ${getDoctorFee() + 99} via ${paymentMethod.toUpperCase()}`);
+        showToast(t('Payment settled successfully! ABDM linking is unlocked.'));
+      } else {
+        setBookingError(data.message || t('Transaction failed on gateway.'));
+        triggerBookingShake();
+      }
+    } catch (err: any) {
+      setBookingError(err.message || t('Network error completing payment.'));
+      triggerBookingShake();
     }
-
-    const tokenNum = `SETU-TKN-${Math.floor(100 + Math.random() * 900)}`;
-    setGeneratedToken(tokenNum);
-    setIsPaymentSettled(true);
-
-    logSecurityEvent("OPD Payment Settled", `Payment settled for ${selectedDoctor.name}. Total: Rs ${getDoctorFee() + 99} via ${paymentMethod.toUpperCase()}`);
-    showToast(t('Payment settled successfully! ABHA Linking is now unlocked.'));
   };
 
   // ABDM Care Context Discovery
@@ -401,6 +460,326 @@ export default function AppointmentsPage() {
       }
       setChatLogs(prev => [...prev, { sender: 'doctor', text: docResponse, time: 'Just now' }]);
     }, 1500);
+  };
+
+  const renderActiveConsultation = () => {
+    if (!selectedDoctor || !isPaymentSettled) return null;
+
+    if (joinedVideoConsult) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+          {/* Active consult panel header */}
+          <div style={{ background: 'color-mix(in srgb, var(--accent-teal) 6%, var(--bg-card))', padding: '16px', border: '1.5px solid var(--accent-teal)', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Consultation Session')}</h4>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('Doctor:')} <strong>{selectedDoctor.name}</strong> | {t('Token:')} <strong>{generatedToken}</strong></span>
+              </div>
+              <button 
+                onClick={() => setJoinedVideoConsult(false)} 
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '10.5px',
+                  fontWeight: 'bold',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >
+                {t('Close Room')}
+              </button>
+            </div>
+          </div>
+
+          {/* Video Camera Frame Mock */}
+          <div style={{ position: 'relative', width: '100%', height: '240px', background: '#03090e', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {selectedDoctor.photo ? (
+              <img 
+                src={selectedDoctor.photo} 
+                alt="Doctor Video" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Stethoscope style={{ width: '48px', height: '48px', margin: '0 auto 8px', color: 'var(--accent-teal)' }} />
+                <span>{t('Establishing Encrypted Video Tunnel...')}</span>
+              </div>
+            )}
+
+            {/* Picture-in-picture float */}
+            <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '70px', height: '95px', background: '#09141d', borderRadius: '8px', border: '1px solid var(--accent-teal)', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <User style={{ width: '20px', height: '20px', color: 'var(--text-muted)' }} />
+              <span style={{ fontSize: '8px', color: 'var(--text-muted)', position: 'absolute', bottom: '6px' }}>{t('You')}</span>
+            </div>
+
+            <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.6)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '4px 8px', fontSize: '9px', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', display: 'inline-block' }}></span>
+              {t('LIVE')}
+            </div>
+          </div>
+
+          {/* Consultation Chat Desk */}
+          <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', height: '280px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h4 style={{ margin: 0, fontSize: '12.5px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Sparkles style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+              {t('Telehealth Chat Box')}
+            </h4>
+            
+            {/* Messages body */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }} className="scroll-container">
+              {chatLogs.map((log, idx) => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    alignSelf: log.sender === 'patient' ? 'flex-end' : 'flex-start',
+                    background: log.sender === 'patient' ? 'var(--bg-secondary)' : 'color-mix(in srgb, var(--accent-teal) 7%, transparent)',
+                    border: '1px solid var(--border-color)',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    maxWidth: '85%',
+                    fontSize: '11.5px'
+                  }}
+                >
+                  <p style={{ margin: 0, color: 'var(--text-primary)', lineHeight: 1.4 }}>{log.text}</p>
+                  <span style={{ fontSize: '8px', color: 'var(--text-muted)', display: 'block', textAlign: 'right', marginTop: '2px' }}>{log.time}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Form input */}
+            <form onSubmit={handleSendChatMessage} style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                placeholder={t('Type symptom detail or query...')}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+              />
+              <button type="submit" className="primary-action" style={{ minHeight: '34px', padding: '0 12px' }}>
+                <Send style={{ width: '14px', height: '14px' }} />
+              </button>
+            </form>
+          </div>
+
+          {/* Prescription trigger */}
+          <button 
+            onClick={() => setShowPrescription(!showPrescription)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            <FileText style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} /> 
+            {showPrescription ? t('Hide Signed Prescription Bundle') : t('View Interoperable FHIR Prescription')}
+          </button>
+
+          {/* Digitally Signed FHIR Prescription Bundle */}
+          {showPrescription && (
+            <div className="route-card" style={{ padding: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>
+                <h4 style={{ margin: 0, fontSize: '12px', color: 'var(--accent-teal)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Award style={{ width: '14px', height: '14px' }} /> 
+                  {t('MedicationRequest bundle (FHIR)')}
+                </h4>
+                <span style={{ fontSize: '8px', background: 'var(--success)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>JWS SIGNED</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', fontSize: '11px', lineHeight: '1.5' }}>
+                <div>
+                  <h5 style={{ margin: '0 0 4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', color: 'var(--text-muted)' }}>{t('Practitioner Meta')}</h5>
+                  <div>{t('Name:')} <strong>{selectedDoctor.name}</strong></div>
+                  <div>{t('License:')} <strong>{selectedDoctor.certificateId}</strong></div>
+                  <div>{t('HFR Node ID:')} <strong>{selectedDoctor.hfrId}</strong></div>
+                </div>
+                <div>
+                  <h5 style={{ margin: '0 0 4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', color: 'var(--text-muted)' }}>{t('Rx Medication Details')}</h5>
+                  <div>{t('Medication:')} <strong>Paracetamol 650mg tablets</strong></div>
+                  <div>{t('Dosage:')} <strong>1 tab twice daily after meals</strong></div>
+                  <div>{t('Duration:')} <strong>3 Days (Active)</strong></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+        
+        {/* Token issued ticket preview */}
+        <div style={{ background: 'var(--bg-secondary)', border: '2px dashed var(--accent-teal)', borderRadius: '16px', padding: '20px', textAlign: 'center', position: 'relative' }}>
+          <span style={{ fontSize: '9px', fontWeight: '800', color: 'var(--accent-teal)', letterSpacing: '0.5px' }}>{t('NATIONAL HEALTH AUTHORITY')}</span>
+          <h4 style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('OPD APPOINTMENT TOKEN')}</h4>
+          
+          <div style={{ margin: '12px 0', fontFamily: 'monospace', fontSize: '30px', fontWeight: '950', color: 'var(--accent-teal)', letterSpacing: '1px' }}>
+            {generatedToken}
+          </div>
+          
+          <span style={{ display: 'inline-block', fontSize: '10px', background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', padding: '4px 12px', borderRadius: '999px', fontWeight: '800', marginBottom: '8px' }}>
+            ✔ {t('CHECKOUT SETTLED')}
+          </span>
+
+          <div style={{ borderTop: '1px dotted var(--border-color)', paddingTop: '12px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', maxWidth: '280px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Practitioner:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDoctor.name}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Schedule:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDate}, {selectedTime}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Clinic node:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDoctor.hospitalName}</strong></div>
+          </div>
+        </div>
+
+        {/* ABHA Link Card */}
+        <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <h4 style={{ margin: 0, fontSize: '12.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ShieldCheck style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
+            {t('ABHA Integration Binds')}
+          </h4>
+
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+            {t('Link this token check-in directly under your ABHA record index to securely interlink EHR health data.')}
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="form-group">
+              <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('Patient Registered Name')}</label>
+              <input 
+                type="text" 
+                value={patientName} 
+                onChange={(e) => setPatientName(e.target.value)} 
+                className="text-input-field"
+                disabled={linkingSuccess}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('ABHA Address (Health ID)')}</label>
+              <input 
+                type="text" 
+                value={abhaAddress} 
+                onChange={(e) => setAbhaAddress(e.target.value)} 
+                className="text-input-field"
+                disabled={linkingSuccess}
+              />
+            </div>
+          </div>
+
+          {!otpSent ? (
+            <button
+              onClick={handleVerifyAndDiscover}
+              className="primary-action"
+              style={{ minHeight: '38px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              disabled={isLinking}
+            >
+              {isLinking ? (
+                <>
+                  <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
+                  <span>{t('Discovering Patient Contexts...')}</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck style={{ width: '14px', height: '14px' }} />
+                  <span>{t('Verify & Discover Care Contexts')}</span>
+                </>
+              )}
+            </button>
+          ) : !linkingSuccess ? (
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>{t('Enter NHA Verification OTP')}</span>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>({t('Enter 123456 for simulator check')})</span>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  type="text" 
+                  value={linkOtp} 
+                  onChange={(e) => setLinkOtp(e.target.value)} 
+                  placeholder="123456"
+                  maxLength={6}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', textAlign: 'center', fontWeight: 'bold', letterSpacing: '6px' }}
+                />
+                <button
+                  onClick={handleConfirmLink}
+                  className="primary-action"
+                  style={{ minHeight: '36px', padding: '0 16px' }}
+                  disabled={isLinking}
+                >
+                  {isLinking ? <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} /> : t('Confirm')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: 'color-mix(in srgb, var(--success) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <CheckCircle style={{ color: 'var(--success)', width: '20px', height: '20px', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Care Context Registered!')}</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>Ref: {linkedReference}</div>
+              </div>
+            </div>
+          )}
+
+          {linkingSuccess && !joinedVideoConsult && (
+            <button
+              onClick={() => {
+                setJoinedVideoConsult(true);
+                logSecurityEvent("Joined Tele-health Room", `Patient joined virtual tele-health consult workspace for Token: ${generatedToken}`);
+              }}
+              className="primary-action"
+              style={{
+                width: '100%',
+                minHeight: '42px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: 'var(--accent-teal)',
+                color: '#ffffff',
+                border: '0',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: '12.5px',
+                fontWeight: 'bold'
+              }}
+            >
+              <Video style={{ width: '16px', height: '16px' }} /> 
+              {t('Join Consultation Room')}
+            </button>
+          )}
+        </div>
+
+        {/* Transaction logs console */}
+        {linkingLogs.length > 0 && (
+          <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h5 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Smartphone style={{ width: '14px', height: '14px' }} /> 
+              {t('Gateway Transaction Logs')}
+            </h5>
+            
+            <div className="logs-console-window">
+              {linkingLogs.map((log, idx) => (
+                <div key={idx} style={{ color: log.startsWith('[ERROR]') ? 'var(--danger)' : log.includes('Verification Successful') ? 'var(--success)' : 'var(--accent-teal)' }}>
+                  {log}
+                </div>
+              ))}
+              <div ref={consoleEndRef}></div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
   };
 
   return (
@@ -700,6 +1079,21 @@ export default function AppointmentsPage() {
           flex-direction: column;
           gap: 4px;
         }
+
+        .mobile-only-active-consult {
+          display: none;
+        }
+        .desktop-only-active-consult {
+          display: block;
+        }
+        @media (max-width: 992px) {
+          .mobile-only-active-consult {
+            display: block;
+          }
+          .desktop-only-active-consult {
+            display: none;
+          }
+        }
       ` }} />
 
       {/* Hero Section */}
@@ -720,6 +1114,13 @@ export default function AppointmentsPage() {
         
         {/* Left Column: Doctor Directory, Search, QR Checkin & Category Filters */}
         <section className="left-directory-pane">
+
+          {/* Mobile-Only Active Consult Node displayed on top */}
+          {selectedDoctor && isPaymentSettled && (
+            <div className="mobile-only-active-consult" style={{ width: '100%', marginBottom: '20px' }}>
+              {renderActiveConsultation()}
+            </div>
+          )}
 
           {/* Prominent Directly Scan QR check-in card */}
           <article className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -826,40 +1227,45 @@ export default function AppointmentsPage() {
                 </button>
               </div>
 
-              {/* Sub-system selection cards (Dynamic grid listing 2-3 cards on mobile, scaling up on desktop) */}
+              {/* Sub-system selection dropdown */}
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
-                <p style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                <label htmlFor="medical-system-dropdown" style={{ display: 'block', margin: '0 0 8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
                   {t('Filter by Specific Medical System')}
-                </p>
+                </label>
                 
-                <div className="medical-system-grid">
+                <select
+                  id="medical-system-dropdown"
+                  value={selectedSystem}
+                  onChange={(e) => {
+                    setSelectedSystem(e.target.value);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: '1.5px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 'bold',
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <option value="">{t('All Medical Systems / सभी चिकित्सा प्रणालियाँ')}</option>
                   {medicalSystems
                     .filter(sys => {
                       if (!selectedMajorCategory) return true;
                       const isModern = ['Allopathy', 'Dental Care', 'Dentist', 'Physiotherapy', 'Mental Health & Psychology'].includes(sys.id);
                       return selectedMajorCategory === 'modern' ? isModern : !isModern;
                     })
-                    .map(sys => {
-                      const isActive = selectedSystem === sys.id;
-                      const docCount = getSystemDoctorCount(sys.id);
-                      
-                      return (
-                        <button
-                          key={sys.id}
-                          onClick={() => setSelectedSystem(isActive ? '' : sys.id)}
-                          className={`medical-system-card ${isActive ? 'active' : ''}`}
-                        >
-                          {/* Circular bubble icon */}
-                          <div className="emoji-bubble">
-                            <span>{sys.emoji}</span>
-                          </div>
-
-                          <div style={{ fontSize: '12px', fontWeight: '850', color: 'var(--text-primary)', lineHeight: '1.25' }}>{t(sys.name)}</div>
-                          <span style={{ fontSize: '10.5px', color: 'var(--accent-cyan)', fontWeight: 'bold', marginTop: '4px' }}>{docCount} {t('Doctors')}</span>
-                        </button>
-                      );
-                    })}
-                </div>
+                    .map(sys => (
+                      <option key={sys.id} value={sys.id}>
+                        {sys.emoji} {t(sys.name)} ({getSystemDoctorCount(sys.id)} {t('Doctors')})
+                      </option>
+                    ))}
+                </select>
               </div>
 
             </div>
@@ -942,9 +1348,12 @@ export default function AppointmentsPage() {
                               color: isSelected ? '#ffffff' : 'var(--text-primary)',
                               transition: 'all 0.2s'
                             }}
-                            onClick={(e) => {
+                           onClick={(e) => {
                               e.stopPropagation();
                               handleSelectDoctor(doc);
+                              setBookingStep(1);
+                              setBookingError('');
+                              setShowBookingModal(true);
                             }}
                           >
                             {isSelected ? t('Selected') : t('Select & Book')}
@@ -1028,169 +1437,9 @@ export default function AppointmentsPage() {
                 </article>
               </motion.div>
 
-            ) : joinedVideoConsult ? (
-              
-              /* State B: Active Consultation Room */
-              <motion.div
-                key="consult-room"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}
-              >
-                {/* Active consult panel header */}
-                <div style={{ background: 'color-mix(in srgb, var(--accent-teal) 6%, var(--bg-card))', padding: '16px', border: '1.5px solid var(--accent-teal)', borderRadius: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Consultation Session')}</h4>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('Doctor:')} <strong>{selectedDoctor.name}</strong> | {t('Token:')} <strong>{generatedToken}</strong></span>
-                    </div>
-                    <button 
-                      onClick={() => setJoinedVideoConsult(false)} 
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: '10.5px',
-                        fontWeight: 'bold',
-                        background: 'var(--bg-secondary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {t('Close Room')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Video Camera Frame Mock */}
-                <div style={{ position: 'relative', width: '100%', height: '240px', background: '#03090e', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {selectedDoctor.photo ? (
-                    <img 
-                      src={selectedDoctor.photo} 
-                      alt="Doctor Video" 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      <Stethoscope style={{ width: '48px', height: '48px', margin: '0 auto 8px', color: 'var(--accent-teal)' }} />
-                      <span>{t('Establishing Encrypted Video Tunnel...')}</span>
-                    </div>
-                  )}
-
-                  {/* Picture-in-picture float */}
-                  <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '70px', height: '95px', background: '#09141d', borderRadius: '8px', border: '1px solid var(--accent-teal)', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <User style={{ width: '20px', height: '20px', color: 'var(--text-muted)' }} />
-                    <span style={{ fontSize: '8px', color: 'var(--text-muted)', position: 'absolute', bottom: '6px' }}>{t('You')}</span>
-                  </div>
-
-                  <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.6)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '4px 8px', fontSize: '9px', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', display: 'inline-block' }}></span>
-                    {t('LIVE')}
-                  </div>
-                </div>
-
-                {/* Consultation Chat Desk */}
-                <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', height: '280px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '12.5px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Sparkles style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
-                    {t('Telehealth Chat Box')}
-                  </h4>
-                  
-                  {/* Messages body */}
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }} className="scroll-container">
-                    {chatLogs.map((log, idx) => (
-                      <div 
-                        key={idx} 
-                        style={{ 
-                          alignSelf: log.sender === 'patient' ? 'flex-end' : 'flex-start',
-                          background: log.sender === 'patient' ? 'var(--bg-secondary)' : 'color-mix(in srgb, var(--accent-teal) 7%, transparent)',
-                          border: '1px solid var(--border-color)',
-                          padding: '8px 12px',
-                          borderRadius: '10px',
-                          maxWidth: '85%',
-                          fontSize: '11.5px'
-                        }}
-                      >
-                        <p style={{ margin: 0, color: 'var(--text-primary)', lineHeight: 1.4 }}>{log.text}</p>
-                        <span style={{ fontSize: '8px', color: 'var(--text-muted)', display: 'block', textAlign: 'right', marginTop: '2px' }}>{log.time}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Form input */}
-                  <form onSubmit={handleSendChatMessage} style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      placeholder={t('Type symptom detail or query...')}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
-                    />
-                    <button type="submit" className="primary-action" style={{ minHeight: '34px', padding: '0 12px' }}>
-                      <Send style={{ width: '14px', height: '14px' }} />
-                    </button>
-                  </form>
-                </div>
-
-                {/* Prescription trigger */}
-                <button 
-                  onClick={() => setShowPrescription(!showPrescription)}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <FileText style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} /> 
-                  {showPrescription ? t('Hide Signed Prescription Bundle') : t('View Interoperable FHIR Prescription')}
-                </button>
-
-                {/* Digitally Signed FHIR Prescription Bundle */}
-                {showPrescription && (
-                  <div className="route-card" style={{ padding: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>
-                      <h4 style={{ margin: 0, fontSize: '12px', color: 'var(--accent-teal)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Award style={{ width: '14px', height: '14px' }} /> 
-                        {t('MedicationRequest bundle (FHIR)')}
-                      </h4>
-                      <span style={{ fontSize: '8px', background: 'var(--success)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>JWS SIGNED</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', fontSize: '11px', lineHeight: '1.5' }}>
-                      <div>
-                        <h5 style={{ margin: '0 0 4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', color: 'var(--text-muted)' }}>{t('Practitioner Meta')}</h5>
-                        <div>{t('Name:')} <strong>{selectedDoctor.name}</strong></div>
-                        <div>{t('License:')} <strong>{selectedDoctor.certificateId}</strong></div>
-                        <div>{t('HFR Node ID:')} <strong>{selectedDoctor.hfrId}</strong></div>
-                      </div>
-                      <div>
-                        <h5 style={{ margin: '0 0 4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', color: 'var(--text-muted)' }}>{t('Rx Medication Details')}</h5>
-                        <div>{t('Medication:')} <strong>Paracetamol 650mg tablets</strong></div>
-                        <div>{t('Dosage:')} <strong>1 tab twice daily after meals</strong></div>
-                        <div>{t('Duration:')} <strong>3 Days (Active)</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-
             ) : (
-              
-              /* State C: Selected Doctor Booking form */
               <motion.div
-                key="booking-form"
+                key="booking-flow"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
@@ -1214,7 +1463,10 @@ export default function AppointmentsPage() {
                       </div>
                     </div>
                     <button 
-                      onClick={() => setSelectedDoctor(null)}
+                      onClick={() => {
+                        setSelectedDoctor(null);
+                        setJoinedVideoConsult(false);
+                      }}
                       style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
                       aria-label="Deselect doctor"
                     >
@@ -1223,334 +1475,38 @@ export default function AppointmentsPage() {
                   </div>
                 </div>
 
-                {/* Sub-pane flow A: Schedule & Payment checkout */}
                 {!isPaymentSettled ? (
-                  <form onSubmit={handlePaymentCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      
-                      <h4 style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800' }}>{t('Configure Appointment')}</h4>
-
-                      {/* Date Picker */}
-                      <div className="form-group">
-                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Select Date')}</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {dates.map(d => (
-                            <button
-                              key={d}
-                              type="button"
-                              onClick={() => setSelectedDate(d)}
-                              style={{
-                                flex: 1,
-                                padding: '8px 0',
-                                borderRadius: '8px',
-                                fontSize: '11.5px',
-                                fontWeight: 'bold',
-                                border: '1px solid var(--border-color)',
-                                cursor: 'pointer',
-                                background: selectedDate === d ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
-                                borderColor: selectedDate === d ? 'var(--accent-teal)' : 'var(--border-color)',
-                                color: selectedDate === d ? 'var(--accent-teal)' : 'var(--text-primary)'
-                              }}
-                            >
-                              {d}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Time slot picker */}
-                      <div className="form-group">
-                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Select Time Slot')}</label>
-                        <div className="slots-grid">
-                          {times.map(tVal => (
-                            <button
-                              key={tVal}
-                              type="button"
-                              onClick={() => setSelectedTime(tVal)}
-                              style={{
-                                padding: '8px 0',
-                                borderRadius: '8px',
-                                fontSize: '10.5px',
-                                fontWeight: 'bold',
-                                border: '1px solid var(--border-color)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                background: selectedTime === tVal ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
-                                borderColor: selectedTime === tVal ? 'var(--accent-teal)' : 'var(--border-color)',
-                                color: selectedTime === tVal ? 'var(--accent-teal)' : 'var(--text-primary)'
-                              }}
-                            >
-                              <Clock style={{ width: '11px', height: '11px', flexShrink: 0 }} /> {tVal}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Consult Mode */}
-                      <div className="form-group">
-                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Consultation Mode')}</label>
-                        <select 
-                          value={consultMode} 
-                          onChange={(e) => setConsultMode(e.target.value)}
-                          className="booking-select-field"
-                        >
-                          <option value="Video Call">{t('Video Consultation (Virtual)')}</option>
-                          <option value="Audio Call">{t('Audio Call Consultation')}</option>
-                          <option value="Clinic OPD Visit">{t('In-Clinic OPD Appointment')}</option>
-                        </select>
-                      </div>
-
-                      {/* Symptom Input */}
-                      <div className="form-group">
-                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Outline active symptoms')}</label>
-                        <input
-                          type="text"
-                          required
-                          value={symptoms}
-                          onChange={(e) => setSymptoms(e.target.value)}
-                          placeholder={t('e.g. fatigue, sore throat since yesterday')}
-                          className="text-input-field"
-                        />
-                      </div>
-
+                  /* Checkout Pending Card */
+                  <div className="route-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', textAlign: 'center' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-cyan) 10%, transparent)', color: 'var(--accent-cyan)', display: 'grid', placeItems: 'center' }}>
+                      <Clock style={{ width: '24px', height: '24px' }} />
                     </div>
-
-                    {/* Payment checkout card */}
-                    <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      
-                      <h4 style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800' }}>{t('Settlement Method')}</h4>
-                      
-                      {/* Price breakup */}
-                      <div className="breakup-container">
-                        <div className="breakup-row">
-                          <span>{t('Consult fee')}</span>
-                          <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Rs. {getDoctorFee()}</span>
-                        </div>
-                        <div className="breakup-row">
-                          <span>{t('ABHA linkage fee')}</span>
-                          <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Rs. 99</span>
-                        </div>
-                        <div className="breakup-total">
-                          <span>{t('Total Checkout')}</span>
-                          <span style={{ color: 'var(--accent-teal)' }}>Rs. {getDoctorFee() + 99}</span>
-                        </div>
-                      </div>
-
-                      {/* Radio payment methods */}
-                      <div className="radio-select-group">
-                        <label className="radio-option-card">
-                          <input 
-                            type="radio" 
-                            name="payOption" 
-                            value="upi" 
-                            checked={paymentMethod === 'upi'} 
-                            onChange={() => setPaymentMethod('upi')} 
-                          />
-                          <span>{t('UPI (Instant Node Settlement)')}</span>
-                        </label>
-                        <label className="radio-option-card">
-                          <input 
-                            type="radio" 
-                            name="payOption" 
-                            value="card" 
-                            checked={paymentMethod === 'card'} 
-                            onChange={() => setPaymentMethod('card')} 
-                          />
-                          <span>{t('Credit / Debit Card')}</span>
-                        </label>
-                        <label className="radio-option-card">
-                          <input 
-                            type="radio" 
-                            name="payOption" 
-                            value="wallet" 
-                            checked={paymentMethod === 'wallet'} 
-                            onChange={() => setPaymentMethod('wallet')} 
-                          />
-                          <span>{t('ABHA Health Wallet Balance')}</span>
-                        </label>
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="primary-action"
-                        style={{ minHeight: '44px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                      >
-                        <CreditCard style={{ width: '16px', height: '16px' }} /> 
-                        {t('Pay & Issue OPD Token')}
-                      </button>
-
-                      <div style={{ textAlign: 'center', fontSize: '10px', color: 'var(--text-muted)' }}>
-                        🛡️ {t('Secure interoperable Beckn checkout gateway.')}
-                      </div>
-
-                    </div>
-                  </form>
-                ) : (
-                  
-                  /* Sub-pane flow B: ABHA Profile Linking */
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
-                    
-                    {/* Token issued ticket preview */}
-                    <div style={{ background: 'var(--bg-secondary)', border: '2px dashed var(--accent-teal)', borderRadius: '16px', padding: '20px', textAlign: 'center', position: 'relative' }}>
-                      <span style={{ fontSize: '9px', fontWeight: '800', color: 'var(--accent-teal)', letterSpacing: '0.5px' }}>{t('NATIONAL HEALTH AUTHORITY')}</span>
-                      <h4 style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('OPD APPOINTMENT TOKEN')}</h4>
-                      
-                      <div style={{ margin: '12px 0', fontFamily: 'monospace', fontSize: '30px', fontWeight: '950', color: 'var(--accent-teal)', letterSpacing: '1px' }}>
-                        {generatedToken}
-                      </div>
-                      
-                      <span style={{ display: 'inline-block', fontSize: '10px', background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', padding: '4px 12px', borderRadius: '999px', fontWeight: '800', marginBottom: '8px' }}>
-                        ✔ {t('CHECKOUT SETTLED')}
-                      </span>
-
-                      <div style={{ borderTop: '1px dotted var(--border-color)', paddingTop: '12px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', maxWidth: '280px', margin: '0 auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Practitioner:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDoctor.name}</strong></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Schedule:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDate}, {selectedTime}</strong></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Clinic node:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDoctor.hospitalName}</strong></div>
-                      </div>
-                    </div>
-
-                    {/* ABHA Link Card */}
-                    <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <h4 style={{ margin: 0, fontSize: '12.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <ShieldCheck style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
-                        {t('ABHA Integration Binds')}
-                      </h4>
-
-                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
-                        {t('Link this token check-in directly under your ABHA record index to securely interlink EHR health data.')}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800' }}>{t('Checkout Pending')}</h4>
+                      <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '12.5px', maxWidth: '280px', lineHeight: '1.5' }}>
+                        {t('You have selected')} <strong>{selectedDoctor.name}</strong>. {t('Please complete the 2-step appointment booking & payment checkout in the modal.')}
                       </p>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div className="form-group">
-                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('Patient Registered Name')}</label>
-                          <input 
-                            type="text" 
-                            value={patientName} 
-                            onChange={(e) => setPatientName(e.target.value)} 
-                            className="text-input-field"
-                            disabled={linkingSuccess}
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('ABHA Address (Health ID)')}</label>
-                          <input 
-                            type="text" 
-                            value={abhaAddress} 
-                            onChange={(e) => setAbhaAddress(e.target.value)} 
-                            className="text-input-field"
-                            disabled={linkingSuccess}
-                          />
-                        </div>
-                      </div>
-
-                      {!otpSent ? (
-                        <button
-                          onClick={handleVerifyAndDiscover}
-                          className="primary-action"
-                          style={{ minHeight: '38px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                          disabled={isLinking}
-                        >
-                          {isLinking ? (
-                            <>
-                              <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
-                              <span>{t('Discovering Patient Contexts...')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <ShieldCheck style={{ width: '14px', height: '14px' }} />
-                              <span>{t('Verify & Discover Care Contexts')}</span>
-                            </>
-                          )}
-                        </button>
-                      ) : !linkingSuccess ? (
-                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>{t('Enter NHA Verification OTP')}</span>
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>({t('Enter 123456 for simulator check')})</span>
-                          </div>
-                          
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <input 
-                              type="text" 
-                              value={linkOtp} 
-                              onChange={(e) => setLinkOtp(e.target.value)} 
-                              placeholder="123456"
-                              maxLength={6}
-                              style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', textAlign: 'center', fontWeight: 'bold', letterSpacing: '6px' }}
-                            />
-                            <button
-                              onClick={handleConfirmLink}
-                              className="primary-action"
-                              style={{ minHeight: '36px', padding: '0 16px' }}
-                              disabled={isLinking}
-                            >
-                              {isLinking ? <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} /> : t('Confirm')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ background: 'color-mix(in srgb, var(--success) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <CheckCircle style={{ color: 'var(--success)', width: '20px', height: '20px', flexShrink: 0 }} />
-                          <div>
-                            <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Care Context Registered!')}</div>
-                            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>Ref: {linkedReference}</div>
-                          </div>
-                        </div>
-                      )}
-
-                      {linkingSuccess && (
-                        <button
-                          onClick={() => setJoinedVideoConsult(true)}
-                          className="primary-action"
-                          style={{
-                            width: '100%',
-                            minHeight: '42px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            background: 'var(--accent-teal)',
-                            color: '#ffffff',
-                            border: '0',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            fontSize: '12.5px',
-                            fontWeight: 'bold'
-                          }}
-                        >
-                          <Video style={{ width: '16px', height: '16px' }} /> 
-                          {t('Join Consultation Room')}
-                        </button>
-                      )}
                     </div>
-
-                    {/* Transaction logs console */}
-                    {linkingLogs.length > 0 && (
-                      <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <h5 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Smartphone style={{ width: '14px', height: '14px' }} /> 
-                          {t('Gateway Transaction Logs')}
-                        </h5>
-                        
-                        <div className="logs-console-window">
-                          {linkingLogs.map((log, idx) => (
-                            <div key={idx} style={{ color: log.startsWith('[ERROR]') ? 'var(--danger)' : log.includes('Verification Successful') ? 'var(--success)' : 'var(--accent-teal)' }}>
-                              {log}
-                            </div>
-                          ))}
-                          <div ref={consoleEndRef}></div>
-                        </div>
-                      </div>
-                    )}
-
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBookingStep(1);
+                        setBookingError('');
+                        setShowBookingModal(true);
+                      }}
+                      className="primary-action"
+                      style={{ width: '100%', minHeight: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      <CreditCard style={{ width: '16px', height: '16px' }} />
+                      {t('Open Checkout Modal')}
+                    </button>
+                  </div>
+                ) : (
+                  /* Desktop Active Consultation & Binds */
+                  <div className="desktop-only-active-consult" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                    {renderActiveConsultation()}
                   </div>
                 )}
-
               </motion.div>
             )}
           </AnimatePresence>
@@ -1558,6 +1514,273 @@ export default function AppointmentsPage() {
         </section>
 
       </div>
+
+      {/* Booking and checkout 2-step overlay modal */}
+      {showBookingModal && selectedDoctor && (
+        <div 
+          className="checkout-modal-overlay" 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => {
+            // Lock backdrop clicks from closing modal
+          }}
+        >
+          <div 
+            className={`checkout-modal-content ${shakeBooking ? 'shake-modal' : ''}`}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '480px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
+                  <Stethoscope style={{ width: '16px', height: '16px' }} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Book Appointment')}</h4>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{selectedDoctor.name}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowBookingModal(false);
+                }} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                aria-label="Close modal"
+              >
+                <X style={{ width: '18px', height: '18px' }} />
+              </button>
+            </div>
+
+            {/* Error banner inside modal */}
+            {bookingError && (
+              <div style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)', border: '1px solid var(--danger)', padding: '10px 12px', borderRadius: '8px', color: 'var(--danger)', fontSize: '11.5px', fontWeight: 'bold' }}>
+                {bookingError}
+              </div>
+            )}
+
+            {/* Step Indicators */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'var(--accent-teal)' }}></div>
+              <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: bookingStep === 2 ? 'var(--accent-teal)' : 'var(--border-color)' }}></div>
+            </div>
+
+            {/* Step 1: Appointment Details */}
+            {bookingStep === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Date Picker */}
+                <div className="form-group">
+                  <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Select Date')}</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {dates.map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setSelectedDate(d)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 0',
+                          borderRadius: '8px',
+                          fontSize: '11.5px',
+                          fontWeight: 'bold',
+                          border: '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          background: selectedDate === d ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
+                          borderColor: selectedDate === d ? 'var(--accent-teal)' : 'var(--border-color)',
+                          color: selectedDate === d ? 'var(--accent-teal)' : 'var(--text-primary)'
+                        }}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time slot picker */}
+                <div className="form-group">
+                  <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Select Time Slot')}</label>
+                  <div className="slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    {times.map(tVal => (
+                      <button
+                        key={tVal}
+                        type="button"
+                        onClick={() => setSelectedTime(tVal)}
+                        style={{
+                          padding: '8px 0',
+                          borderRadius: '8px',
+                          fontSize: '10.5px',
+                          fontWeight: 'bold',
+                          border: '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          background: selectedTime === tVal ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
+                          borderColor: selectedTime === tVal ? 'var(--accent-teal)' : 'var(--border-color)',
+                          color: selectedTime === tVal ? 'var(--accent-teal)' : 'var(--text-primary)'
+                        }}
+                      >
+                        <Clock style={{ width: '11px', height: '11px', flexShrink: 0 }} /> {tVal}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Consult Mode */}
+                <div className="form-group">
+                  <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Consultation Mode')}</label>
+                  <select 
+                    value={consultMode} 
+                    onChange={(e) => setConsultMode(e.target.value)}
+                    className="booking-select-field"
+                  >
+                    <option value="Video Call">{t('Video Consultation (Virtual)')}</option>
+                    <option value="Audio Call">{t('Audio Call Consultation')}</option>
+                    <option value="Clinic OPD Visit">{t('In-Clinic OPD Appointment')}</option>
+                  </select>
+                </div>
+
+                {/* Symptom Input */}
+                <div className="form-group">
+                  <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Outline active symptoms')}</label>
+                  <textarea
+                    required
+                    value={symptoms}
+                    onChange={(e) => setSymptoms(e.target.value)}
+                    placeholder={t('e.g. fatigue, sore throat since yesterday')}
+                    className="text-input-field"
+                    style={{ minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!symptoms.trim()) {
+                      setBookingError(t('Please describe your symptoms.'));
+                      triggerBookingShake();
+                      return;
+                    }
+                    setBookingError('');
+                    setBookingStep(2);
+                  }}
+                  className="primary-action"
+                  style={{ minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', marginTop: '8px' }}
+                >
+                  {t('Proceed to Checkout')} <ChevronRight style={{ width: '14px', height: '14px' }} />
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Settlement & Payment Checkout */}
+            {bookingStep === 2 && (
+              <form onSubmit={handlePaymentCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <h4 style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800' }}>{t('Settlement Method')}</h4>
+                
+                {/* Price breakup */}
+                <div className="breakup-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <div className="breakup-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                    <span>{t('Consult fee')}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Rs. {getDoctorFee()}</span>
+                  </div>
+                  <div className="breakup-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                    <span>{t('ABHA linkage fee')}</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Rs. 99</span>
+                  </div>
+                  <div className="breakup-total" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px' }}>
+                    <span>{t('Total Checkout')}</span>
+                    <span style={{ color: 'var(--accent-teal)' }}>Rs. {getDoctorFee() + 99}</span>
+                  </div>
+                </div>
+
+                {/* Radio payment methods */}
+                <div className="radio-select-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label className="radio-option-card" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '12.5px' }}>
+                    <input 
+                      type="radio" 
+                      name="payOption" 
+                      value="upi" 
+                      checked={paymentMethod === 'upi'} 
+                      onChange={() => setPaymentMethod('upi')} 
+                    />
+                    <span>{t('UPI (Instant Node Settlement)')}</span>
+                  </label>
+                  <label className="radio-option-card" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '12.5px' }}>
+                    <input 
+                      type="radio" 
+                      name="payOption" 
+                      value="card" 
+                      checked={paymentMethod === 'card'} 
+                      onChange={() => setPaymentMethod('card')} 
+                    />
+                    <span>{t('Credit / Debit Card')}</span>
+                  </label>
+                  <label className="radio-option-card" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '12.5px' }}>
+                    <input 
+                      type="radio" 
+                      name="payOption" 
+                      value="wallet" 
+                      checked={paymentMethod === 'wallet'} 
+                      onChange={() => setPaymentMethod('wallet')} 
+                    />
+                    <span>{t('ABHA Health Wallet Balance')}</span>
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBookingStep(1);
+                      setBookingError('');
+                    }}
+                    className="category-filter-btn"
+                    style={{ flex: 1, minHeight: '40px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 'bold' }}
+                  >
+                    {t('Back')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="primary-action"
+                    style={{ flex: 2, minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    <CreditCard style={{ width: '16px', height: '16px' }} /> 
+                    {t('Pay & Confirm')}
+                  </button>
+                </div>
+
+                <div style={{ textAlign: 'center', fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  🛡️ {t('Secure interoperable Beckn checkout gateway.')}
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

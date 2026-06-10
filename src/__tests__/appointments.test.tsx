@@ -117,7 +117,7 @@ describe('Doctor Consultation Page - Single-Page Dashboard', () => {
     });
   });
 
-  test('clicking a doctor card activates the booking panel', async () => {
+  test('clicking a doctor card opens the booking modal overlay and shows checkout pending on the right column', async () => {
     renderComponent();
 
     // Wait for doctors list to load and render
@@ -129,12 +129,15 @@ describe('Doctor Consultation Page - Single-Page Dashboard', () => {
     const bookButtons = screen.getAllByRole('button', { name: /Select & Book/i });
     fireEvent.click(bookButtons[1]); // second doctor is Aarav Sharma
 
-    // Verify right booking form pane is loaded
+    // Verify booking modal overlay is loaded
     await waitFor(() => {
-      expect(screen.getByText('Configure Appointment')).toBeInTheDocument();
+      expect(screen.getByText('Book Appointment')).toBeInTheDocument();
       expect(screen.getByText('Select Date')).toBeInTheDocument();
       expect(screen.getByText('Select Time Slot')).toBeInTheDocument();
       expect(screen.getByText('Outline active symptoms')).toBeInTheDocument();
     });
+
+    // Verify right booking pane shows Checkout Pending
+    expect(screen.getByText('Checkout Pending')).toBeInTheDocument();
   });
 });

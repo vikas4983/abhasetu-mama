@@ -21,6 +21,11 @@ export declare class AbdmService {
         details: any;
     }[]>;
     addLog(event: string, status: string, details: string): Promise<void>;
+    getTransactions(): Promise<any[]>;
+    addTransaction(txn: any): Promise<{
+        status: string;
+        id: any;
+    }>;
     addDetailedLog(event: string, status: string, message: string, metadata: {
         mobile?: string;
         aadhaar?: string;

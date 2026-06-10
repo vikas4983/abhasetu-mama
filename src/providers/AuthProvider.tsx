@@ -10,6 +10,7 @@ export interface User {
   abhaId?: string;
   photo?: string;
   abhaProfile?: any;
+  mobile?: string;
 }
 
 export interface Appointment {
@@ -293,7 +294,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: 'patient',
       name,
       photo: '/assets/doctors/dr-ayesha-ali.jpeg',
-      abhaId: ''
+      abhaId: '',
+      mobile
     };
     setCurrentUser(newUser);
     syncToLocalStorage({ currentUser: newUser });

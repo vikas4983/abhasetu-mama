@@ -45,6 +45,14 @@ export declare class AbdmController {
     addLog(body: any): Promise<{
         status: string;
     }>;
+    addTransaction(body: any): Promise<{
+        status: string;
+        id: any;
+    }>;
+    getTransactions(): Promise<{
+        status: string;
+        transactions: any[];
+    }>;
     getProducts(): Promise<{
         status: string;
         products: {

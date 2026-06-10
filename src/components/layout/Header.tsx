@@ -800,16 +800,11 @@ export default function Header() {
           </div>
 
           {/* Desktop Only Session Expiration Widget */}
-          {!sessionExpired && (
+          {!sessionExpired && typeof window !== 'undefined' && localStorage.getItem('abha_session_expiry') && (
             <div className="desktop-only-timers" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 10px', background: 'rgba(39, 56, 144, 0.08)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '11px', color: 'var(--text-primary)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Session:</span>
                 <strong style={{ color: 'var(--accent-teal)' }}>{sessionTimerStr}</strong>
-              </div>
-              <div style={{ width: '1px', height: '12px', background: 'var(--border-color)' }}></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Refresh:</span>
-                <strong style={{ color: 'var(--accent-blue)' }}>{refreshTimerStr}</strong>
               </div>
             </div>
           )}
@@ -854,34 +849,29 @@ export default function Header() {
               {isProfileOpen && (
                 <div className="profile-dropdown is-open" role="menu" id="profile-dropdown">
                   {/* Active Timers Panel */}
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px 12px 0 0', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Session Expiry / सत्र समाप्ति:</span>
-                      <strong style={{ color: sessionExpired ? 'var(--danger)' : 'var(--accent-teal)' }}>
-                        {sessionExpired ? 'EXPIRED' : sessionTimerStr}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Refresh Expiry / रीफ्रेश सत्र:</span>
-                      <strong style={{ color: refreshExpired ? 'var(--danger)' : 'var(--accent-blue)' }}>
-                        {refreshExpired ? 'EXPIRED' : refreshTimerStr}
-                      </strong>
-                    </div>
-                    {currentUser?.abhaProfile && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>X-Token Expiry / एक्स-टोकन:</span>
-                        <strong style={{ color: xTokenExpired ? 'var(--danger)' : 'var(--accent-teal)' }}>
-                          {xTokenExpired ? 'EXPIRED' : xTokenTimerStr}
+                  {!sessionExpired && typeof window !== 'undefined' && localStorage.getItem('abha_session_expiry') && (
+                    <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px 12px 0 0', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Session Active / सत्र सक्रिय:</span>
+                        <strong style={{ color: 'var(--accent-teal)', fontFamily: 'monospace', fontSize: '11px' }}>
+                          {sessionTimerStr}
                         </strong>
                       </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Key Expiry / कुंजी समाप्ति:</span>
-                      <strong style={{ color: keyExpired ? 'var(--danger)' : 'var(--accent-blue)' }}>
-                        {keyExpired ? 'EXPIRED' : keyTimerStr}
-                      </strong>
                     </div>
-                  </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push('/session-details');
+                    }}
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--accent-teal)', fontWeight: 'bold' }}
+                  >
+                    <Activity className="small-icon" style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+                    <span>{t('Gateway Diagnostics')}</span>
+                  </button>
 
                   {currentUser?.abhaProfile && (
                     <button
@@ -891,9 +881,9 @@ export default function Header() {
                       }}
                       className="dropdown-item"
                       role="menuitem"
-                      style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--accent-teal)', fontWeight: 'bold' }}
+                      style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--text-primary)' }}
                     >
-                      <User className="small-icon" style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+                      <User className="small-icon" style={{ width: '14px', height: '14px' }} />
                       <span>{t('View ABHA Profile')}</span>
                     </button>
                   )}

@@ -23,7 +23,8 @@ import {
   LogOut,
   Key,
   User,
-  Star
+  Star,
+  CreditCard
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 
@@ -99,7 +100,7 @@ export default function AdminDashboardPage() {
   const { currentUser, logout } = useAuth();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'config' | 'health' | 'products' | 'policies' | 'labPackages' | 'logs' | 'doctors'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'health' | 'products' | 'policies' | 'labPackages' | 'logs' | 'doctors' | 'transactions'>('config');
 
   // Authorization token
   const [token, setToken] = useState<string>('');
@@ -435,6 +436,10 @@ export default function AdminDashboardPage() {
   const [logsSortOrder, setLogsSortOrder] = useState('DESC');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
+  // Transactions state
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactionsSearch, setTransactionsSearch] = useState('');
+
   // Authentication shield and loading on mount
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
@@ -450,6 +455,7 @@ export default function AdminDashboardPage() {
     loadLabPackages();
     loadDoctors();
     loadLogs(adminToken);
+    loadTransactions(adminToken);
   }, [currentUser]);
 
   const loadConfig = (activeToken: string) => {
@@ -526,6 +532,19 @@ export default function AdminDashboardPage() {
         }
       })
       .catch(err => console.error('Error loading logs:', err));
+  };
+
+  const loadTransactions = (activeToken: string) => {
+    fetch('/api/abdm/admin/transactions', {
+      headers: { 'Authorization': `Bearer ${activeToken}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setTransactions(data.transactions);
+        }
+      })
+      .catch(err => console.error('Error loading transactions:', err));
   };
 
   // Config Update
@@ -1125,7 +1144,8 @@ export default function AdminDashboardPage() {
           { id: 'products', label: 'Products Manager', icon: Database },
           { id: 'policies', label: 'Policies Manager', icon: FileText },
           { id: 'labPackages', label: 'Lab Tests Manager', icon: Activity },
-          { id: 'logs', label: 'Security Logs', icon: Shield }
+          { id: 'logs', label: 'Security Logs', icon: Shield },
+          { id: 'transactions', label: 'Transaction Logs', icon: CreditCard }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -2265,6 +2285,120 @@ export default function AdminDashboardPage() {
                   </tbody>
                 </table>
               )}
+            </article>
+          );
+        })()}
+
+        {/* ================= TRANSACTION LOGS TAB ================= */}
+        {activeTab === 'transactions' && (() => {
+          const filteredTransactions = transactions
+            .filter(tRow => {
+              if (transactionsSearch) {
+                const query = transactionsSearch.trim().toLowerCase();
+                return (
+                  tRow.id?.toLowerCase().includes(query) ||
+                  tRow.doctor_name?.toLowerCase().includes(query) ||
+                  tRow.hospital_name?.toLowerCase().includes(query) ||
+                  tRow.user_mobile_masked?.toLowerCase().includes(query) ||
+                  tRow.user_aadhaar_masked?.toLowerCase().includes(query) ||
+                  tRow.user_abha_masked?.toLowerCase().includes(query) ||
+                  tRow.appointment_type?.toLowerCase().includes(query)
+                );
+              }
+              return true;
+            });
+
+          return (
+            <article className="route-card" style={{ padding: '20px', overflowX: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CreditCard style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+                    Revenue & Transactions Ledger
+                  </span>
+                  <button onClick={() => loadTransactions(token)} style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Refresh Transactions
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <input
+                    type="text"
+                    placeholder="Search transactions by doctor, hospital, patient, type..."
+                    value={transactionsSearch}
+                    onChange={(e) => setTransactionsSearch(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '11.5px',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '800px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 8px' }}>Timestamp</th>
+                      <th style={{ padding: '10px 8px' }}>Transaction ID</th>
+                      <th style={{ padding: '10px 8px' }}>Type</th>
+                      <th style={{ padding: '10px 8px' }}>Doctor Name</th>
+                      <th style={{ padding: '10px 8px' }}>Hospital Name</th>
+                      <th style={{ padding: '10px 8px' }}>Masked Mobile</th>
+                      <th style={{ padding: '10px 8px' }}>Masked Aadhaar</th>
+                      <th style={{ padding: '10px 8px' }}>Masked ABHA</th>
+                      <th style={{ padding: '10px 8px' }}>Consult Fee</th>
+                      <th style={{ padding: '10px 8px' }}>Platform Fee</th>
+                      <th style={{ padding: '10px 8px' }}>Total Fee</th>
+                      <th style={{ padding: '10px 8px' }}>Payment Method</th>
+                      <th style={{ padding: '10px 8px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={13} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                          No transactions found.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredTransactions.map((tRow: any) => (
+                        <tr key={tRow.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>{new Date(tRow.timestamp).toLocaleString()}</td>
+                          <td style={{ padding: '10px 8px', fontFamily: 'monospace' }}>{tRow.id}</td>
+                          <td style={{ padding: '10px 8px' }}>{tRow.appointment_type}</td>
+                          <td style={{ padding: '10px 8px', fontWeight: 'bold' }}>{tRow.doctor_name}</td>
+                          <td style={{ padding: '10px 8px' }}>{tRow.hospital_name}</td>
+                          <td style={{ padding: '10px 8px' }}>{tRow.user_mobile_masked}</td>
+                          <td style={{ padding: '10px 8px' }}>{tRow.user_aadhaar_masked}</td>
+                          <td style={{ padding: '10px 8px' }}>{tRow.user_abha_masked}</td>
+                          <td style={{ padding: '10px 8px' }}>Rs. {tRow.fee}</td>
+                          <td style={{ padding: '10px 8px' }}>Rs. {tRow.platform_fee}</td>
+                          <td style={{ padding: '10px 8px', fontWeight: 'bold', color: 'var(--accent-teal)' }}>Rs. {tRow.total_fee}</td>
+                          <td style={{ padding: '10px 8px', textTransform: 'uppercase' }}>{tRow.payment_method}</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <span style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              background: tRow.status === 'SUCCESS' ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'color-mix(in srgb, var(--danger) 12%, transparent)',
+                              color: tRow.status === 'SUCCESS' ? 'var(--success)' : 'var(--danger)'
+                            }}>
+                              {tRow.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </article>
           );
         })()}

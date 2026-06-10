@@ -79,9 +79,15 @@ export default function ProfilePage() {
   const [mobileOtp, setMobileOtp] = useState('');
   const [mobileTxnId, setMobileTxnId] = useState('');
   const [mobileOtpModal, setMobileOtpModal] = useState(false);
-  const [mobileTimer, setMobileTimer] = useState(60);
+  const [mobileTimer, setMobileTimer] = useState(30);
   const [mobileLoading, setMobileLoading] = useState(false);
   const [mobileError, setMobileError] = useState('');
+  const [shakeOtp, setShakeOtp] = useState(false);
+
+  const triggerShake = () => {
+    setShakeOtp(true);
+    setTimeout(() => setShakeOtp(false), 500);
+  };
 
   // Update Email States
   const [newEmail, setNewEmail] = useState('');
@@ -217,6 +223,11 @@ export default function ProfilePage() {
   // Mobile Update Actions
   const handleRequestMobileOtp = async () => {
     if (newMobile.length !== 10) return;
+    if (newMobile === abhaProfile.mobile) {
+      setMobileError('New mobile number cannot be the same as your current mobile number.');
+      triggerShake();
+      return;
+    }
     setMobileLoading(true);
     setMobileError('');
     try {
@@ -225,20 +236,23 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           loginHint: 'mobile',
-          loginId: newMobile
+          loginId: newMobile,
+          currentMobile: abhaProfile.mobile
         })
       });
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         setMobileTxnId(data.txnId);
         setMobileOtpModal(true);
-        setMobileTimer(60);
+        setMobileTimer(30);
         showToast(t('OTP code sent successfully.'));
       } else {
         setMobileError(data.message || 'Failed to request OTP');
+        triggerShake();
       }
     } catch (e: any) {
       setMobileError(e.message || 'Network error requesting OTP');
+      triggerShake();
     } finally {
       setMobileLoading(false);
     }
@@ -254,12 +268,10 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           txnId: mobileTxnId,
-          authData: {
-            authMethods: ['otp'],
-            otp: {
-              txnId: mobileTxnId,
-              otpValue: mobileOtp
-            }
+          authMethods: ['otp'],
+          otp: {
+            txnId: mobileTxnId,
+            otpValue: mobileOtp
           }
         })
       });
@@ -283,9 +295,11 @@ export default function ProfilePage() {
         setMobileOtp('');
       } else {
         setMobileError(data.message || 'Invalid OTP code');
+        triggerShake();
       }
     } catch (e: any) {
       setMobileError(e.message || 'Network error verifying OTP');
+      triggerShake();
     } finally {
       setMobileLoading(false);
     }
@@ -297,29 +311,21 @@ export default function ProfilePage() {
       setEmailError('Please enter a valid email address.');
       return;
     }
+    if (newEmail === abhaProfile.email) {
+      setEmailError('New email address cannot be the same as your current email address.');
+      return;
+    }
     setEmailLoading(true);
     setEmailError('');
     try {
       const res = await fetch('/api/abdm/v3/profile/account/request/emailVerificationLink', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail })
+        body: JSON.stringify({ email: newEmail, currentEmail: abhaProfile.email })
       });
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        const updatedProfile = { ...abhaProfile, email: newEmail };
-        
-        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
-        if (state.currentUser) {
-          state.currentUser.abhaProfile = updatedProfile;
-          localStorage.setItem('setu_state', JSON.stringify(state));
-        }
-        
-        updateCurrentUser({
-          abhaProfile: updatedProfile
-        });
-
-        showToast(t('Email verification link sent successfully! Email updated.'));
+        showToast(t('Email verification link sent successfully! Please check your email to verify.'));
         setNewEmail('');
       } else {
         setEmailError(data.message || 'Failed to request email verification link.');
@@ -835,19 +841,23 @@ export default function ProfilePage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }} onClick={() => setMobileOtpModal(false)}>
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '440px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            animation: 'fadeIn 0.3s ease-out'
-          }} onClick={(e) => e.stopPropagation()}>
+        }} onClick={(e) => e.stopPropagation()}>
+          <div 
+            className={shakeOtp ? 'shake-modal' : ''}
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '440px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+              border: '1px solid var(--border-color)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'fadeIn 0.3s ease-out'
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
             
             {/* Modal Header */}
             <div style={{
