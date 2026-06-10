@@ -65,6 +65,20 @@ let AbdmController = class AbdmController {
     async getSessions(res) {
         try {
             const result = await this.abdmService.getGatewaySession();
+            if (result.status === 'success') {
+                res.cookie('session_id', result.tokenPreview, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 3600 * 1000
+                });
+                res.cookie('public_key', result.publicKey || '', {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 3600 * 1000
+                });
+            }
             return res.status(common_1.HttpStatus.OK).json(result);
         }
         catch (error) {
@@ -77,6 +91,24 @@ let AbdmController = class AbdmController {
     async generateSession(res) {
         try {
             const result = await this.abdmService.generateSessionToken();
+            if (result.status === 'success') {
+                res.cookie('session_id', result.tokenPreview, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 3600 * 1000
+                });
+                try {
+                    const config = await this.abdmService.getConfig();
+                    res.cookie('public_key', config.ABDM_PUBLIC_KEY || '', {
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'strict',
+                        maxAge: 3600 * 1000
+                    });
+                }
+                catch (e) { }
+            }
             return res.status(common_1.HttpStatus.OK).json(result);
         }
         catch (error) {
@@ -89,6 +121,14 @@ let AbdmController = class AbdmController {
     async fetchPublicKey(res) {
         try {
             const result = await this.abdmService.syncPublicKeyFromGateway();
+            if (result.status === 'success') {
+                res.cookie('public_key', result.publicKey, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 3600 * 1000
+                });
+            }
             return res.status(common_1.HttpStatus.OK).json(result);
         }
         catch (error) {
@@ -111,7 +151,7 @@ let AbdmController = class AbdmController {
             return res.status(common_1.HttpStatus.OK).json(result);
         }
         if (action === 'verify-otp') {
-            const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, aadhaar, context);
+            const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, mobile, aadhaar, context);
             if (result.status === 'error') {
                 return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
             }
@@ -172,13 +212,42 @@ let AbdmController = class AbdmController {
     async v3EnrolByAadhaar(body, res, req) {
         const { txnId, authData } = body;
         const otp = authData?.otp?.otpValue;
+        const mobile = authData?.otp?.mobile;
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
         const userAgent = req.headers['user-agent'] || '';
         const context = { ip, userAgent };
-        const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, undefined, context);
+        const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, mobile, undefined, context);
         if (result.status === 'error') {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
         }
+        if (result.tokens?.token) {
+            res.cookie('session_id', result.tokens.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: result.tokens.expiresIn * 1000
+            });
+        }
+        if (result.tokens?.refreshToken) {
+            res.cookie('refresh_token', result.tokens.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: result.tokens.refreshExpiresIn * 1000
+            });
+        }
+        try {
+            const config = await this.abdmService.getConfig();
+            if (config.ABDM_PUBLIC_KEY) {
+                res.cookie('public_key', config.ABDM_PUBLIC_KEY, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 3600 * 1000
+                });
+            }
+        }
+        catch (e) { }
         return res.status(common_1.HttpStatus.OK).json(result);
     }
     async v3AuthByAbdm(body, res, req) {

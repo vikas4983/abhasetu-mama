@@ -1,8 +1,19 @@
+/**
+ * @file        abdm.service.ts
+ * @description Core service handling NHA/ABDM Sandbox gateway requests and cryptography procedures.
+ * @module      abdm
+ * @layer       service
+ * @author      Platform Team
+ * @created     2026-06-10
+ * @modified    2026-06-10
+ */
+
 import { Injectable } from '@nestjs/common';
 import { CryptoService } from './crypto.service';
 import { DbService } from '../db/db.service';
 import axios from 'axios';
 import * as crypto from 'crypto';
+
 
 @Injectable()
 export class AbdmService {
@@ -507,7 +518,7 @@ export class AbdmService {
     }
   }
 
-  async verifyAadhaarOtp(otp: string, txnId: string, aadhaar?: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
+  async verifyAadhaarOtp(otp: string, txnId: string, mobile?: string, aadhaar?: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
     if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
       return { status: 'error', message: 'Invalid 6-digit OTP.' };
     }
@@ -531,13 +542,12 @@ export class AbdmService {
       const response = await axios.post(
         verifyUrl,
         {
-          txnId,
-          scope: ['abha-enrol'],
           authData: {
             authMethods: ['otp'],
             otp: {
               txnId,
               otpValue: encryptedOtp,
+              mobile: mobile || undefined,
             },
           },
           consent: {
@@ -555,10 +565,10 @@ export class AbdmService {
           },
         },
       );
-      await this.addDetailedLog('Aadhaar OTP Verified', 'SUCCESS', `ABHA Number successfully issued: ${response.data.abhaNumber}`, {
+      await this.addDetailedLog('Aadhaar OTP Verified', 'SUCCESS', `ABHA Number successfully issued: ${response.data.abhaNumber || response.data.ABHAProfile?.ABHANumber}`, {
         aadhaar,
-        abhaNumber: response.data.abhaNumber,
-        abhaId: response.data.abhaAddress,
+        abhaNumber: response.data.abhaNumber || response.data.ABHAProfile?.ABHANumber,
+        abhaId: response.data.abhaAddress || response.data.ABHAProfile?.preferredAddress,
         request: { txnId, otp: '******' },
         response: response.data,
         clientId: config.ABDM_CLIENT_ID,
@@ -567,6 +577,22 @@ export class AbdmService {
       });
       return { status: 'success', ...response.data };
     } catch (e: any) {
+      const errorData = e.response?.data;
+      if (errorData && (errorData.ABHAProfile || errorData.abhaNumber)) {
+        // Even if the gateway returned a non-2xx status, it gave us the profile! Return it as success.
+        await this.addDetailedLog('Aadhaar OTP Verified (Existing Account)', 'SUCCESS', `ABHA Number: ${errorData.abhaNumber || errorData.ABHAProfile?.ABHANumber}`, {
+          aadhaar,
+          abhaNumber: errorData.abhaNumber || errorData.ABHAProfile?.ABHANumber,
+          abhaId: errorData.abhaAddress || errorData.ABHAProfile?.preferredAddress,
+          request: { txnId, otp: '******' },
+          response: errorData,
+          clientId: config.ABDM_CLIENT_ID,
+          clientIp: context?.ip,
+          userAgent: context?.userAgent,
+        });
+        return { status: 'success', ...errorData };
+      }
+
       const errMsg = e.response?.data?.message || e.message;
       await this.addDetailedLog('Aadhaar OTP Verification Failed', 'ERROR', `ABDM Gateway Error: ${errMsg}`, {
         aadhaar,
@@ -1623,7 +1649,7 @@ export class AbdmService {
         name: 'Aadhaar OTP verification and verified ABHA Number issuance',
         module: 'M1' as const,
         run: async () => {
-          const res = await this.verifyAadhaarOtp('123456', 'simulated-txn-uuid', '998105776582', context);
+          const res = await this.verifyAadhaarOtp('123456', 'simulated-txn-uuid', '9981435702', '998105776582', context);
           const isSuccess = res.status === 'success' || !res.message?.includes('Failed');
           return {
             passed: isSuccess,

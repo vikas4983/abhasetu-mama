@@ -1,3 +1,13 @@
+/**
+ * @file        abdm.controller.ts
+ * @description Controller handling all ABDM-related REST API endpoints, including sessions, onboarding, and claims.
+ * @module      abdm
+ * @layer       controller
+ * @author      Platform Team
+ * @created     2026-06-10
+ * @modified    2026-06-10
+ */
+
 import { Controller, Get, Post, Put, Delete, Body, Query, Res, Req, HttpStatus, UseGuards } from '@nestjs/common';
 import { AbdmService } from './abdm.service';
 import { AuthService } from '../auth/auth.service';
@@ -26,6 +36,20 @@ export class AbdmController {
   async getSessions(@Res() res: express.Response) {
     try {
       const result = await this.abdmService.getGatewaySession();
+      if (result.status === 'success') {
+        res.cookie('session_id', result.tokenPreview, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600 * 1000 // 1 hour
+        });
+        res.cookie('public_key', result.publicKey || '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600 * 1000 // 1 hour
+        });
+      }
       return res.status(HttpStatus.OK).json(result);
     } catch (error: any) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -41,6 +65,23 @@ export class AbdmController {
   async generateSession(@Res() res: express.Response) {
     try {
       const result = await this.abdmService.generateSessionToken();
+      if (result.status === 'success') {
+        res.cookie('session_id', result.tokenPreview, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600 * 1000 // 1 hour
+        });
+        try {
+          const config = await this.abdmService.getConfig();
+          res.cookie('public_key', config.ABDM_PUBLIC_KEY || '', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 3600 * 1000
+          });
+        } catch (e) {}
+      }
       return res.status(HttpStatus.OK).json(result);
     } catch (error: any) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -58,6 +99,14 @@ export class AbdmController {
   async fetchPublicKey(@Res() res: express.Response) {
     try {
       const result = await this.abdmService.syncPublicKeyFromGateway();
+      if (result.status === 'success') {
+        res.cookie('public_key', result.publicKey, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600 * 1000
+        });
+      }
       return res.status(HttpStatus.OK).json(result);
     } catch (error: any) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -85,7 +134,7 @@ export class AbdmController {
     }
 
     if (action === 'verify-otp') {
-      const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, aadhaar, context);
+      const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, mobile, aadhaar, context);
       if (result.status === 'error') {
         return res.status(HttpStatus.BAD_REQUEST).json(result);
       }
@@ -158,14 +207,45 @@ export class AbdmController {
   async v3EnrolByAadhaar(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { txnId, authData } = body;
     const otp = authData?.otp?.otpValue;
+    const mobile = authData?.otp?.mobile;
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const context = { ip, userAgent };
 
-    const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, undefined, context);
+    const result = await this.abdmService.verifyAadhaarOtp(otp, txnId, mobile, undefined, context);
     if (result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
+
+    // Securely store user session id (token), refresh token, and public key in httpOnly cookies
+    if (result.tokens?.token) {
+      res.cookie('session_id', result.tokens.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: result.tokens.expiresIn * 1000
+      });
+    }
+    if (result.tokens?.refreshToken) {
+      res.cookie('refresh_token', result.tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: result.tokens.refreshExpiresIn * 1000
+      });
+    }
+    try {
+      const config = await this.abdmService.getConfig();
+      if (config.ABDM_PUBLIC_KEY) {
+        res.cookie('public_key', config.ABDM_PUBLIC_KEY, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600 * 1000
+        });
+      }
+    } catch (e) {}
+
     return res.status(HttpStatus.OK).json(result);
   }
 

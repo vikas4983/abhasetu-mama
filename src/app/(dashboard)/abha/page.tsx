@@ -1,6 +1,30 @@
+/**
+ * @file        page.tsx
+ * @description Page component for ABHA onboarding, linking, and simulation under Milestone 1, 2, and 3.
+ * @module      abdm/abha
+ * @layer       component
+ * @author      Platform Team
+ * @created     2026-06-10
+ * @modified    2026-06-10
+ */
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+
+/**
+ * Normalizes and returns the base64 source or static path of a profile image.
+ * @param {string} photo - base64 string or image path
+ * @returns {string} parsed image source
+ */
+const getPhotoSrc = (photo: string): string => {
+  if (!photo) return '';
+  if (photo.startsWith('data:') || photo.startsWith('/') || photo.startsWith('http')) {
+    return photo;
+  }
+  return `data:image/jpeg;base64,${photo}`;
+};
+
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -667,6 +691,9 @@ export default function AbhaPage() {
     photo: "/assets/doctors/dr-ayesha-ali.jpeg"
   });
 
+  const [abhaProfile, setAbhaProfile] = useState<any | null>(null);
+  const [verificationMessage, setVerificationMessage] = useState('');
+
   // Tab 2: Onboarding (Milestone 1) State
   const [onboardMethod, setOnboardMethod] = useState<'aadhaar' | 'mobile'>('aadhaar');
   const [aadhaarInput, setAadhaarInput] = useState('');
@@ -786,6 +813,12 @@ export default function AbhaPage() {
       showToast(t('Please enter a 6-digit numeric OTP.'));
       return;
     }
+    if (onboardMethod === 'aadhaar') {
+      if (mobileInput.length !== 10 || isNaN(Number(mobileInput))) {
+        showToast(t('Please enter a valid 10-digit Mobile Number.'));
+        return;
+      }
+    }
 
     setLoading(true);
     setIsVerifyingOtp(true);
@@ -800,12 +833,12 @@ export default function AbhaPage() {
           url = '/api/abdm/v3/enrollment/enrol/byAadhaar';
           payload = {
             txnId,
-            scope: ['abha-enrol'],
             authData: {
               authMethods: ['otp'],
               otp: {
                 txnId,
-                otpValue: otpInput
+                otpValue: otpInput,
+                mobile: mobileInput
               }
             },
             consent: {
@@ -841,18 +874,58 @@ export default function AbhaPage() {
 
         if (data.status === 'success') {
           if (onboardMethod === 'aadhaar') {
-            setAbhaDetails({
-              name: data.profile.name,
-              mobile: data.profile.mobile,
-              abhaId: data.abhaAddress,
-              abhaNumber: data.abhaNumber,
-              gender: data.profile.gender,
-              dob: data.profile.dob,
-              photo: data.profile.photo
-            });
+            if (data.ABHAProfile) {
+              const profile = data.ABHAProfile;
+              const fullName = [profile.firstName, profile.middleName, profile.lastName]
+                .filter(Boolean)
+                .join(' ');
+              
+              setAbhaDetails({
+                name: fullName,
+                mobile: profile.mobile || '',
+                abhaId: profile.preferredAddress || '',
+                abhaNumber: profile.ABHANumber || '',
+                gender: profile.gender === 'M' ? 'Male' : profile.gender === 'F' ? 'Female' : profile.gender,
+                dob: profile.dob || '',
+                photo: profile.photo || ''
+              });
+              setAbhaProfile(profile);
+              setVerificationMessage(data.message || 'Aadhaar verified successfully');
+            } else if (data.profile) {
+              setAbhaDetails({
+                name: data.profile.name,
+                mobile: data.profile.mobile,
+                abhaId: data.abhaAddress,
+                abhaNumber: data.abhaNumber,
+                gender: data.profile.gender,
+                dob: data.profile.dob,
+                photo: data.profile.photo
+              });
+              setAbhaProfile({
+                firstName: data.profile.name,
+                preferredAddress: data.abhaAddress,
+                ABHANumber: data.abhaNumber,
+                gender: data.profile.gender,
+                dob: data.profile.dob,
+                mobile: data.profile.mobile,
+                photo: data.profile.photo
+              });
+              setVerificationMessage(data.message || 'Aadhaar verified successfully');
+            } else {
+              setAbhaDetails({
+                name: 'Aadhaar User',
+                mobile: '',
+                abhaId: data.abhaAddress || '',
+                abhaNumber: data.abhaNumber || '',
+                gender: '',
+                dob: '',
+                photo: ''
+              });
+              setVerificationMessage(data.message || 'Aadhaar verified successfully');
+            }
             setOnboardStep('completed');
             showToast(t(data.message || 'Aadhaar OTP verified successfully!'));
-            logSecurityEvent('ABHA Generated', `Successfully generated dynamic ABHA: ${data.abhaNumber}`);
+            logSecurityEvent('ABHA Generated', `Successfully generated dynamic ABHA: ${data.abhaNumber || data.ABHAProfile?.ABHANumber}`);
           } else {
             setOnboardStep('demographics');
             showToast(t('Mobile OTP verified successfully. Please enter demographics to generate ABHA.'));
@@ -1633,6 +1706,24 @@ export default function AbhaPage() {
                   <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
                   <span>Enter verification code sent to your mobile. <strong>Enter "123456" for instant sandbox pass.</strong></span>
                 </div>
+
+                {onboardMethod === 'aadhaar' && (
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mobile Number</label>
+                    <input 
+                      type="text" 
+                      maxLength={10} 
+                      value={mobileInput}
+                      onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Enter 10-digit Mobile Number (e.g. 9981435702)" 
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                      * Provide the mobile number associated with your Aadhaar card for registration.
+                    </span>
+                  </div>
+                )}
+
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>6-Digit OTP Code</label>
                   <input 
@@ -1793,15 +1884,117 @@ export default function AbhaPage() {
                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
                   <CheckCircle2 style={{ width: '28px', height: '28px' }} />
                 </div>
-                <h4 style={{ margin: '0 0 6px' }}>ABHA Enrolled Successfully!</h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: '1.4' }}>
-                  Your secure 14-digit National Digital Health identity was successfully created and signed.
-                </p>
-                <div style={{ background: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '12px', textAlign: 'left' }}>
-                  <strong>ABHA Name:</strong> {abhaDetails.name}<br />
-                  <strong>ABHA Number:</strong> {abhaDetails.abhaNumber}<br />
-                  <strong>ABHA Address:</strong> {abhaDetails.abhaId}
-                </div>
+                <h4 style={{ margin: '0 0 6px' }}>ABHA Onboarding Complete</h4>
+                
+                {/* Verification / Already Exist Message banner */}
+                {verificationMessage && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', 
+                    border: '1px solid var(--accent-teal)', 
+                    borderRadius: '8px', 
+                    fontSize: '13px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)',
+                    margin: '12px 0 20px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    gap: '8px' 
+                  }}>
+                    <ShieldCheck style={{ color: 'var(--accent-teal)', width: '18px', height: '18px' }} />
+                    <span>{verificationMessage}</span>
+                  </div>
+                )}
+
+                {/* Detailed ABHA Profile Panel */}
+                {abhaProfile ? (
+                  <div style={{ 
+                    background: 'var(--bg-primary)', 
+                    padding: '20px', 
+                    borderRadius: '12px', 
+                    border: '1px solid var(--border-color)', 
+                    marginBottom: '20px', 
+                    fontSize: '12px', 
+                    textAlign: 'left',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}>
+                    {/* Profile Card Header */}
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                      {abhaProfile.photo ? (
+                        <img 
+                          src={getPhotoSrc(abhaProfile.photo)} 
+                          alt="Profile" 
+                          style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-teal)' }}
+                        />
+                      ) : (
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--border-color)', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                          {abhaProfile.firstName?.[0] || 'U'}
+                        </div>
+                      )}
+                      <div>
+                        <h5 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 800 }}>
+                          {[abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ')}
+                        </h5>
+                        <div style={{ color: 'var(--accent-teal)', fontWeight: 'bold', fontSize: '11px', fontFamily: 'monospace' }}>
+                          {abhaProfile.preferredAddress || abhaProfile.abhaAddress}
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
+                          ABHA No: <span style={{ fontFamily: 'monospace' }}>{abhaProfile.ABHANumber || abhaProfile.abhaNumber}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Profile Details Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Date of Birth</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.dob}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Gender</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.gender === 'M' ? 'Male' : abhaProfile.gender === 'F' ? 'Female' : abhaProfile.gender}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Mobile</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.mobile || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Status / Type</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <span style={{ padding: '2px 6px', background: (abhaProfile.abhaStatus || 'ACTIVE') === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: (abhaProfile.abhaStatus || 'ACTIVE') === 'ACTIVE' ? 'var(--success)' : 'var(--error)', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
+                            {abhaProfile.abhaStatus || 'ACTIVE'}
+                          </span>
+                          <span style={{ padding: '2px 6px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
+                            {abhaProfile.abhaType || 'STANDARD'}
+                          </span>
+                        </span>
+                      </div>
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Address</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', lineHeight: '1.4' }}>{abhaProfile.address || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>District</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.districtName || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>State & Pincode</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.stateName || 'N/A'} - {abhaProfile.pinCode || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Fallback card view
+                  <div style={{ background: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '12px', textAlign: 'left' }}>
+                    <strong>ABHA Name:</strong> {abhaDetails.name}<br />
+                    <strong>ABHA Number:</strong> {abhaDetails.abhaNumber}<br />
+                    <strong>ABHA Address:</strong> {abhaDetails.abhaId}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button className="prefill-btn" style={{ flex: 1 }} onClick={() => setOnboardStep('verification')}>Register Another</button>
                   <button className="join-btn" style={{ flex: 1, margin: 0 }} onClick={() => setActiveTab('card')}>View Smart Card</button>

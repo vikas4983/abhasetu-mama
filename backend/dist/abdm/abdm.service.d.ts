@@ -123,7 +123,7 @@ export declare class AbdmService {
         ip?: string;
         userAgent?: string;
     }): Promise<any>;
-    verifyAadhaarOtp(otp: string, txnId: string, aadhaar?: string, context?: {
+    verifyAadhaarOtp(otp: string, txnId: string, mobile?: string, aadhaar?: string, context?: {
         ip?: string;
         userAgent?: string;
     }): Promise<any>;
