@@ -15,6 +15,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { showToast } from '../../../utils/toast';
+import { useForm } from 'react-hook-form';
+
 import {
   User,
   ShieldCheck,
@@ -73,6 +75,15 @@ export default function ProfilePage() {
   const { currentUser, updateCurrentUser, addRecord } = useAuth();
 
   const [activeSubTab, setActiveSubTab] = useState<'mobile' | 'email'>('mobile');
+
+  // React Hook Form integration
+  const { register: registerMobile, handleSubmit: handleSubmitMobile, formState: { errors: mobileFormErrors }, setValue: setMobileVal } = useForm({
+    defaultValues: { newMobile: '' }
+  });
+
+  const { register: registerEmail, handleSubmit: handleSubmitEmail, formState: { errors: emailFormErrors }, setValue: setEmailVal } = useForm({
+    defaultValues: { newEmail: '' }
+  });
 
   // Update Mobile States
   const [newMobile, setNewMobile] = useState('');
@@ -220,14 +231,15 @@ export default function ProfilePage() {
     }
   };
 
-  // Mobile Update Actions
-  const handleRequestMobileOtp = async () => {
-    if (newMobile.length !== 10) return;
-    if (newMobile === abhaProfile.mobile) {
+  // Mobile Update Actions via React Hook Form
+  const onMobileSubmit = async (formData: { newMobile: string }) => {
+    const val = formData.newMobile;
+    if (val === abhaProfile.mobile) {
       setMobileError('New mobile number cannot be the same as your current mobile number.');
       triggerShake();
       return;
     }
+    setNewMobile(val);
     setMobileLoading(true);
     setMobileError('');
     try {
@@ -236,7 +248,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           loginHint: 'mobile',
-          loginId: newMobile,
+          loginId: val,
           currentMobile: abhaProfile.mobile
         })
       });
@@ -256,6 +268,10 @@ export default function ProfilePage() {
     } finally {
       setMobileLoading(false);
     }
+  };
+
+  const handleRequestMobileOtp = () => {
+    handleSubmitMobile(onMobileSubmit)();
   };
 
   const handleVerifyMobileOtp = async () => {
@@ -293,6 +309,7 @@ export default function ProfilePage() {
         setMobileOtpModal(false);
         setNewMobile('');
         setMobileOtp('');
+        setMobileVal('newMobile', '');
       } else {
         setMobileError(data.message || 'Invalid OTP code');
         triggerShake();
@@ -305,28 +322,27 @@ export default function ProfilePage() {
     }
   };
 
-  // Email Verification Actions
-  const handleRequestEmailOtp = async () => {
-    if (!newEmail.includes('@')) {
-      setEmailError('Please enter a valid email address.');
-      return;
-    }
-    if (newEmail === abhaProfile.email) {
+  // Email Verification Actions via React Hook Form
+  const onEmailSubmit = async (formData: { newEmail: string }) => {
+    const val = formData.newEmail;
+    if (val === abhaProfile.email) {
       setEmailError('New email address cannot be the same as your current email address.');
       return;
     }
+    setNewEmail(val);
     setEmailLoading(true);
     setEmailError('');
     try {
       const res = await fetch('/api/abdm/v3/profile/account/request/emailVerificationLink', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail, currentEmail: abhaProfile.email })
+        body: JSON.stringify({ email: val, currentEmail: abhaProfile.email })
       });
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         showToast(t('Email verification link sent successfully! Please check your email to verify.'));
         setNewEmail('');
+        setEmailVal('newEmail', '');
       } else {
         setEmailError(data.message || 'Failed to request email verification link.');
       }
@@ -666,7 +682,7 @@ export default function ProfilePage() {
 
           {/* Tab Content: Mobile Form */}
           {activeSubTab === 'mobile' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+            <form onSubmit={handleSubmitMobile(onMobileSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
               <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
                   Update Verified Mobile / मोबाइल नंबर अद्यतन
@@ -701,8 +717,13 @@ export default function ProfilePage() {
                   type="text"
                   maxLength={10}
                   placeholder="Enter 10-digit mobile number"
-                  value={newMobile}
-                  onChange={(e) => setNewMobile(e.target.value.replace(/\D/g, ''))}
+                  {...registerMobile('newMobile', {
+                    required: 'Mobile number is required',
+                    pattern: {
+                      value: /^(\+91|0)?[1-9][0-9]{9}$/,
+                      message: 'Mobile number must match Indian format: optional country code / zero + 10 digits starting with 1-9'
+                    }
+                  })}
                   style={{
                     padding: '10px 12px',
                     borderRadius: '8px',
@@ -713,6 +734,11 @@ export default function ProfilePage() {
                     width: '100%'
                   }}
                 />
+                {mobileFormErrors.newMobile && (
+                  <span style={{ color: 'var(--danger)', fontSize: '11px', marginTop: '2px' }}>
+                    {mobileFormErrors.newMobile.message}
+                  </span>
+                )}
               </div>
 
               {mobileError && (
@@ -722,8 +748,8 @@ export default function ProfilePage() {
               )}
 
               <button
-                onClick={handleRequestMobileOtp}
-                disabled={mobileLoading || newMobile.length !== 10}
+                type="submit"
+                disabled={mobileLoading}
                 style={{
                   padding: '12px',
                   border: 'none',
@@ -733,19 +759,19 @@ export default function ProfilePage() {
                   fontWeight: 800,
                   fontSize: '13px',
                   cursor: 'pointer',
-                  opacity: (mobileLoading || newMobile.length !== 10) ? 0.6 : 1,
+                  opacity: mobileLoading ? 0.6 : 1,
                   transition: 'all 0.2s ease',
                   marginTop: '8px'
                 }}
               >
                 {mobileLoading ? 'Sending...' : 'Request OTP / ओटीपी प्राप्त करें'}
               </button>
-            </div>
+            </form>
           )}
 
           {/* Tab Content: Email Form */}
           {activeSubTab === 'email' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+            <form onSubmit={handleSubmitEmail(onEmailSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
               <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
                   Email Verification / ईमेल सत्यापन
@@ -777,10 +803,15 @@ export default function ProfilePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 600 }}>New Email Address / नया ईमेल पता</label>
                 <input
-                  type="email"
+                  type="text"
                   placeholder="Enter email address (e.g. name@domain.com)"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
+                  {...registerEmail('newEmail', {
+                    required: 'Email address is required',
+                    pattern: {
+                      value: /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,7}$/,
+                      message: 'Email address must match standard format (e.g. name@domain.com)'
+                    }
+                  })}
                   style={{
                     padding: '10px 12px',
                     borderRadius: '8px',
@@ -791,6 +822,11 @@ export default function ProfilePage() {
                     width: '100%'
                   }}
                 />
+                {emailFormErrors.newEmail && (
+                  <span style={{ color: 'var(--danger)', fontSize: '11px', marginTop: '2px' }}>
+                    {emailFormErrors.newEmail.message}
+                  </span>
+                )}
               </div>
 
               {emailError && (
@@ -800,8 +836,8 @@ export default function ProfilePage() {
               )}
 
               <button
-                onClick={handleRequestEmailOtp}
-                disabled={emailLoading || !newEmail.includes('@')}
+                type="submit"
+                disabled={emailLoading}
                 style={{
                   padding: '12px',
                   border: 'none',
@@ -811,14 +847,14 @@ export default function ProfilePage() {
                   fontWeight: 800,
                   fontSize: '13px',
                   cursor: 'pointer',
-                  opacity: (emailLoading || !newEmail.includes('@')) ? 0.6 : 1,
+                  opacity: emailLoading ? 0.6 : 1,
                   transition: 'all 0.2s ease',
                   marginTop: '8px'
                 }}
               >
                 {emailLoading ? 'Sending...' : 'Verify Email / ईमेल सत्यापित करें'}
               </button>
-            </div>
+            </form>
           )}
 
         </div>

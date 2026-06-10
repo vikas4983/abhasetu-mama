@@ -83,7 +83,7 @@ export class AbdmService {
   // --- AUDIT LOGS ENDPOINTS ---
   async getLogs() {
     const res = await this.db.query('SELECT id, timestamp, event, status, details FROM audit_logs ORDER BY timestamp DESC LIMIT 100');
-    return res.rows.map(row => ({
+    return res.rows.map((row: any) => ({
       id: row.id,
       timestamp: row.timestamp,
       event: row.event,
@@ -196,7 +196,7 @@ export class AbdmService {
   // --- CATALOG ENDPOINTS ---
   async getProducts() {
     const res = await this.db.query('SELECT * FROM products ORDER BY created_at DESC');
-    return res.rows.map(p => ({
+    return res.rows.map((p: any) => ({
       id: p.id,
       name: p.name,
       category: p.category,
@@ -267,7 +267,7 @@ export class AbdmService {
 
   async getPolicies() {
     const res = await this.db.query('SELECT * FROM policies ORDER BY id');
-    return res.rows.map(p => ({
+    return res.rows.map((p: any) => ({
       id: p.id,
       name: p.name,
       provider: p.provider,
@@ -327,7 +327,7 @@ export class AbdmService {
 
   async getLabPackages() {
     const res = await this.db.query('SELECT * FROM lab_packages ORDER BY id');
-    return res.rows.map(l => ({
+    return res.rows.map((l: any) => ({
       id: l.id,
       name: l.name,
       parameters: l.parameters,
@@ -2046,7 +2046,7 @@ export class AbdmService {
 
   async getSpecialtiesMatrix(): Promise<any> {
     const res = await this.db.query('SELECT DISTINCT medical_system, category, specialist_role FROM specialties_matrix ORDER BY medical_system, category, specialist_role');
-    return res.rows.map(row => ({
+    return res.rows.map((row: any) => ({
       medicalSystem: row.medical_system,
       category: row.category,
       specialistRole: row.specialist_role
@@ -2082,7 +2082,7 @@ export class AbdmService {
     queryText += ' ORDER BY id';
 
     const res = await this.db.query(queryText, params);
-    return res.rows.map(d => ({
+    return res.rows.map((d: any) => ({
       id: d.id,
       name: d.name,
       medicalSystem: d.medical_system,

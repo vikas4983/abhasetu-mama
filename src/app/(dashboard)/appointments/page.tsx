@@ -21,6 +21,8 @@ import {
   Ticket, Video, Send, FileText, Award, Star, ArrowRight, Sparkles, User, Info, Home, Smartphone, Check, QrCode
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
+import { useQuery } from '@tanstack/react-query';
+
 
 interface SpecialtiesMatrixItem {
   medicalSystem: string;
@@ -123,33 +125,42 @@ export default function AppointmentsPage() {
     }
   }, [currentUser]);
 
-  // Fetch Specialties and Doctors on mount
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      try {
-        const [specRes, docRes] = await Promise.all([
-          fetch('/api/abdm/doctor-consultation/specialties'),
-          fetch('/api/abdm/doctor-consultation/doctors')
-        ]);
-        const specData = await specRes.json();
-        const docData = await docRes.json();
-
-        if (specData.status === 'success') {
-          setSpecialtiesMatrix(specData.specialties);
-        }
-        if (docData.status === 'success') {
-          setAllDoctors(docData.doctors);
-        }
-      } catch (err) {
-        console.error('Failed to load initial data:', err);
-        showToast(t('Error loading healthcare directories from server.'));
-      } finally {
-        setIsLoading(false);
-      }
+  // Fetch Specialties and Doctors via TanStack Query
+  const { data: specialtiesData } = useQuery({
+    queryKey: ['specialties'],
+    queryFn: async () => {
+      const res = await fetch('/api/abdm/doctor-consultation/specialties');
+      if (!res.ok) throw new Error('Failed to fetch specialties');
+      return res.json();
     }
-    loadData();
-  }, []);
+  });
+
+  const { data: doctorsData, isLoading: isDocsLoading } = useQuery({
+    queryKey: ['doctors'],
+    queryFn: async () => {
+      const res = await fetch('/api/abdm/doctor-consultation/doctors');
+      if (!res.ok) throw new Error('Failed to fetch doctors');
+      return res.json();
+    }
+  });
+
+  // Sync with component states for backward compatibility and filtering logic
+  useEffect(() => {
+    if (specialtiesData?.status === 'success') {
+      setSpecialtiesMatrix(specialtiesData.specialties);
+    }
+  }, [specialtiesData]);
+
+  useEffect(() => {
+    if (doctorsData?.status === 'success') {
+      setAllDoctors(doctorsData.doctors);
+    }
+  }, [doctorsData]);
+
+  useEffect(() => {
+    setIsLoading(isDocsLoading);
+  }, [isDocsLoading]);
+
 
   // Scroll logs to bottom
   useEffect(() => {
