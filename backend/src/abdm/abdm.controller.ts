@@ -320,8 +320,8 @@ export class AbdmController {
   @Get('v3/profile/account/abha-card')
   async downloadAbhaCard(@Req() req: express.Request, @Res() res: express.Response) {
     const xToken = getCookie(req.headers.cookie, 'x_token');
-    const sessionId = getCookie(req.headers.cookie, 'session_id');
 
+    console.log('[downloadAbhaCard] X-Token cookie length:', xToken ? xToken.length : 0);
     if (!xToken) {
       return res.status(HttpStatus.BAD_REQUEST).json({
         status: 'error',
@@ -329,21 +329,22 @@ export class AbdmController {
       });
     }
 
-    let gatewayToken = sessionId;
-    if (!gatewayToken) {
-      try {
-        const sessionRes = await this.abdmService.getGatewaySession();
-        gatewayToken = sessionRes.tokenPreview;
-      } catch (err) {
-        return res.status(HttpStatus.BAD_REQUEST).json({
-          status: 'error',
-          message: 'Failed to retrieve gateway session token.'
-        });
-      }
+    let gatewayToken = '';
+    try {
+      const sessionRes = await this.abdmService.getGatewaySession();
+      gatewayToken = sessionRes.tokenPreview;
+      console.log('[downloadAbhaCard] Gateway Session Token length:', gatewayToken ? gatewayToken.length : 0);
+    } catch (err: any) {
+      console.error('[downloadAbhaCard] Failed to retrieve gateway session:', err.message);
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'Failed to retrieve gateway session token: ' + err.message
+      });
     }
 
     const result = await this.abdmService.downloadAbhaCard(xToken, gatewayToken);
     if (result.status === 'error') {
+      console.error('[downloadAbhaCard] NHA Gateway returned error:', result.message, result.details);
       const code = result.details?.code || '400';
       return res.status(HttpStatus.BAD_REQUEST).json({
         status: 'error',
