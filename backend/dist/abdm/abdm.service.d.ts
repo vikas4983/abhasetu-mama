@@ -195,4 +195,5 @@ export declare class AbdmService {
     deleteDoctor(id: number): Promise<{
         status: string;
     }>;
+    downloadAbhaCard(xToken: string, token: string): Promise<any>;
 }

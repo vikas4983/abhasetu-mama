@@ -45,7 +45,6 @@ const getGenderDisplay = (gender: string): string => {
 };
 
 import { useRouter } from 'next/navigation';
-import html2canvas from 'html2canvas';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import {
@@ -86,7 +85,7 @@ export default function AbhaPage() {
   const { addRecord, logSecurityEvent, updateCurrentUser, currentUser } = useAuth();
 
   // Navigation Tab State
-  const [activeTab, setActiveTab] = useState<'card' | 'onboard' | 'consent' | 'hiplink' | 'nhpr' | 'scanshare' | 'uhi' | 'nhcx' | 'tests'>('card');
+  const [activeTab, setActiveTab] = useState<'card' | 'onboard' | 'consent' | 'hiplink' | 'nhpr' | 'scanshare' | 'uhi' | 'nhcx' | 'tests'>('onboard');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   // Timer States
@@ -921,78 +920,71 @@ export default function AbhaPage() {
   };
 
   const handleDownloadCard = async () => {
-    const cardEl = document.getElementById('abha-card-capture');
-    if (!cardEl) {
-      showToast(t('Error finding ABHA Card element.'));
-      return;
-    }
     try {
-      showToast(t('Generating high-quality image...'));
-      const canvas = await html2canvas(cardEl, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null
-      });
-      const dataUrl = canvas.toDataURL('image/png');
+      showToast(t('Downloading official ABHA Card image...'));
+      const res = await fetch('/api/abdm/v3/profile/account/abha-card');
+      if (!res.ok) {
+        const errData = await res.json();
+        const msg = errData.description || errData.message || t('Failed to download ABHA card');
+        showToast(t('Error: ') + msg);
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`;
-      link.href = dataUrl;
+      link.href = url;
       link.click();
+      window.URL.revokeObjectURL(url);
       showToast(t('ABHA Card downloaded successfully!'));
       logSecurityEvent('ABHA Card Downloaded', `Successfully downloaded ABHA Card image: ${abhaDetails.abhaNumber}`);
     } catch (err: any) {
       console.error(err);
-      showToast(t('Failed to generate card download.'));
+      showToast(t('Failed to download card.'));
     }
   };
 
   const handleShareCard = async () => {
-    const cardEl = document.getElementById('abha-card-capture');
-    if (!cardEl) {
-      showToast(t('Error finding ABHA Card element.'));
-      return;
-    }
     try {
-      showToast(t('Generating shareable image...'));
-      const canvas = await html2canvas(cardEl, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null
-      });
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          showToast(t('Failed to create image blob.'));
-          return;
-        }
-        const file = new File([blob], `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`, { type: 'image/png' });
-        
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: 'My ABHA Card',
-              text: 'Here is my Ayushman Bharat Health Account (ABHA) Card.'
-            });
-            logSecurityEvent('ABHA Card Shared', `Shared ABHA Card for ${abhaDetails.name}`);
-          } catch (e: any) {
-            if (e.name !== 'AbortError') {
-              showToast(t('Share canceled or failed.'));
-            }
-          }
-        } else {
-          try {
-            const item = new ClipboardItem({ 'image/png': blob });
-            await navigator.clipboard.write([item]);
-            showToast(t('Card image copied to clipboard! You can paste and share it.'));
-          } catch (clipErr) {
-            const link = document.createElement('a');
-            link.download = `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            showToast(t('Web Share not supported. Downloaded instead.'));
+      showToast(t('Requesting shareable ABHA Card image...'));
+      const res = await fetch('/api/abdm/v3/profile/account/abha-card');
+      if (!res.ok) {
+        const errData = await res.json();
+        const msg = errData.description || errData.message || t('Failed to retrieve ABHA card');
+        showToast(t('Error: ') + msg);
+        return;
+      }
+      const blob = await res.blob();
+      const file = new File([blob], `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`, { type: 'image/png' });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'My ABHA Card',
+            text: 'Here is my Ayushman Bharat Health Account (ABHA) Card.'
+          });
+          logSecurityEvent('ABHA Card Shared', `Shared ABHA Card for ${abhaDetails.name}`);
+        } catch (e: any) {
+          if (e.name !== 'AbortError') {
+            showToast(t('Share canceled or failed.'));
           }
         }
-      }, 'image/png');
+      } else {
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          showToast(t('Card image copied to clipboard! You can paste and share it.'));
+        } catch (clipErr) {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`;
+          link.href = url;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          showToast(t('Web Share not supported. Downloaded instead.'));
+        }
+      }
     } catch (err: any) {
       console.error(err);
       showToast(t('Failed to share card.'));
@@ -1668,13 +1660,15 @@ export default function AbhaPage() {
 
       {/* Premium Glassmorphic Adaptive Tab Navigation Menu */}
       <nav className="abha-tab-menu">
-        <button 
-          onClick={() => setActiveTab('card')}
-          className={`abha-tab-button ${activeTab === 'card' ? 'active-tab' : ''}`}
-        >
-          <Calendar style={{ width: '16px', height: '16px' }} />
-          <span>{t('My ABHA Card')}</span>
-        </button>
+        {currentUser?.abhaProfile && (
+          <button 
+            onClick={() => setActiveTab('card')}
+            className={`abha-tab-button ${activeTab === 'card' ? 'active-tab' : ''}`}
+          >
+            <Calendar style={{ width: '16px', height: '16px' }} />
+            <span>{t('My ABHA Card')}</span>
+          </button>
+        )}
         {!currentUser?.abhaProfile && (
           <button 
             onClick={() => setActiveTab('onboard')}
@@ -1738,7 +1732,7 @@ export default function AbhaPage() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%', maxWidth: '600px', margin: '10px auto 0' }}>
         
         {/* ==================== TAB 1: VIEW CARD ==================== */}
-        {activeTab === 'card' && (
+        {activeTab === 'card' && currentUser?.abhaProfile && (
           <>
             <article 
               id="abha-card-capture"

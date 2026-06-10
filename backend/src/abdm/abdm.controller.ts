@@ -238,6 +238,12 @@ export class AbdmController {
         sameSite: 'strict',
         maxAge: result.tokens.expiresIn * 1000
       });
+      res.cookie('x_token', result.tokens.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: result.tokens.expiresIn * 1000
+      });
     }
     if (result.tokens?.refreshToken) {
       res.cookie('refresh_token', result.tokens.refreshToken, {
@@ -292,6 +298,12 @@ export class AbdmController {
         sameSite: 'strict',
         maxAge: result.tokens.expiresIn * 1000
       });
+      res.cookie('x_token', result.tokens.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: result.tokens.expiresIn * 1000
+      });
     }
     if (result.tokens?.refreshToken) {
       res.cookie('refresh_token', result.tokens.refreshToken, {
@@ -303,6 +315,47 @@ export class AbdmController {
     }
 
     return res.status(HttpStatus.OK).json(result);
+  }
+
+  @Get('v3/profile/account/abha-card')
+  async downloadAbhaCard(@Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = getCookie(req.headers.cookie, 'x_token');
+    const sessionId = getCookie(req.headers.cookie, 'session_id');
+
+    if (!xToken) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'X-token is missing or expired. Please re-verify profile.'
+      });
+    }
+
+    let gatewayToken = sessionId;
+    if (!gatewayToken) {
+      try {
+        const sessionRes = await this.abdmService.getGatewaySession();
+        gatewayToken = sessionRes.tokenPreview;
+      } catch (err) {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          status: 'error',
+          message: 'Failed to retrieve gateway session token.'
+        });
+      }
+    }
+
+    const result = await this.abdmService.downloadAbhaCard(xToken, gatewayToken);
+    if (result.status === 'error') {
+      const code = result.details?.code || '400';
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        code: code,
+        message: result.message,
+        description: result.details?.description || result.message
+      });
+    }
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', 'attachment; filename=abha-card.png');
+    return res.send(Buffer.from(result.data));
   }
 
   @Post('v3/enrollment/enrol/byDocument')

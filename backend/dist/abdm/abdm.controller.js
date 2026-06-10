@@ -240,6 +240,12 @@ let AbdmController = class AbdmController {
                 sameSite: 'strict',
                 maxAge: result.tokens.expiresIn * 1000
             });
+            res.cookie('x_token', result.tokens.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: result.tokens.expiresIn * 1000
+            });
         }
         if (result.tokens?.refreshToken) {
             res.cookie('refresh_token', result.tokens.refreshToken, {
@@ -288,6 +294,12 @@ let AbdmController = class AbdmController {
                 sameSite: 'strict',
                 maxAge: result.tokens.expiresIn * 1000
             });
+            res.cookie('x_token', result.tokens.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: result.tokens.expiresIn * 1000
+            });
         }
         if (result.tokens?.refreshToken) {
             res.cookie('refresh_token', result.tokens.refreshToken, {
@@ -298,6 +310,42 @@ let AbdmController = class AbdmController {
             });
         }
         return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async downloadAbhaCard(req, res) {
+        const xToken = getCookie(req.headers.cookie, 'x_token');
+        const sessionId = getCookie(req.headers.cookie, 'session_id');
+        if (!xToken) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'X-token is missing or expired. Please re-verify profile.'
+            });
+        }
+        let gatewayToken = sessionId;
+        if (!gatewayToken) {
+            try {
+                const sessionRes = await this.abdmService.getGatewaySession();
+                gatewayToken = sessionRes.tokenPreview;
+            }
+            catch (err) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                    status: 'error',
+                    message: 'Failed to retrieve gateway session token.'
+                });
+            }
+        }
+        const result = await this.abdmService.downloadAbhaCard(xToken, gatewayToken);
+        if (result.status === 'error') {
+            const code = result.details?.code || '400';
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                code: code,
+                message: result.message,
+                description: result.details?.description || result.message
+            });
+        }
+        res.setHeader('Content-Type', result.contentType);
+        res.setHeader('Content-Disposition', 'attachment; filename=abha-card.png');
+        return res.send(Buffer.from(result.data));
     }
     async v3EnrolByDocument(body, res, req) {
         const { txnId, authData } = body;
@@ -552,6 +600,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "v3AuthByAbdm", null);
+__decorate([
+    (0, common_1.Get)('v3/profile/account/abha-card'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "downloadAbhaCard", null);
 __decorate([
     (0, common_1.Post)('v3/enrollment/enrol/byDocument'),
     __param(0, (0, common_1.Body)()),

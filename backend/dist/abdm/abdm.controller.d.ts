@@ -21,6 +21,7 @@ export declare class AbdmController {
     v3RequestOtp(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     v3EnrolByAadhaar(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     v3AuthByAbdm(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
+    downloadAbhaCard(req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     v3EnrolByDocument(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     getConfig(): Promise<{
         status: string;

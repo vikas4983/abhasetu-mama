@@ -1808,6 +1808,36 @@ let AbdmService = class AbdmService {
         await this.db.query('DELETE FROM doctors WHERE id = $1', [id]);
         return { status: 'success' };
     }
+    async downloadAbhaCard(xToken, token) {
+        const cardUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/abha-card';
+        try {
+            const response = await axios_1.default.get(cardUrl, {
+                headers: {
+                    'X-Token': `Bearer ${xToken}`,
+                    'REQUEST-ID': crypto.randomUUID(),
+                    TIMESTAMP: new Date().toISOString(),
+                    'Authorization': `Bearer ${token}`
+                },
+                responseType: 'arraybuffer'
+            });
+            return { status: 'success', data: response.data, contentType: response.headers['content-type'] || 'image/png' };
+        }
+        catch (e) {
+            let errorMsg = e.message;
+            let errorDetails = null;
+            if (e.response?.data) {
+                try {
+                    const rawBuffer = Buffer.from(e.response.data);
+                    const parsed = JSON.parse(rawBuffer.toString('utf8'));
+                    errorMsg = parsed.message || parsed.description || errorMsg;
+                    errorDetails = parsed;
+                }
+                catch (jsonErr) {
+                }
+            }
+            return { status: 'error', message: errorMsg, details: errorDetails };
+        }
+    }
 };
 exports.AbdmService = AbdmService;
 exports.AbdmService = AbdmService = __decorate([
