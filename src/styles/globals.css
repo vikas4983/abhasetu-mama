@@ -5179,7 +5179,7 @@ html {
   position: relative;
   width: 100%;
   max-width: 440px;
-  min-height: 270px;
+  min-height: auto !important;
   margin: 0 auto;
   border-radius: 16px;
   overflow: hidden;
@@ -5202,7 +5202,7 @@ html {
 }
 
 .setu-abha-card-header {
-  background: linear-gradient(90deg, #1f3a60 0%, #172d4a 100%) !important;
+  background: #273890 !important;
   padding: 10px 14px !important;
   display: flex !important;
   align-items: center !important;
@@ -6383,23 +6383,53 @@ body.theme-light .chart-tab-btn.active {
 /* Mobile ABHA Card responsive design stack */
 @media (max-width: 480px) {
   .setu-abha-card-body {
-    grid-template-columns: 90px 1fr !important;
-    row-gap: 16px !important;
+    grid-template-columns: 70px 1fr 60px !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+  .setu-abha-card-avatar {
+    width: 70px !important;
+    height: 90px !important;
   }
   .setu-abha-card-qr-wrapper {
-    grid-column: 1 / -1 !important;
-    flex-direction: row !important;
+    grid-column: auto !important;
+    flex-direction: column !important;
     justify-content: center !important;
-    gap: 12px !important;
-    border-top: 1.5px dashed rgba(15, 23, 42, 0.12) !important;
-    padding-top: 14px !important;
-    margin-top: 4px !important;
+    gap: 0 !important;
+    border-top: none !important;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+  .setu-abha-card-qr {
+    width: 60px !important;
+    height: 60px !important;
+    padding: 2px !important;
+  }
+  .setu-abha-card-qr img {
+    width: 100% !important;
+    height: 100% !important;
   }
   .setu-abha-card-seal {
-    top: 25px !important;
+    top: 6px !important;
+    right: 70px !important;
     left: auto !important;
-    right: 20px !important;
-    transform: translate(0, 0) rotate(-8deg) !important;
+    transform: rotate(-6deg) !important;
+    font-size: 7px !important;
+    padding: 1px 3px !important;
+  }
+  .setu-abha-card-label {
+    font-size: 6px !important;
+  }
+  .setu-abha-card-value {
+    font-size: 8.5px !important;
+  }
+  .setu-abha-card-value.token-num {
+    font-size: 8px !important;
+  }
+  .setu-abha-card-row {
+    gap: 4px !important;
+    padding-top: 2px !important;
+    margin-top: 1px !important;
   }
 }
 

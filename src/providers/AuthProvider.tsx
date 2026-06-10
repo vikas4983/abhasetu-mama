@@ -9,6 +9,7 @@ export interface User {
   name: string;
   abhaId?: string;
   photo?: string;
+  abhaProfile?: any;
 }
 
 export interface Appointment {
@@ -68,6 +69,7 @@ interface AuthContextType {
   addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
   addRecord: (record: HealthRecord) => void;
   setAbhaCreated: (created: boolean, card: any) => void;
+  updateCurrentUser: (updates: Partial<User>) => void;
   clearNotifications: () => void;
   deleteNotification: (id: number) => void;
   markNotificationRead: (id: number) => void;
@@ -366,6 +368,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const updateCurrentUser = (updates: Partial<User>) => {
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      const next = { ...prev, ...updates };
+      syncToLocalStorage({ currentUser: next });
+      
+      // Dispatch a custom event to notify other components/tabs in real-time
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('setu_state_update'));
+      }
+      
+      return next;
+    });
+  };
+
   // Route security shield
   useEffect(() => {
     const isPublicPath = 
@@ -408,6 +425,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       addAppointment,
       addRecord,
       setAbhaCreated,
+      updateCurrentUser,
       clearNotifications,
       deleteNotification,
       markNotificationRead

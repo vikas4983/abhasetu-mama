@@ -38,8 +38,12 @@ import {
   UserRound,
   FileText,
   ImageIcon,
-  Sparkles
+  Sparkles,
+  Download,
+  Send,
+  Database
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 interface SearchItem {
   type: string;
@@ -49,8 +53,40 @@ interface SearchItem {
   desc: string;
 }
 
+/**
+ * Normalizes and returns the base64 source or static path of a profile image.
+ * @param {string} photo - base64 string or image path
+ * @returns {string} parsed image source
+ */
+const getPhotoSrc = (photo: string | undefined): string => {
+  if (!photo) return '';
+  if (photo.startsWith('data:') || photo.startsWith('http')) {
+    return photo;
+  }
+  if (photo.startsWith('/9j/')) {
+    return `data:image/jpeg;base64,${photo}`;
+  }
+  if (photo.startsWith('/')) {
+    return photo;
+  }
+  return `data:image/jpeg;base64,${photo}`;
+};
+
+/**
+ * Maps gender letters/words to bilingual English/Hindi output.
+ * @param {string} gender - gender string
+ * @returns {string} bilingual gender description
+ */
+const getGenderDisplay = (gender: string | undefined): string => {
+  if (!gender) return '';
+  const g = gender.toLowerCase();
+  if (g === 'male' || g === 'm') return 'Male / पुरुष';
+  if (g === 'female' || g === 'f') return 'Female / महिला';
+  return `${gender} / अन्य`;
+};
+
 export default function Header() {
-  const { currentUser, logout, notifications, records, appointments, clearNotifications, deleteNotification, markNotificationRead } = useAuth();
+  const { currentUser, logout, notifications, records, appointments, clearNotifications, deleteNotification, markNotificationRead, addRecord } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { theme, cycleTheme } = useTheme();
   const router = useRouter();
@@ -62,6 +98,154 @@ export default function Header() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState<string>('default');
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Timer States
+  const [sessionTimerStr, setSessionTimerStr] = useState('30:00');
+  const [keyTimerStr, setKeyTimerStr] = useState('60:00');
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [keyExpired, setKeyExpired] = useState(false);
+
+  const handleSaveToLocker = (cardName = 'ABHA_Smart_Card.pdf') => {
+    if (!addRecord) return;
+    const newRecord = {
+      name: cardName,
+      type: 'ID Card',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      source: 'National Health Authority',
+    };
+    addRecord(newRecord);
+    showToast(t('ABHA ID Card successfully synced and saved inside secure Health Locker.'));
+  };
+
+  const handleDownloadCard = async () => {
+    const cardEl = document.getElementById('abha-card-capture-header');
+    if (!cardEl) {
+      showToast(t('Error finding ABHA Card element.'));
+      return;
+    }
+    try {
+      showToast(t('Generating high-quality image...'));
+      const canvas = await html2canvas(cardEl, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `ABHA_Smart_Card_${currentUser?.abhaProfile?.ABHANumber || currentUser?.abhaProfile?.abhaNumber || 'Verified'}.png`;
+      link.href = dataUrl;
+      link.click();
+      showToast(t('ABHA Card downloaded successfully!'));
+    } catch (err: any) {
+      console.error(err);
+      showToast(t('Failed to generate card download.'));
+    }
+  };
+
+  const handleShareCard = async () => {
+    const cardEl = document.getElementById('abha-card-capture-header');
+    if (!cardEl) {
+      showToast(t('Error finding ABHA Card element.'));
+      return;
+    }
+    try {
+      showToast(t('Generating shareable image...'));
+      const canvas = await html2canvas(cardEl, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          showToast(t('Failed to create image blob.'));
+          return;
+        }
+        const file = new File([blob], `ABHA_Smart_Card_${currentUser?.abhaProfile?.ABHANumber || currentUser?.abhaProfile?.abhaNumber || 'Verified'}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'My ABHA Card',
+              text: 'Here is my Ayushman Bharat Health Account (ABHA) Card.'
+            });
+          } catch (e: any) {
+            if (e.name !== 'AbortError') {
+              showToast(t('Share canceled or failed.'));
+            }
+          }
+        } else {
+          try {
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+            showToast(t('Card image copied to clipboard! You can paste and share it.'));
+          } catch (clipErr) {
+            const link = document.createElement('a');
+            link.download = `ABHA_Smart_Card_${currentUser?.abhaProfile?.ABHANumber || currentUser?.abhaProfile?.abhaNumber || 'Verified'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast(t('Web Share not supported. Downloaded instead.'));
+          }
+        }
+      }, 'image/png');
+    } catch (err: any) {
+      console.error(err);
+      showToast(t('Failed to share card.'));
+    }
+  };
+
+  useEffect(() => {
+    const updateTimers = () => {
+      // 1. Session Expiry
+      const sessionExpiryVal = localStorage.getItem('abha_session_expiry');
+      if (sessionExpiryVal) {
+        const expiry = Number(sessionExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setSessionExpired(true);
+          setSessionTimerStr('00:00');
+        } else {
+          setSessionExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setSessionTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setSessionExpired(true);
+        setSessionTimerStr('N/A (Not Verified)');
+      }
+
+      // 2. Public Key Expiry
+      const keyExpiryVal = localStorage.getItem('public_key_expiry');
+      if (keyExpiryVal) {
+        const expiry = Number(keyExpiryVal);
+        const diff = expiry - Date.now();
+        if (diff <= 0) {
+          setKeyExpired(true);
+          setKeyTimerStr('00:00');
+        } else {
+          setKeyExpired(false);
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setKeyTimerStr(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+        }
+      } else {
+        setKeyExpired(true);
+        setKeyTimerStr('N/A (Not Synced)');
+      }
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    window.addEventListener('storage', updateTimers);
+    window.addEventListener('setu_state_update', updateTimers);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', updateTimers);
+      window.removeEventListener('setu_state_update', updateTimers);
+    };
+  }, []);
 
   // Synchronize logo changes in real-time
   useEffect(() => {
@@ -542,7 +726,7 @@ export default function Header() {
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
               >
                 <img
-                  src={currentUser.photo || '/assets/doctors/dr-ayesha-ali.jpeg'}
+                  src={getPhotoSrc(currentUser.abhaProfile?.photo || currentUser.photo || '') || '/assets/doctors/dr-ayesha-ali.jpeg'}
                   alt={currentUser.name}
                   id="header-avatar-img"
                   onError={(e) => {
@@ -554,6 +738,37 @@ export default function Header() {
 
               {isProfileOpen && (
                 <div className="profile-dropdown is-open" role="menu" id="profile-dropdown">
+                  {/* Active Timers Panel */}
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px 12px 0 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span>Session Expiry:</span>
+                      <span style={{ fontWeight: 'bold', color: sessionExpired ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                        {sessionExpired ? 'EXPIRED' : sessionTimerStr}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Key Expiry:</span>
+                      <span style={{ fontWeight: 'bold', color: keyExpired ? 'var(--danger)' : 'var(--accent-blue)' }}>
+                        {keyExpired ? 'EXPIRED' : keyTimerStr}
+                      </span>
+                    </div>
+                  </div>
+
+                  {currentUser?.abhaProfile && (
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        setShowProfileModal(true);
+                      }}
+                      className="dropdown-item"
+                      role="menuitem"
+                      style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--accent-teal)', fontWeight: 'bold' }}
+                    >
+                      <User className="small-icon" style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+                      <span>{t('View ABHA Profile')}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => navigateToSettings('visual')}
                     className="dropdown-item"
@@ -666,6 +881,297 @@ export default function Header() {
           )}
         </div>
       </div>
+      
+      {/* Premium Profile Modal Overlay */}
+      {showProfileModal && currentUser?.abhaProfile && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }} onClick={() => setShowProfileModal(false)}>
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            border: '1px solid var(--border-color)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            animation: 'fadeIn 0.3s ease-out'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-color)',
+              background: 'var(--bg-secondary)'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+                <ShieldCheck style={{ color: 'var(--accent-teal)' }} />
+                <span>Verified ABHA Profile</span>
+              </h3>
+              <button 
+                onClick={() => setShowProfileModal(false)}
+                style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px' }}
+              >
+                <X style={{ width: '18px', height: '18px' }} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: '20px', overflowY: 'auto', maxHeight: '75vh', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* Smart Card representation */}
+              <article 
+                id="abha-card-capture-header"
+                className="setu-abha-card" 
+                style={{ 
+                  width: '100%',
+                  margin: 0,
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  border: '1px solid #cbd5e1',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                  fontFamily: "'Inter', sans-serif"
+                }}
+              >
+                <div 
+                  className="setu-abha-card-header" 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '10px 14px', 
+                    background: '#273890', 
+                    borderBottom: '2px solid #10b981' 
+                  }}
+                >
+                  <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <img
+                      src="/nha.png"
+                      alt="NHA Logo"
+                      style={{ height: '100%', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+                    />
+                  </div>
+                  <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+                    <span style={{ fontSize: '9px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+                  </div>
+                  <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <img
+                      src="/abdm_new.png"
+                      alt="ABDM Logo"
+                      style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
+                    />
+                  </div>
+                </div>
+                
+                <div 
+                  className="setu-abha-card-body" 
+                  style={{ 
+                    position: 'relative', 
+                    display: 'flex', 
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'stretch',
+                    gap: '12px', 
+                    padding: '14px', 
+                    background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', 
+                    color: '#0f172a' 
+                  }}
+                >
+                  
+                  <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                    <div className="setu-abha-card-avatar" style={{ width: '75px', height: '95px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <img
+                        src={getPhotoSrc(currentUser.abhaProfile.photo)}
+                        alt={currentUser.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=150';
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="setu-abha-card-details" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left', minWidth: 0 }}>
+                    <div className="setu-abha-card-field">
+                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
+                      <strong className="setu-abha-card-value" style={{ fontSize: '11px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {[currentUser.abhaProfile.firstName, currentUser.abhaProfile.middleName, currentUser.abhaProfile.lastName].filter(Boolean).join(' ')}
+                      </strong>
+                    </div>
+                    
+                    <div className="setu-abha-card-field">
+                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
+                      <strong className="setu-abha-card-value token-num" style={{ fontSize: '11px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>
+                        {currentUser.abhaProfile.ABHANumber || currentUser.abhaProfile.abhaNumber}
+                      </strong>
+                    </div>
+                    
+                    <div className="setu-abha-card-field">
+                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
+                      <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>
+                        {currentUser.abhaProfile.preferredAddress || currentUser.abhaProfile.abhaAddress}
+                      </strong>
+                    </div>
+                    
+                    <div className="setu-abha-card-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginTop: '2px' }}>
+                      <div className="setu-abha-card-field">
+                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
+                        <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>
+                          {getGenderDisplay(currentUser.abhaProfile.gender)}
+                        </span>
+                      </div>
+                      <div className="setu-abha-card-field">
+                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
+                        <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{currentUser.abhaProfile.dob}</span>
+                      </div>
+                      <div className="setu-abha-card-field" style={{ gridColumn: 'span 2' }}>
+                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
+                        <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{currentUser.abhaProfile.mobile}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="setu-abha-card-qr-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="setu-abha-card-qr" style={{ padding: '4px', background: '#ffffff', borderRadius: '6px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${currentUser.abhaProfile.ABHANumber || currentUser.abhaProfile.abhaNumber};${currentUser.abhaProfile.preferredAddress || currentUser.abhaProfile.abhaAddress}`}
+                        alt="ABHA QR"
+                        style={{ width: '68px', height: '68px', display: 'block' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              {/* Action Buttons: Download, Locker, Share inside modal */}
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                <button
+                  onClick={handleDownloadCard}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'var(--accent-teal)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Download style={{ width: '14px', height: '14px' }} />
+                  <span>Download ABHA Card (PNG)</span>
+                </button>
+
+                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                  <button
+                    onClick={() => handleSaveToLocker(`ABHA_Smart_Card_${currentUser.abhaProfile.ABHANumber || currentUser.abhaProfile.abhaNumber}.pdf`)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Database style={{ width: '12px', height: '12px', color: 'var(--accent-teal)' }} />
+                    <span>Save to Locker</span>
+                  </button>
+
+                  <button
+                    onClick={handleShareCard}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Send style={{ width: '12px', height: '12px', color: 'var(--accent-blue)' }} />
+                    <span>Share Card</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Extended Details Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '11px', textAlign: 'left' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Mobile Number</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.mobile || 'N/A'}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Status</span>
+                  <span style={{ fontWeight: 800, color: 'var(--success)' }}>{currentUser.abhaProfile.abhaStatus || 'ACTIVE'}</span>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Street Address</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.address || 'N/A'}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>District & State</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.districtName}, {currentUser.abhaProfile.stateName}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '9px', textTransform: 'uppercase', fontWeight: 700 }}>Pin Code</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.abhaProfile.pinCode || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', gap: '8px', padding: '14px 20px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+              <button 
+                onClick={() => setShowProfileModal(false)}
+                style={{ flex: 1, padding: '10px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

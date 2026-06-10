@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#ffffff" stroke="#e05320" stroke-width="2.5"/>
+  <circle cx="50" cy="50" r="38" fill="none" stroke="#6b7280" stroke-width="0.75" stroke-dasharray="4,2" opacity="0.6"/>
+  <circle cx="50" cy="50" r="32" fill="none" stroke="#6b7280" stroke-width="0.75" stroke-dasharray="4,2" opacity="0.6"/>
+  <path d="M50 30 C43 35 40 45 50 62 C60 45 57 35 50 30 Z" fill="#15803d"/>
+  <path d="M50 35 C38 42 35 53 45 65 C51 55 48 45 50 35 Z" fill="#16a34a" opacity="0.85"/>
+  <path d="M50 35 C62 42 65 53 55 65 C49 55 52 45 50 35 Z" fill="#16a34a" opacity="0.85"/>
+  <circle cx="50" cy="50" r="6" fill="#dc2626"/>
+  <path d="M50 56 C44 56 42 62 42 68 L58 68 C58 62 56 56 50 56 Z" fill="#dc2626"/>
+  <text x="50" y="76" font-family="sans-serif" font-size="5" font-weight="bold" fill="#374151" text-anchor="middle">Ayushman Bharat</text>
+  <text x="50" y="82" font-family="sans-serif" font-size="4" font-weight="bold" fill="#e05320" text-anchor="middle">Digital Health Mission</text>
+</svg>

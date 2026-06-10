@@ -19,13 +19,33 @@ import React, { useState, useEffect, useRef } from 'react';
  */
 const getPhotoSrc = (photo: string): string => {
   if (!photo) return '';
-  if (photo.startsWith('data:') || photo.startsWith('/') || photo.startsWith('http')) {
+  if (photo.startsWith('data:') || photo.startsWith('http')) {
+    return photo;
+  }
+  if (photo.startsWith('/9j/')) {
+    return `data:image/jpeg;base64,${photo}`;
+  }
+  if (photo.startsWith('/')) {
     return photo;
   }
   return `data:image/jpeg;base64,${photo}`;
 };
 
+/**
+ * Maps gender letters/words to bilingual English/Hindi output.
+ * @param {string} gender - gender string
+ * @returns {string} bilingual gender description
+ */
+const getGenderDisplay = (gender: string): string => {
+  if (!gender) return '';
+  const g = gender.toLowerCase();
+  if (g === 'male' || g === 'm') return 'Male / पुरुष';
+  if (g === 'female' || g === 'f') return 'Female / महिला';
+  return `${gender} / अन्य`;
+};
+
 import { useRouter } from 'next/navigation';
+import html2canvas from 'html2canvas';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import {
@@ -63,7 +83,7 @@ import LogoLoader from '../../../components/common/LogoLoader';
 export default function AbhaPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { addRecord, logSecurityEvent } = useAuth();
+  const { addRecord, logSecurityEvent, updateCurrentUser, currentUser } = useAuth();
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<'card' | 'onboard' | 'consent' | 'hiplink' | 'nhpr' | 'scanshare' | 'uhi' | 'nhcx' | 'tests'>('card');
@@ -702,6 +722,43 @@ export default function AbhaPage() {
   const [txnId, setTxnId] = useState('');
   const [onboardStep, setOnboardStep] = useState<'verification' | 'otp' | 'demographics' | 'completed'>('verification');
   const [loading, setLoading] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(120);
+
+  useEffect(() => {
+    let timer: any;
+    if (showOtpModal && otpTimer > 0) {
+      timer = setInterval(() => {
+        setOtpTimer(prev => prev - 1);
+      }, 1000);
+    } else if (otpTimer === 0) {
+      clearInterval(timer);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, otpTimer]);
+
+  useEffect(() => {
+    if (currentUser?.abhaProfile) {
+      const profile = currentUser.abhaProfile;
+      const fullName = [profile.firstName, profile.middleName, profile.lastName]
+        .filter(Boolean)
+        .join(' ');
+      
+      setAbhaDetails({
+        name: fullName,
+        mobile: profile.mobile || '',
+        abhaId: profile.preferredAddress || profile.abhaAddress || '',
+        abhaNumber: profile.ABHANumber || profile.abhaNumber || '',
+        gender: profile.gender === 'M' ? 'Male' : profile.gender === 'F' ? 'Female' : profile.gender,
+        dob: profile.dob || '',
+        photo: profile.photo || ''
+      });
+      setAbhaProfile(profile);
+      setVerificationMessage(t('ABHA Profile Verified & Loaded from Session'));
+      setOnboardStep('completed');
+      setActiveTab('card');
+    }
+  }, [currentUser]);
 
   // Demographics state for Mobile onboarding
   const [demoFirstName, setDemoFirstName] = useState('');
@@ -760,6 +817,85 @@ export default function AbhaPage() {
     showToast(t('ABHA ID Card successfully synced and saved inside secure Health Locker.'));
   };
 
+  const handleDownloadCard = async () => {
+    const cardEl = document.getElementById('abha-card-capture');
+    if (!cardEl) {
+      showToast(t('Error finding ABHA Card element.'));
+      return;
+    }
+    try {
+      showToast(t('Generating high-quality image...'));
+      const canvas = await html2canvas(cardEl, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`;
+      link.href = dataUrl;
+      link.click();
+      showToast(t('ABHA Card downloaded successfully!'));
+      logSecurityEvent('ABHA Card Downloaded', `Successfully downloaded ABHA Card image: ${abhaDetails.abhaNumber}`);
+    } catch (err: any) {
+      console.error(err);
+      showToast(t('Failed to generate card download.'));
+    }
+  };
+
+  const handleShareCard = async () => {
+    const cardEl = document.getElementById('abha-card-capture');
+    if (!cardEl) {
+      showToast(t('Error finding ABHA Card element.'));
+      return;
+    }
+    try {
+      showToast(t('Generating shareable image...'));
+      const canvas = await html2canvas(cardEl, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          showToast(t('Failed to create image blob.'));
+          return;
+        }
+        const file = new File([blob], `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'My ABHA Card',
+              text: 'Here is my Ayushman Bharat Health Account (ABHA) Card.'
+            });
+            logSecurityEvent('ABHA Card Shared', `Shared ABHA Card for ${abhaDetails.name}`);
+          } catch (e: any) {
+            if (e.name !== 'AbortError') {
+              showToast(t('Share canceled or failed.'));
+            }
+          }
+        } else {
+          try {
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+            showToast(t('Card image copied to clipboard! You can paste and share it.'));
+          } catch (clipErr) {
+            const link = document.createElement('a');
+            link.download = `ABHA_Smart_Card_${abhaDetails.abhaNumber || 'Verified'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast(t('Web Share not supported. Downloaded instead.'));
+          }
+        }
+      }, 'image/png');
+    } catch (err: any) {
+      console.error(err);
+      showToast(t('Failed to share card.'));
+    }
+  };
+
   // Milestone 1 Onboarding API triggers
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -791,7 +927,12 @@ export default function AbhaPage() {
       
       if (data.status === 'success') {
         setTxnId(data.txnId);
-        setOnboardStep('otp');
+        if (onboardMethod === 'aadhaar') {
+          setOtpTimer(120);
+          setShowOtpModal(true);
+        } else {
+          setOnboardStep('otp');
+        }
         showToast(t(data.message));
         logSecurityEvent(
           'ABDM OTP Requested', 
@@ -874,8 +1015,15 @@ export default function AbhaPage() {
 
         if (data.status === 'success') {
           if (onboardMethod === 'aadhaar') {
+            setShowOtpModal(false);
             if (data.ABHAProfile) {
               const profile = data.ABHAProfile;
+              
+              // Set session and key timers
+              const sessionTtl = data.tokens?.expiresIn || 1800;
+              localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('public_key_expiry', String(Date.now() + 3600 * 1000));
+              
               const fullName = [profile.firstName, profile.middleName, profile.lastName]
                 .filter(Boolean)
                 .join(' ');
@@ -891,7 +1039,18 @@ export default function AbhaPage() {
               });
               setAbhaProfile(profile);
               setVerificationMessage(data.message || 'Aadhaar verified successfully');
+              
+              // Update global user session profile and photo
+              updateCurrentUser({
+                photo: getPhotoSrc(profile.photo),
+                abhaId: profile.preferredAddress,
+                abhaProfile: profile
+              });
             } else if (data.profile) {
+              // Set session and key timers
+              localStorage.setItem('abha_session_expiry', String(Date.now() + 1800 * 1000));
+              localStorage.setItem('public_key_expiry', String(Date.now() + 3600 * 1000));
+              
               setAbhaDetails({
                 name: data.profile.name,
                 mobile: data.profile.mobile,
@@ -901,16 +1060,30 @@ export default function AbhaPage() {
                 dob: data.profile.dob,
                 photo: data.profile.photo
               });
-              setAbhaProfile({
+              const simProfile = {
                 firstName: data.profile.name,
                 preferredAddress: data.abhaAddress,
                 ABHANumber: data.abhaNumber,
                 gender: data.profile.gender,
                 dob: data.profile.dob,
                 mobile: data.profile.mobile,
-                photo: data.profile.photo
-              });
+                photo: data.profile.photo,
+                address: '1787, Nagpur Road, Medical, Jabalpur, Madhya Pradesh',
+                districtName: 'Jabalpur',
+                stateName: 'Madhya Pradesh',
+                pinCode: '482001',
+                abhaStatus: 'ACTIVE',
+                abhaType: 'STANDARD'
+              };
+              setAbhaProfile(simProfile);
               setVerificationMessage(data.message || 'Aadhaar verified successfully');
+              
+              // Update global user session profile and photo
+              updateCurrentUser({
+                photo: getPhotoSrc(data.profile.photo),
+                abhaId: data.abhaAddress,
+                abhaProfile: simProfile
+              });
             } else {
               setAbhaDetails({
                 name: 'Aadhaar User',
@@ -941,6 +1114,37 @@ export default function AbhaPage() {
         setIsVerifyingOtp(false);
       }
     }, 1800);
+  };
+
+  const handleResendOtp = async () => {
+    if (onboardMethod === 'aadhaar') {
+      if (aadhaarInput.length !== 12 || isNaN(Number(aadhaarInput))) {
+        showToast(t('Please enter a valid 12-digit Aadhaar Number.'));
+        return;
+      }
+    }
+    setLoading(true);
+    try {
+      const payload = { loginHint: 'aadhaar', loginId: aadhaarInput };
+      const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setTxnId(data.txnId);
+        setOtpTimer(120);
+        showToast(t('OTP resent successfully.'));
+        logSecurityEvent('ABDM OTP Resent', 'Successfully resent Aadhaar OTP.');
+      } else {
+        showToast(t(data.message || 'OTP request failed'));
+      }
+    } catch (err: any) {
+      showToast(t(err.message || 'Network error requesting OTP.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEnrolByDocument = async (e: React.FormEvent) => {
@@ -1359,13 +1563,15 @@ export default function AbhaPage() {
           <Calendar style={{ width: '16px', height: '16px' }} />
           <span>{t('My ABHA Card')}</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('onboard')}
-          className={`abha-tab-button ${activeTab === 'onboard' ? 'active-tab' : ''}`}
-        >
-          <Fingerprint style={{ width: '16px', height: '16px' }} />
-          <span>{t('Create ABHA Card')}</span>
-        </button>
+        {!currentUser?.abhaProfile && (
+          <button 
+            onClick={() => setActiveTab('onboard')}
+            className={`abha-tab-button ${activeTab === 'onboard' ? 'active-tab' : ''}`}
+          >
+            <Fingerprint style={{ width: '16px', height: '16px' }} />
+            <span>{t('Create ABHA Card')}</span>
+          </button>
+        )}
         <button 
           onClick={() => setActiveTab('hiplink')}
           className={`abha-tab-button ${activeTab === 'hiplink' ? 'active-tab' : ''}`}
@@ -1422,47 +1628,69 @@ export default function AbhaPage() {
         {/* ==================== TAB 1: VIEW CARD ==================== */}
         {activeTab === 'card' && (
           <>
-            <article className="setu-abha-card" style={{ width: '100%' }}>
-              <div className="setu-abha-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#0a1e36', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ background: '#ffffff', borderRadius: '4px', padding: '2px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img
-                      src="https://dashboard.abdm.gov.in/uploads/nha_logo_dcf106b16e.png"
-                      alt="NHA Logo"
-                      style={{ width: '100%', height: 'auto', objectFit: 'contain' }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  </div>
-                  <div style={{ color: '#ffffff', lineHeight: '1.2' }}>
-                    <h4 style={{ margin: 0, fontSize: '9px', fontWeight: 800, letterSpacing: '0.5px', color: '#ffffff', textTransform: 'uppercase' }}>national health authority</h4>
-                    <span style={{ fontSize: '7px', color: 'rgba(255,255,255,0.75)', display: 'block' }}>Government of India</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '0.3px', color: '#fff', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</div>
-                  <div style={{ fontSize: '9px', opacity: 0.85, marginTop: '1px', color: '#fff' }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</div>
-                </div>
-                <div style={{ background: '#ffffff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px', flexShrink: 0 }}>
+            <article 
+              id="abha-card-capture"
+              className="setu-abha-card" 
+              style={{ 
+                width: '100%',
+                maxWidth: '480px',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                border: '1px solid #cbd5e1',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                fontFamily: "'Inter', sans-serif"
+              }}
+            >
+              <div 
+                className="setu-abha-card-header" 
+                style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  padding: '10px 14px', 
+                  background: '#273890', 
+                  borderBottom: '2px solid #10b981' 
+                }}
+              >
+                <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <img
-                    src="https://dashboard.abdm.gov.in/uploads/abdm_logo_1d3e8ad9c8.png"
+                    src="/nha.png"
+                    alt="NHA Logo"
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+                  />
+                </div>
+                <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+                  <span style={{ fontSize: '9px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+                </div>
+                <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <img
+                    src="/abdm_new.png"
                     alt="ABDM Logo"
-                    style={{ width: '100%', height: 'auto', objectFit: 'contain' }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
                   />
                 </div>
               </div>
               
-              <div className="setu-abha-card-body" style={{ position: 'relative', display: 'flex', gap: '14px', padding: '16px', background: 'radial-gradient(circle, #f8fafc 0%, #e2e8f0 100%)', color: '#0f172a' }}>
-                <div className="setu-abha-card-seal" style={{ position: 'absolute', top: '10px', right: '140px', padding: '2px 8px', border: '2px solid rgba(16, 185, 129, 0.4)', borderRadius: '4px', color: '#10b981', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', transform: 'rotate(-8deg)', letterSpacing: '0.5px' }}>VERIFIED</div>
+              <div 
+                className="setu-abha-card-body" 
+                style={{ 
+                  position: 'relative', 
+                  display: 'flex', 
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'stretch',
+                  gap: '12px', 
+                  padding: '14px', 
+                  background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', 
+                  color: '#0f172a' 
+                }}
+              >
                 
-                <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0 }}>
-                  <div className="setu-abha-card-avatar" style={{ width: '90px', height: '110px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8' }}>
+                <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <div className="setu-abha-card-avatar" style={{ width: '75px', height: '95px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <img
-                      src={abhaDetails.photo}
+                      src={getPhotoSrc(abhaDetails.photo)}
                       alt={abhaDetails.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       onError={(e) => {
@@ -1472,57 +1700,124 @@ export default function AbhaPage() {
                   </div>
                 </div>
                 
-                <div className="setu-abha-card-details" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
+                <div className="setu-abha-card-details" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left', minWidth: 0 }}>
                   <div className="setu-abha-card-field">
-                    <span className="setu-abha-card-label" style={{ fontSize: '8px', color: '#64748b', display: 'block' }}>Name/नाम</span>
-                    <strong className="setu-abha-card-value" style={{ fontSize: '13px', color: '#0f172a', fontWeight: '800' }}>{abhaDetails.name}</strong>
+                    <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
+                    <strong className="setu-abha-card-value" style={{ fontSize: '11px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{abhaDetails.name}</strong>
                   </div>
                   
                   <div className="setu-abha-card-field">
-                    <span className="setu-abha-card-label" style={{ fontSize: '8px', color: '#64748b', display: 'block' }}>ABHA Number/आभा-संख्या</span>
-                    <strong className="setu-abha-card-value token-num" style={{ fontSize: '13px', color: 'var(--accent-blue)', fontFamily: 'monospace' }}>{abhaDetails.abhaNumber}</strong>
+                    <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
+                    <strong className="setu-abha-card-value token-num" style={{ fontSize: '11px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>{abhaDetails.abhaNumber}</strong>
                   </div>
                   
                   <div className="setu-abha-card-field">
-                    <span className="setu-abha-card-label" style={{ fontSize: '8px', color: '#64748b', display: 'block' }}>ABHA Address/आभा पता</span>
-                    <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontSize: '11px', fontFamily: 'monospace' }}>{abhaDetails.abhaId}</strong>
+                    <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
+                    <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>{abhaDetails.abhaId}</strong>
                   </div>
                   
-                  <div className="setu-abha-card-row" style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                  <div className="setu-abha-card-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginTop: '2px' }}>
                     <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '8px', color: '#64748b' }}>Gender/लिंग</span>
-                      <span className="setu-abha-card-value" style={{ display: 'block', fontSize: '10px', fontWeight: 600 }}>{abhaDetails.gender}</span>
+                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
+                      <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{getGenderDisplay(abhaDetails.gender)}</span>
                     </div>
                     <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '8px', color: '#64748b' }}>DOB/जन्मतारीख</span>
-                      <span className="setu-abha-card-value" style={{ display: 'block', fontSize: '10px', fontWeight: 600 }}>{abhaDetails.dob}</span>
+                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
+                      <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{abhaDetails.dob}</span>
                     </div>
-                    <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '8px', color: '#64748b' }}>Mobile/मोबाइल</span>
-                      <span className="setu-abha-card-value" style={{ display: 'block', fontSize: '10px', fontWeight: 600 }}>{abhaDetails.mobile}</span>
+                    <div className="setu-abha-card-field" style={{ gridColumn: 'span 2' }}>
+                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
+                      <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{abhaDetails.mobile}</span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="setu-abha-card-qr-wrapper" style={{ flexShrink: 0, alignSelf: 'center' }}>
-                  <div className="setu-abha-card-qr" style={{ padding: '6px', background: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                <div className="setu-abha-card-qr-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="setu-abha-card-qr" style={{ padding: '4px', background: '#ffffff', borderRadius: '6px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${abhaDetails.abhaNumber};${abhaDetails.abhaId}`}
                       alt="ABHA QR"
-                      style={{ width: '80px', height: '80px' }}
+                      style={{ width: '68px', height: '68px', display: 'block' }}
                     />
                   </div>
                 </div>
               </div>
             </article>
             
-            <button
-              onClick={() => handleSaveToLocker(`ABHA_Smart_Card_${abhaDetails.abhaNumber}.pdf`)}
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: 'linear-gradient(90deg, #1f3a60, #10b981)', color: '#ffffff', fontWeight: 800, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s ease' }}
-            >
-              <Download className="small-icon" style={{ width: '16px', height: '16px' }} />
-              <span>Save to Health Locker</span>
-            </button>
+            {/* Action Buttons: Download, Locker, Share */}
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                onClick={handleDownloadCard}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: 'var(--accent-teal)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Download style={{ width: '16px', height: '16px' }} />
+                <span>Download ABHA Card (PNG)</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                <button
+                  onClick={() => handleSaveToLocker(`ABHA_Smart_Card_${abhaDetails.abhaNumber}.pdf`)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Database style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
+                  <span>Save to Locker</span>
+                </button>
+
+                <button
+                  onClick={handleShareCard}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Send style={{ width: '14px', height: '14px', color: 'var(--accent-blue)' }} />
+                  <span>Share Card</span>
+                </button>
+              </div>
+            </div>
 
             <div style={{ width: '100%', display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button className="join-btn" onClick={() => router.push('/appointments')} style={{ flex: 1, margin: 0 }}>OPD Queue Registry</button>
@@ -3336,6 +3631,229 @@ export default function AbhaPage() {
                 </label>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Aadhaar OTP Verification Modal */}
+      {showOtpModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(8px)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 1100,
+          padding: '16px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}>
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            color: 'var(--text-primary)',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>{t('Aadhaar Verification')}</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowOtpModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%'
+                }}
+                aria-label="Close modal"
+              >
+                <X style={{ width: '20px', height: '20px' }} />
+              </button>
+            </div>
+
+            {/* Sandbox Notice Banner */}
+            <div style={{
+              padding: '10px 12px',
+              background: 'color-mix(in srgb, var(--accent-teal) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)',
+              borderRadius: '10px',
+              fontSize: '11px',
+              lineHeight: '1.4',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'flex-start'
+            }}>
+              <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0, width: '16px', height: '16px', marginTop: '2px' }} />
+              <div>
+                <span>Enter the OTP sent to your Aadhaar-linked mobile. <strong>Enter "123456" for instant sandbox pass.</strong></span>
+              </div>
+            </div>
+
+            {/* Countdown Timer Row */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px 14px',
+              background: 'var(--bg-primary)',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)',
+              fontSize: '12px',
+              fontWeight: 600
+            }}>
+              <span style={{ color: 'var(--text-secondary)' }}>OTP Expiration:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                  fontWeight: 800,
+                  color: otpTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)'
+                }}>
+                  {otpTimer === 0 ? 'EXPIRED' : `${Math.floor(otpTimer / 60)}:${String(otpTimer % 60).padStart(2, '0')}`}
+                </span>
+                {otpTimer === 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    style={{
+                      background: 'var(--accent-teal)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Resend
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Input Form */}
+            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Mobile Number / मोबाइल नंबर
+                </label>
+                <input 
+                  type="text"
+                  maxLength={10}
+                  value={mobileInput}
+                  onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Enter 10-digit Mobile Number"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  6-Digit OTP / ओटीपी कोड
+                </label>
+                <input 
+                  type="text"
+                  maxLength={6}
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g., 123456"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '20px',
+                    letterSpacing: '6px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    outline: 'none'
+                  }}
+                  required
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '13px'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || otpTimer === 0}
+                  style={{
+                    flex: 2,
+                    padding: '12px',
+                    border: 'none',
+                    borderRadius: '10px',
+                    background: otpTimer === 0 ? 'var(--border-color)' : 'var(--accent-teal)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    cursor: otpTimer === 0 ? 'not-allowed' : 'pointer',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Key style={{ width: '16px', height: '16px' }} />}
+                  <span>Verify OTP</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
