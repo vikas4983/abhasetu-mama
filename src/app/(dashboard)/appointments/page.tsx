@@ -1,3 +1,12 @@
+/**
+ * @file        page.tsx
+ * @description Simplified single-page appointments booking dashboard integrated with ABDM.
+ * @module      appointments
+ * @layer       component
+ * @author      Platform Team
+ * @created     2026-06-10
+ * @modified    2026-06-10
+ */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -9,7 +18,7 @@ import { useLanguage } from '../../../providers/LanguageProvider';
 import { 
   Calendar, ArrowLeft, Clock, History, X, ShieldCheck, HeartPulse, 
   CheckCircle, Loader2, Stethoscope, ChevronRight, MapPin, CreditCard, 
-  Ticket, Video, Send, FileText, Award, Star, ArrowRight, Sparkles, User, Info, Home, Smartphone, Check
+  Ticket, Video, Send, FileText, Award, Star, ArrowRight, Sparkles, User, Info, Home, Smartphone, Check, QrCode
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 
@@ -175,7 +184,7 @@ export default function AppointmentsPage() {
   // Filter logic
   const getFilteredDoctors = () => {
     return allDoctors.filter(doc => {
-      // 1. Search Query filter
+      // 1. Search Query filter (checks doctor name, medical system, speciality, profession/specialistRole, hospital name, degree, and description)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchName = doc.name.toLowerCase().includes(query);
@@ -183,7 +192,9 @@ export default function AppointmentsPage() {
         const matchSpeciality = doc.speciality.toLowerCase().includes(query);
         const matchRole = doc.specialistRole.toLowerCase().includes(query);
         const matchHospital = doc.hospitalName.toLowerCase().includes(query);
-        if (!(matchName || matchSystem || matchSpeciality || matchRole || matchHospital)) {
+        const matchDegree = doc.degree.toLowerCase().includes(query);
+        const matchDesc = doc.description.toLowerCase().includes(query);
+        if (!(matchName || matchSystem || matchSpeciality || matchRole || matchHospital || matchDegree || matchDesc)) {
           return false;
         }
       }
@@ -425,6 +436,270 @@ export default function AppointmentsPage() {
           background: var(--border-color);
           border-radius: 4px;
         }
+
+        /* Responsive Split Dashboard Layout */
+        .appointments-split-layout {
+          display: flex;
+          flex-direction: row;
+          gap: 24px;
+          width: 100%;
+          margin-top: 20px;
+          align-items: flex-start;
+        }
+
+        @media (max-width: 992px) {
+          .appointments-split-layout {
+            flex-direction: column;
+            gap: 20px;
+          }
+        }
+
+        .left-directory-pane {
+          flex: 1.25;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          width: 100%;
+        }
+
+        .right-booking-pane {
+          flex: 0.75;
+          position: sticky;
+          top: 96px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          width: 100%;
+        }
+
+        @media (max-width: 992px) {
+          .right-booking-pane {
+            position: relative;
+            top: 0;
+          }
+        }
+
+        /* Filter Controls */
+        .category-btn-row {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+
+        .category-filter-btn {
+          padding: 8px 14px;
+          font-size: 11.5px;
+          font-weight: 700;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        /* Sub-system grid */
+        .medical-system-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 14px;
+        }
+
+        @media (min-width: 480px) {
+          .medical-system-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 768px) {
+          .medical-system-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 992px) {
+          .medical-system-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 1200px) {
+          .medical-system-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        .medical-system-card {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 12px 14px;
+          border-radius: 12px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .medical-system-card:hover {
+          border-color: var(--accent-teal);
+          background: var(--bg-card-hover);
+          transform: translateY(-2px);
+        }
+
+        .medical-system-card.active {
+          border-color: var(--accent-teal);
+          background: color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary));
+          box-shadow: 0 0 12px color-mix(in srgb, var(--accent-teal) 12%, transparent);
+        }
+
+        .emoji-bubble {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          margin-bottom: 8px;
+          transition: border-color 0.2s;
+        }
+
+        .medical-system-card:hover .emoji-bubble {
+          border-color: var(--accent-teal);
+        }
+
+        /* Doctor card styling */
+        .doctor-directory-card {
+          padding: 16px;
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .doctor-directory-card.active {
+          border-color: var(--accent-teal);
+          box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-teal) 8%, transparent);
+        }
+
+        /* Slots Grid */
+        .slots-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+        }
+
+        @media (max-width: 480px) {
+          .slots-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        /* Forms Layout */
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .text-input-field {
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          font-size: 13px;
+          transition: border-color 0.2s;
+        }
+
+        .text-input-field:focus {
+          border-color: var(--accent-teal);
+          outline: none;
+        }
+
+        .booking-select-field {
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          font-size: 13px;
+          cursor: pointer;
+        }
+
+        /* Checkout breakdown */
+        .breakup-container {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          border-bottom: 1px solid var(--border-color);
+          padding-bottom: 12px;
+          font-size: 12.5px;
+        }
+
+        .breakup-row {
+          display: flex;
+          justify-content: space-between;
+          color: var(--text-secondary);
+        }
+
+        .breakup-total {
+          display: flex;
+          justify-content: space-between;
+          font-weight: 800;
+          font-size: 14px;
+          color: var(--text-primary);
+          margin-top: 4px;
+        }
+
+        /* Payment Radio Select Options */
+        .radio-select-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .radio-option-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-secondary);
+          cursor: pointer;
+          font-size: 12.5px;
+          transition: border-color 0.2s;
+        }
+
+        .radio-option-card:hover {
+          border-color: var(--accent-teal);
+        }
+
+        /* ABDM Logs Terminal window */
+        .logs-console-window {
+          background: #04090e;
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          padding: 12px;
+          height: 150px;
+          overflow-y: auto;
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 10.5px;
+          color: var(--accent-teal);
+          line-height: 1.45;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
       ` }} />
 
       {/* Hero Section */}
@@ -441,43 +716,78 @@ export default function AppointmentsPage() {
       </section>
 
       {/* Main Split Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 mt-6 items-start w-full min-h-[70vh]">
+      <div className="appointments-split-layout">
         
-        {/* Left Column: Doctor Directory, Search & Category Filters (7/12 layout) */}
-        <section className="w-full lg:w-3/5 flex flex-col gap-6">
+        {/* Left Column: Doctor Directory, Search, QR Checkin & Category Filters */}
+        <section className="left-directory-pane">
+
+          {/* Prominent Directly Scan QR check-in card */}
+          <article className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'color-mix(in srgb, var(--accent-teal) 15%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <QrCode style={{ width: '22px', height: '22px' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {t('Are you physically at a clinic or hospital?')}
+                </h4>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '11.5px', lineHeight: '1.4' }}>
+                  {t('Directly scan the facility check-in code at the counter to share your ABHA profile and generate a queue token.')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/qr-scanner')}
+              className="primary-action"
+              style={{
+                width: '100%',
+                minHeight: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '6px'
+              }}
+            >
+              <QrCode style={{ width: '16px', height: '16px' }} />
+              {t('Scan Counter QR Code to Check-in')}
+            </button>
+          </article>
           
           {/* Filters & Search Card */}
           <article className="route-card" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-            <div className="flex flex-col gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              <div className="flex flex-col gap-1">
-                <h3 className="text-[16px] font-extrabold flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[var(--accent-teal)]" />
-                  {t('Find Healthcare Practitioner')}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
+                  {t('Search Registered Practitioners')}
                 </h3>
-                <p className="text-[var(--text-secondary)] text-[12px]">{t('Search or select a medical category filter to browse doctors.')}</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '12px' }}>
+                  {t('Filter by name, specialty, degree, clinical profession, or hospital/clinic name.')}
+                </p>
               </div>
 
               {/* Direct Search Input */}
-              <div className="relative">
+              <div style={{ position: 'relative' }}>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('Search by practitioner name, specialty, or clinic...')}
-                  className="w-full px-4 py-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[13px] focus:outline-none focus:border-[var(--accent-teal)] transition"
+                  placeholder={t('Search by doctor name, specialty, degree, hospital or clinic...')}
+                  className="text-input-field"
                   aria-label="Search doctors"
                 />
               </div>
 
               {/* Major Category Buttons */}
-              <div className="flex gap-2 flex-wrap">
+              <div className="category-btn-row">
                 <button
                   onClick={() => {
                     setSelectedMajorCategory(null);
                     setSelectedSystem('');
                   }}
-                  className="px-4 py-2 text-[12px] font-bold rounded-lg transition"
+                  className="category-filter-btn"
                   style={{
                     background: selectedMajorCategory === null && !selectedSystem ? 'color-mix(in srgb, var(--accent-teal) 12%, transparent)' : 'var(--bg-secondary)',
                     border: selectedMajorCategory === null && !selectedSystem ? '1.5px solid var(--accent-teal)' : '1px solid var(--border-color)',
@@ -491,7 +801,7 @@ export default function AppointmentsPage() {
                     setSelectedMajorCategory('modern');
                     setSelectedSystem('');
                   }}
-                  className="px-4 py-2 text-[12px] font-bold rounded-lg transition"
+                  className="category-filter-btn"
                   style={{
                     background: selectedMajorCategory === 'modern' && !selectedSystem ? 'color-mix(in srgb, var(--accent-teal) 12%, transparent)' : 'var(--bg-secondary)',
                     border: selectedMajorCategory === 'modern' && !selectedSystem ? '1.5px solid var(--accent-teal)' : '1px solid var(--border-color)',
@@ -505,7 +815,7 @@ export default function AppointmentsPage() {
                     setSelectedMajorCategory('traditional');
                     setSelectedSystem('');
                   }}
-                  className="px-4 py-2 text-[12px] font-bold rounded-lg transition"
+                  className="category-filter-btn"
                   style={{
                     background: selectedMajorCategory === 'traditional' && !selectedSystem ? 'color-mix(in srgb, var(--accent-teal) 12%, transparent)' : 'var(--bg-secondary)',
                     border: selectedMajorCategory === 'traditional' && !selectedSystem ? '1.5px solid var(--accent-teal)' : '1px solid var(--border-color)',
@@ -517,10 +827,12 @@ export default function AppointmentsPage() {
               </div>
 
               {/* Sub-system selection cards (Dynamic grid listing 2-3 cards on mobile, scaling up on desktop) */}
-              <div className="border-t border-[var(--border-color)] pt-4 mt-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">{t('Select Medical System')}</p>
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
+                <p style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                  {t('Filter by Specific Medical System')}
+                </p>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="medical-system-grid">
                   {medicalSystems
                     .filter(sys => {
                       if (!selectedMajorCategory) return true;
@@ -535,20 +847,15 @@ export default function AppointmentsPage() {
                         <button
                           key={sys.id}
                           onClick={() => setSelectedSystem(isActive ? '' : sys.id)}
-                          className="flex flex-col items-start p-3 rounded-xl border transition text-left cursor-pointer select-none group"
-                          style={{
-                            background: isActive ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
-                            borderColor: isActive ? 'var(--accent-teal)' : 'var(--border-color)',
-                            boxShadow: isActive ? '0 0 12px color-mix(in srgb, var(--accent-teal) 10%, transparent)' : 'none'
-                          }}
+                          className={`medical-system-card ${isActive ? 'active' : ''}`}
                         >
                           {/* Circular bubble icon */}
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-md mb-2 bg-[var(--bg-card)] border border-[var(--border-color)] group-hover:border-[var(--accent-teal)] transition">
+                          <div className="emoji-bubble">
                             <span>{sys.emoji}</span>
                           </div>
 
-                          <div className="text-[12px] font-extrabold text-[var(--text-primary)] leading-tight">{t(sys.name)}</div>
-                          <span className="text-[10px] text-[var(--accent-cyan)] font-bold mt-1">{docCount} {t('Doctors')}</span>
+                          <div style={{ fontSize: '12px', fontWeight: '850', color: 'var(--text-primary)', lineHeight: '1.25' }}>{t(sys.name)}</div>
+                          <span style={{ fontSize: '10.5px', color: 'var(--accent-cyan)', fontWeight: 'bold', marginTop: '4px' }}>{docCount} {t('Doctors')}</span>
                         </button>
                       );
                     })}
@@ -559,10 +866,10 @@ export default function AppointmentsPage() {
           </article>
 
           {/* Directory Listings */}
-          <div className="flex flex-col gap-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {isLoading ? (
-              <div className="flex justify-center items-center py-16">
-                <Loader2 className="animate-spin w-8 h-8 text-[var(--accent-teal)]" />
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px 0' }}>
+                <Loader2 className="animate-spin" style={{ width: '32px', height: '32px', color: 'var(--accent-teal)' }} />
               </div>
             ) : (
               <AnimatePresence mode="popLayout">
@@ -576,47 +883,39 @@ export default function AppointmentsPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.3) }}
-                      className="route-card select-none cursor-pointer"
-                      style={{
-                        padding: '16px',
-                        background: 'var(--bg-card)',
-                        border: isSelected ? '2px solid var(--accent-teal)' : '1px solid var(--border-color)',
-                        borderRadius: '16px',
-                        boxShadow: isSelected ? '0 4px 20px color-mix(in srgb, var(--accent-teal) 8%, transparent)' : 'none',
-                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-                      }}
+                      className={`doctor-directory-card ${isSelected ? 'active' : ''}`}
                       onClick={() => handleSelectDoctor(doc)}
                     >
-                      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
                         
                         {/* Avatar & Professional Metadata */}
-                        <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 rounded-full bg-[var(--bg-secondary)] border-2 border-[var(--accent-teal)] overflow-hidden flex items-center justify-center flex-shrink-0">
+                        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg-secondary)', border: '2px solid var(--accent-teal)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             {doc.photo ? (
-                              <img src={doc.photo} alt={doc.name} className="w-full h-full object-cover" />
+                              <img src={doc.photo} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
-                              <User className="w-6 h-6 text-[var(--text-muted)]" />
+                              <User style={{ width: '24px', height: '24px', color: 'var(--text-muted)' }} />
                             )}
                           </div>
 
                           <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="margin-0 text-[15px] font-extrabold text-[var(--text-primary)]">{doc.name}</h4>
-                              <span className="flex items-center gap-1 text-[9px] font-extrabold bg-[var(--bg-secondary)] text-[var(--accent-teal)] border border-[var(--accent-teal)]/20 px-2 py-0.5 rounded">
-                                <ShieldCheck className="w-2.5 h-2.5" />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>{doc.name}</h4>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: 'bold', background: 'var(--bg-secondary)', color: 'var(--accent-teal)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', padding: '2px 6px', borderRadius: '4px' }}>
+                                <ShieldCheck style={{ width: '10px', height: '10px' }} />
                                 {t('HPR Verified')}
                               </span>
                             </div>
                             
-                            <span className="text-[12px] text-[var(--accent-cyan)] font-bold block mt-0.5">
+                            <span style={{ fontSize: '11.5px', color: 'var(--accent-cyan)', fontWeight: 'bold', display: 'block', marginTop: '2px' }}>
                               {t(doc.specialistRole)} ({t(doc.medicalSystem)})
                             </span>
 
-                            <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)] mt-1">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                               <span>{doc.experience} {t('Exp')}</span>
                               <span>•</span>
-                              <span className="flex items-center gap-1 text-[#fbbf24] font-bold">
-                                <Star className="w-3.5 h-3.5 fill-[#fbbf24] stroke-[#fbbf24]" />
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#fbbf24', fontWeight: 'bold' }}>
+                                <Star style={{ width: '13px', height: '13px', fill: '#fbbf24', stroke: '#fbbf24' }} />
                                 {doc.rating}
                               </span>
                             </div>
@@ -624,17 +923,24 @@ export default function AppointmentsPage() {
                         </div>
 
                         {/* Pricing & Selection */}
-                        <div className="flex sm:flex-col items-end justify-between w-full sm:w-auto mt-3 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-none border-[var(--border-color)]">
-                          <div className="text-left sm:text-right">
-                            <span className="text-[10px] text-[var(--text-secondary)] block">{t('Consultation Fee')}</span>
-                            <strong className="text-[16px] text-[var(--text-primary)]">Rs {doc.fee}</strong>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>{t('Consultation Fee')}</span>
+                            <strong style={{ fontSize: '16px', color: 'var(--text-primary)' }}>Rs {doc.fee}</strong>
                           </div>
                           <button
-                            className="mt-2 text-[11.5px] font-bold transition rounded-lg h-8 px-4"
                             style={{
+                              marginTop: '6px',
+                              height: '32px',
+                              padding: '0 14px',
+                              fontSize: '11.5px',
+                              fontWeight: 'bold',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              border: isSelected ? '1px solid var(--accent-teal)' : '1px solid var(--border-color)',
                               background: isSelected ? 'var(--accent-teal)' : 'var(--bg-secondary)',
                               color: isSelected ? '#ffffff' : 'var(--text-primary)',
-                              border: isSelected ? '1px solid var(--accent-teal)' : '1px solid var(--border-color)'
+                              transition: 'all 0.2s'
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -648,9 +954,9 @@ export default function AppointmentsPage() {
                       </div>
 
                       {/* Clinic Info */}
-                      <div className="flex gap-2 items-center text-[12px] bg-[var(--bg-secondary)] px-3 py-2 rounded-xl border border-[var(--border-color)] mt-3">
-                        <MapPin className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
-                        <span className="text-[var(--text-secondary)]">{t(doc.hospitalName)}</span>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px', background: 'var(--bg-secondary)', padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                        <MapPin style={{ width: '14px', height: '14px', color: 'var(--text-muted)', flexShrink: 0 }} />
+                        <span style={{ color: 'var(--text-secondary)' }}>{t(doc.hospitalName)}</span>
                       </div>
 
                     </motion.article>
@@ -658,7 +964,7 @@ export default function AppointmentsPage() {
                 })}
 
                 {getFilteredDoctors().length === 0 && (
-                  <div className="text-center py-16 px-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] text-[var(--text-secondary)] text-[13px]">
+                  <div style={{ textAlign: 'center', padding: '40px 20px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '13px' }}>
                     🌎 {t('No registered practitioners match your active filters or search term.')}
                   </div>
                 )}
@@ -667,8 +973,8 @@ export default function AppointmentsPage() {
           </div>
         </section>
 
-        {/* Right Column: Inline Booking, Payment and ABDM Linkage Console (5/12 layout) */}
-        <section className="w-full lg:w-2/5 lg:sticky lg:top-24 flex flex-col gap-6">
+        {/* Right Column: Inline Booking, Payment and ABDM Linkage Console */}
+        <section className="right-booking-pane">
           
           <AnimatePresence mode="wait">
             {!selectedDoctor ? (
@@ -680,16 +986,16 @@ export default function AppointmentsPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.2 }}
-                className="flex flex-col gap-6"
+                style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}
               >
                 {/* Visual Empty Card */}
-                <div className="route-card flex flex-col items-center justify-center text-center p-8 gap-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', minHeight: '340px' }}>
-                  <div className="w-16 h-16 rounded-full bg-teal-500/10 flex items-center justify-center text-[var(--accent-teal)] border border-[var(--accent-teal)]/20">
-                    <Stethoscope className="w-8 h-8 animate-pulse" />
+                <div className="route-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '32px 20px', gap: '16px', minHeight: '340px' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', display: 'grid', placeItems: 'center' }}>
+                    <Stethoscope style={{ width: '32px', height: '32px' }} className="animate-pulse" />
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <h4 className="margin-0 text-[16px] font-extrabold">{t('Configure Booking Slot')}</h4>
-                    <p className="margin-0 text-[var(--text-secondary)] text-[12.5px] max-w-[280px] leading-relaxed">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800' }}>{t('Configure Booking Slot')}</h4>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '12.5px', maxWidth: '280px', lineHeight: '1.5' }}>
                       {t('Select any verified doctor from the catalog on the left to activate scheduling, payment checkout, and health record linking.')}
                     </p>
                   </div>
@@ -697,22 +1003,22 @@ export default function AppointmentsPage() {
 
                 {/* Tokens History table acting as "Recent Bookings" */}
                 <article className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <History className="text-[var(--accent-cyan)] w-[18px] h-[18px]" />
-                    <h4 className="margin-0 text-[14px] font-extrabold">{t('Recent Queue Tokens')}</h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <History style={{ color: 'var(--accent-cyan)', width: '18px', height: '18px' }} />
+                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800' }}>{t('Recent Queue Tokens')}</h4>
                   </div>
                   
-                  <div className="flex flex-col gap-3">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {tokenHistory.map((hist, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-[12px] pb-3 border-b border-[var(--border-color)] last:border-0 last:pb-0">
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
                         <div>
-                          <div className="font-extrabold text-[var(--text-primary)]">{hist.doctorName}</div>
-                          <div className="text-[var(--text-secondary)] text-[11px] mt-0.5">{t(hist.facilityName)}</div>
-                          <div className="text-[var(--text-muted)] text-[10px] mt-1">{hist.date} at {hist.time}</div>
+                          <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{hist.doctorName}</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>{t(hist.facilityName)}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '4px' }}>{hist.date} at {hist.time}</div>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="font-mono text-[var(--accent-teal)] font-extrabold tracking-wider">{hist.tokenNum}</span>
-                          <span className="text-[10px] font-bold" style={{ color: hist.status === 'Active' ? 'var(--success)' : 'var(--text-muted)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          <span style={{ fontFamily: 'monospace', color: 'var(--accent-teal)', fontWeight: '800', letterSpacing: '0.5px' }}>{hist.tokenNum}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 'bold', color: hist.status === 'Active' ? 'var(--success)' : 'var(--text-muted)' }}>
                             {hist.status === 'Active' ? `● ${t('Active')}` : `● ${t('Completed')}`}
                           </span>
                         </div>
@@ -731,18 +1037,27 @@ export default function AppointmentsPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.2 }}
-                className="flex flex-col gap-4"
+                style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}
               >
                 {/* Active consult panel header */}
                 <div style={{ background: 'color-mix(in srgb, var(--accent-teal) 6%, var(--bg-card))', padding: '16px', border: '1.5px solid var(--accent-teal)', borderRadius: '16px' }}>
-                  <div className="flex justify-between items-center flex-wrap gap-2">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <div>
-                      <h4 className="margin-0 text-[14px] font-extrabold text-[var(--text-primary)]">{t('Consultation Session')}</h4>
-                      <span className="text-[11px] text-[var(--text-muted)]">{t('Doctor:')} <strong>{selectedDoctor.name}</strong> | {t('Token:')} <strong>{generatedToken}</strong></span>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Consultation Session')}</h4>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('Doctor:')} <strong>{selectedDoctor.name}</strong> | {t('Token:')} <strong>{generatedToken}</strong></span>
                     </div>
                     <button 
                       onClick={() => setJoinedVideoConsult(false)} 
-                      className="px-2.5 py-1 text-[10px] font-bold bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:border-[var(--danger)] text-[var(--text-secondary)] transition"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '10.5px',
+                        fontWeight: 'bold',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
                     >
                       {t('Close Room')}
                     </button>
@@ -750,42 +1065,42 @@ export default function AppointmentsPage() {
                 </div>
 
                 {/* Video Camera Frame Mock */}
-                <div className="relative w-full h-[250px] bg-[#03090e] rounded-2xl border border-[var(--border-color)] overflow-hidden flex items-center justify-center shadow-inner">
+                <div style={{ position: 'relative', width: '100%', height: '240px', background: '#03090e', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {selectedDoctor.photo ? (
                     <img 
                       src={selectedDoctor.photo} 
                       alt="Doctor Video" 
-                      className="w-full h-full object-cover opacity-85 filter contrast-[102%]"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
-                    <div className="text-center text-[var(--text-muted)]">
-                      <Stethoscope className="w-12 h-12 mx-auto mb-2 text-[var(--accent-teal)]" />
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <Stethoscope style={{ width: '48px', height: '48px', margin: '0 auto 8px', color: 'var(--accent-teal)' }} />
                       <span>{t('Establishing Encrypted Video Tunnel...')}</span>
                     </div>
                   )}
 
                   {/* Picture-in-picture float */}
-                  <div className="absolute bottom-3 right-3 w-[70px] h-[95px] bg-[#09141d] rounded-lg border border-[var(--accent-teal)] overflow-hidden shadow-md flex flex-col items-center justify-center">
-                    <User className="w-5 h-5 text-[var(--text-muted)]" />
-                    <span className="text-[8px] text-[var(--text-muted)] absolute bottom-2">{t('You')}</span>
+                  <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '70px', height: '95px', background: '#09141d', borderRadius: '8px', border: '1px solid var(--accent-teal)', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <User style={{ width: '20px', height: '20px', color: 'var(--text-muted)' }} />
+                    <span style={{ fontSize: '8px', color: 'var(--text-muted)', position: 'absolute', bottom: '6px' }}>{t('You')}</span>
                   </div>
 
-                  <div className="absolute top-3 left-3 bg-black/60 border border-[var(--border-color)] rounded-md px-2 py-1 text-[9px] text-[var(--success)] font-extrabold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full animate-ping inline-block"></span>
+                  <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.6)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '4px 8px', fontSize: '9px', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', display: 'inline-block' }}></span>
                     {t('LIVE')}
                   </div>
                 </div>
 
                 {/* Consultation Chat Desk */}
-                <div className="route-card flex flex-col gap-3" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', height: '280px' }}>
-                  <h4 className="margin-0 text-[12.5px] border-b border-[var(--border-color)] pb-2 font-extrabold flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-[var(--accent-teal)]" />
+                <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', height: '280px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '12.5px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Sparkles style={{ width: '14px', height: '14px', color: 'var(--accent-teal)' }} />
                     {t('Telehealth Chat Box')}
                   </h4>
                   
                   {/* Messages body */}
-                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 scroll-container">
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }} className="scroll-container">
                     {chatLogs.map((log, idx) => (
                       <div 
                         key={idx} 
@@ -806,16 +1121,16 @@ export default function AppointmentsPage() {
                   </div>
 
                   {/* Form input */}
-                  <form onSubmit={handleSendChatMessage} className="flex gap-2">
+                  <form onSubmit={handleSendChatMessage} style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type="text"
                       value={chatMessage}
                       onChange={(e) => setChatMessage(e.target.value)}
                       placeholder={t('Type symptom detail or query...')}
-                      className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[12px] focus:outline-none"
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
                     />
-                    <button type="submit" className="primary-action px-3" style={{ minHeight: 'auto', height: '36px' }}>
-                      <Send className="w-3.5 h-3.5" />
+                    <button type="submit" className="primary-action" style={{ minHeight: '34px', padding: '0 12px' }}>
+                      <Send style={{ width: '14px', height: '14px' }} />
                     </button>
                   </form>
                 </div>
@@ -823,32 +1138,45 @@ export default function AppointmentsPage() {
                 {/* Prescription trigger */}
                 <button 
                   onClick={() => setShowPrescription(!showPrescription)}
-                  className="px-4 py-3 text-[12px] font-bold bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl flex items-center justify-center gap-2 hover:border-[var(--accent-teal)] transition"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <FileText className="w-4 h-4 text-[var(--accent-teal)]" /> 
+                  <FileText style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} /> 
                   {showPrescription ? t('Hide Signed Prescription Bundle') : t('View Interoperable FHIR Prescription')}
                 </button>
 
                 {/* Digitally Signed FHIR Prescription Bundle */}
                 {showPrescription && (
                   <div className="route-card" style={{ padding: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                    <div className="flex justify-between items-center border-b border-[var(--border-color)] pb-2 mb-3">
-                      <h4 className="margin-0 text-[12px] text-[var(--accent-teal)] font-extrabold flex items-center gap-1.5">
-                        <Award className="w-3.5 h-3.5" /> 
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>
+                      <h4 style={{ margin: 0, fontSize: '12px', color: 'var(--accent-teal)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Award style={{ width: '14px', height: '14px' }} /> 
                         {t('MedicationRequest bundle (FHIR)')}
                       </h4>
-                      <span className="text-[8px] bg-[var(--success)] text-white px-2 py-0.5 rounded font-extrabold">JWS SIGNED</span>
+                      <span style={{ fontSize: '8px', background: 'var(--success)', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>JWS SIGNED</span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px] leading-relaxed">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', fontSize: '11px', lineHeight: '1.5' }}>
                       <div>
-                        <h5 className="margin-0 text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">{t('Practitioner Meta')}</h5>
+                        <h5 style={{ margin: '0 0 4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', color: 'var(--text-muted)' }}>{t('Practitioner Meta')}</h5>
                         <div>{t('Name:')} <strong>{selectedDoctor.name}</strong></div>
                         <div>{t('License:')} <strong>{selectedDoctor.certificateId}</strong></div>
                         <div>{t('HFR Node ID:')} <strong>{selectedDoctor.hfrId}</strong></div>
                       </div>
                       <div>
-                        <h5 className="margin-0 text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">{t('Rx Medication Details')}</h5>
+                        <h5 style={{ margin: '0 0 4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', color: 'var(--text-muted)' }}>{t('Rx Medication Details')}</h5>
                         <div>{t('Medication:')} <strong>Paracetamol 650mg tablets</strong></div>
                         <div>{t('Dosage:')} <strong>1 tab twice daily after meals</strong></div>
                         <div>{t('Duration:')} <strong>3 Days (Active)</strong></div>
@@ -867,52 +1195,58 @@ export default function AppointmentsPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.2 }}
-                className="flex flex-col gap-4"
+                style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}
               >
                 {/* Doctor Selection Details Header */}
                 <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] border border-[var(--accent-teal)]/40 overflow-hidden flex items-center justify-center">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', border: '1px solid var(--accent-teal)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {selectedDoctor.photo ? (
-                          <img src={selectedDoctor.photo} alt={selectedDoctor.name} className="w-full h-full object-cover" />
+                          <img src={selectedDoctor.photo} alt={selectedDoctor.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          <User className="w-5 h-5 text-[var(--text-muted)]" />
+                          <User style={{ width: '18px', height: '18px', color: 'var(--text-muted)' }} />
                         )}
                       </div>
                       <div>
-                        <h4 className="margin-0 text-[13.5px] font-extrabold text-[var(--text-primary)]">{selectedDoctor.name}</h4>
-                        <span className="text-[11px] text-[var(--accent-cyan)] font-bold">{t(selectedDoctor.specialistRole)}</span>
+                        <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>{selectedDoctor.name}</h4>
+                        <span style={{ fontSize: '11px', color: 'var(--accent-cyan)', fontWeight: 'bold' }}>{t(selectedDoctor.specialistRole)}</span>
                       </div>
                     </div>
                     <button 
                       onClick={() => setSelectedDoctor(null)}
-                      className="text-[var(--text-muted)] hover:text-[var(--danger)] transition p-1"
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
                       aria-label="Deselect doctor"
                     >
-                      <X className="w-4 h-4" />
+                      <X style={{ width: '16px', height: '16px' }} />
                     </button>
                   </div>
                 </div>
 
                 {/* Sub-pane flow A: Schedule & Payment checkout */}
                 {!isPaymentSettled ? (
-                  <form onSubmit={handlePaymentCheckout} className="flex flex-col gap-4">
-                    <div className="route-card flex flex-col gap-4" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+                  <form onSubmit={handlePaymentCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       
-                      <h4 className="margin-0 text-[12px] uppercase tracking-wider text-[var(--text-muted)] font-extrabold">{t('Configure Appointment')}</h4>
+                      <h4 style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800' }}>{t('Configure Appointment')}</h4>
 
                       {/* Date Picker */}
-                      <div>
-                        <label className="text-[11.5px] font-bold text-[var(--text-secondary)] block mb-1.5">{t('Select Date')}</label>
-                        <div className="flex gap-2">
+                      <div className="form-group">
+                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Select Date')}</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
                           {dates.map(d => (
                             <button
                               key={d}
                               type="button"
                               onClick={() => setSelectedDate(d)}
-                              className="flex-1 py-2 rounded-lg text-[11.5px] font-bold transition border"
                               style={{
+                                flex: 1,
+                                padding: '8px 0',
+                                borderRadius: '8px',
+                                fontSize: '11.5px',
+                                fontWeight: 'bold',
+                                border: '1px solid var(--border-color)',
+                                cursor: 'pointer',
                                 background: selectedDate === d ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
                                 borderColor: selectedDate === d ? 'var(--accent-teal)' : 'var(--border-color)',
                                 color: selectedDate === d ? 'var(--accent-teal)' : 'var(--text-primary)'
@@ -925,34 +1259,43 @@ export default function AppointmentsPage() {
                       </div>
 
                       {/* Time slot picker */}
-                      <div>
-                        <label className="text-[11.5px] font-bold text-[var(--text-secondary)] block mb-1.5">{t('Select Time Slot')}</label>
-                        <div className="grid grid-cols-3 gap-2">
+                      <div className="form-group">
+                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Select Time Slot')}</label>
+                        <div className="slots-grid">
                           {times.map(tVal => (
                             <button
                               key={tVal}
                               type="button"
                               onClick={() => setSelectedTime(tVal)}
-                              className="py-2 rounded-lg text-[10.5px] font-bold transition border flex items-center justify-center gap-1"
                               style={{
+                                padding: '8px 0',
+                                borderRadius: '8px',
+                                fontSize: '10.5px',
+                                fontWeight: 'bold',
+                                border: '1px solid var(--border-color)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
                                 background: selectedTime === tVal ? 'color-mix(in srgb, var(--accent-teal) 8%, var(--bg-secondary))' : 'var(--bg-secondary)',
                                 borderColor: selectedTime === tVal ? 'var(--accent-teal)' : 'var(--border-color)',
                                 color: selectedTime === tVal ? 'var(--accent-teal)' : 'var(--text-primary)'
                               }}
                             >
-                              <Clock className="w-3 h-3 flex-shrink-0" /> {tVal}
+                              <Clock style={{ width: '11px', height: '11px', flexShrink: 0 }} /> {tVal}
                             </button>
                           ))}
                         </div>
                       </div>
 
                       {/* Consult Mode */}
-                      <div>
-                        <label className="text-[11.5px] font-bold text-[var(--text-secondary)] block mb-1">{t('Consultation Mode')}</label>
+                      <div className="form-group">
+                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Consultation Mode')}</label>
                         <select 
                           value={consultMode} 
                           onChange={(e) => setConsultMode(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[12px] focus:outline-none"
+                          className="booking-select-field"
                         >
                           <option value="Video Call">{t('Video Consultation (Virtual)')}</option>
                           <option value="Audio Call">{t('Audio Call Consultation')}</option>
@@ -961,44 +1304,44 @@ export default function AppointmentsPage() {
                       </div>
 
                       {/* Symptom Input */}
-                      <div>
-                        <label className="text-[11.5px] font-bold text-[var(--text-secondary)] block mb-1">{t('Outline active symptoms')}</label>
+                      <div className="form-group">
+                        <label style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{t('Outline active symptoms')}</label>
                         <input
                           type="text"
                           required
                           value={symptoms}
                           onChange={(e) => setSymptoms(e.target.value)}
                           placeholder={t('e.g. fatigue, sore throat since yesterday')}
-                          className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[12px] focus:outline-none focus:border-[var(--accent-teal)]"
+                          className="text-input-field"
                         />
                       </div>
 
                     </div>
 
                     {/* Payment checkout card */}
-                    <div className="route-card flex flex-col gap-4" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+                    <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       
-                      <h4 className="margin-0 text-[12px] uppercase tracking-wider text-[var(--text-muted)] font-extrabold">{t('Settlement Method')}</h4>
+                      <h4 style={{ margin: 0, fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800' }}>{t('Settlement Method')}</h4>
                       
                       {/* Price breakup */}
-                      <div className="flex flex-col gap-2 text-[12px] border-b border-[var(--border-color)] pb-3">
-                        <div className="flex justify-between text-[var(--text-secondary)]">
+                      <div className="breakup-container">
+                        <div className="breakup-row">
                           <span>{t('Consult fee')}</span>
-                          <span className="font-bold text-[var(--text-primary)]">Rs. {getDoctorFee()}</span>
+                          <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Rs. {getDoctorFee()}</span>
                         </div>
-                        <div className="flex justify-between text-[var(--text-secondary)]">
+                        <div className="breakup-row">
                           <span>{t('ABHA linkage fee')}</span>
-                          <span className="font-bold text-[var(--text-primary)]">Rs. 99</span>
+                          <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Rs. 99</span>
                         </div>
-                        <div className="flex justify-between font-extrabold text-[13.5px] pt-1">
+                        <div className="breakup-total">
                           <span>{t('Total Checkout')}</span>
-                          <span className="text-[var(--accent-teal)]">Rs. {getDoctorFee() + 99}</span>
+                          <span style={{ color: 'var(--accent-teal)' }}>Rs. {getDoctorFee() + 99}</span>
                         </div>
                       </div>
 
                       {/* Radio payment methods */}
-                      <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 p-2.5 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] cursor-pointer text-[12px]">
+                      <div className="radio-select-group">
+                        <label className="radio-option-card">
                           <input 
                             type="radio" 
                             name="payOption" 
@@ -1008,7 +1351,7 @@ export default function AppointmentsPage() {
                           />
                           <span>{t('UPI (Instant Node Settlement)')}</span>
                         </label>
-                        <label className="flex items-center gap-2 p-2.5 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] cursor-pointer text-[12px]">
+                        <label className="radio-option-card">
                           <input 
                             type="radio" 
                             name="payOption" 
@@ -1018,7 +1361,7 @@ export default function AppointmentsPage() {
                           />
                           <span>{t('Credit / Debit Card')}</span>
                         </label>
-                        <label className="flex items-center gap-2 p-2.5 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] cursor-pointer text-[12px]">
+                        <label className="radio-option-card">
                           <input 
                             type="radio" 
                             name="payOption" 
@@ -1032,14 +1375,14 @@ export default function AppointmentsPage() {
 
                       <button
                         type="submit"
-                        className="primary-action w-full flex items-center justify-center gap-2"
-                        style={{ minHeight: '44px' }}
+                        className="primary-action"
+                        style={{ minHeight: '44px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
-                        <CreditCard className="w-4 h-4" /> 
+                        <CreditCard style={{ width: '16px', height: '16px' }} /> 
                         {t('Pay & Issue OPD Token')}
                       </button>
 
-                      <div className="text-center text-[10px] text-[var(--text-muted)]">
+                      <div style={{ textAlign: 'center', fontSize: '10px', color: 'var(--text-muted)' }}>
                         🛡️ {t('Secure interoperable Beckn checkout gateway.')}
                       </div>
 
@@ -1048,58 +1391,58 @@ export default function AppointmentsPage() {
                 ) : (
                   
                   /* Sub-pane flow B: ABHA Profile Linking */
-                  <div className="flex flex-col gap-4">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
                     
                     {/* Token issued ticket preview */}
-                    <div className="bg-[var(--bg-secondary)] border-2 border-dashed border-[var(--accent-teal)] rounded-2xl p-5 relative shadow-lg text-center">
-                      <span className="text-[9px] font-extrabold tracking-wider text-[var(--accent-teal)]">{t('NATIONAL HEALTH AUTHORITY')}</span>
-                      <h4 className="margin-0 text-[13px] font-extrabold text-[var(--text-primary)] mt-1">{t('OPD APPOINTMENT TOKEN')}</h4>
+                    <div style={{ background: 'var(--bg-secondary)', border: '2px dashed var(--accent-teal)', borderRadius: '16px', padding: '20px', textAlign: 'center', position: 'relative' }}>
+                      <span style={{ fontSize: '9px', fontWeight: '800', color: 'var(--accent-teal)', letterSpacing: '0.5px' }}>{t('NATIONAL HEALTH AUTHORITY')}</span>
+                      <h4 style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('OPD APPOINTMENT TOKEN')}</h4>
                       
-                      <div className="my-3 font-mono text-[30px] font-extrabold text-[var(--accent-teal)] tracking-wider">
+                      <div style={{ margin: '12px 0', fontFamily: 'monospace', fontSize: '30px', fontWeight: '950', color: 'var(--accent-teal)', letterSpacing: '1px' }}>
                         {generatedToken}
                       </div>
                       
-                      <span className="inline-block text-[10px] bg-[var(--success)]/10 text-[var(--success)] font-extrabold px-3 py-1 rounded-full border border-[var(--success)]/20 mb-2">
+                      <span style={{ display: 'inline-block', fontSize: '10px', background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', padding: '4px 12px', borderRadius: '999px', fontWeight: '800', marginBottom: '8px' }}>
                         ✔ {t('CHECKOUT SETTLED')}
                       </span>
 
-                      <div className="border-t border-dotted border-[var(--border-color)] pt-3 text-[11px] flex flex-col gap-1.5 text-left max-w-[280px] mx-auto">
-                        <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('Practitioner:')}</span><strong>{selectedDoctor.name}</strong></div>
-                        <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('Schedule:')}</span><strong>{selectedDate}, {selectedTime}</strong></div>
-                        <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('Clinic node:')}</span><strong>{selectedDoctor.hospitalName}</strong></div>
+                      <div style={{ borderTop: '1px dotted var(--border-color)', paddingTop: '12px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', maxWidth: '280px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Practitioner:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDoctor.name}</strong></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Schedule:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDate}, {selectedTime}</strong></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-muted)' }}>{t('Clinic node:')}</span><strong style={{ color: 'var(--text-primary)' }}>{selectedDoctor.hospitalName}</strong></div>
                       </div>
                     </div>
 
                     {/* ABHA Link Card */}
-                    <div className="route-card flex flex-col gap-4" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                      <h4 className="margin-0 text-[12.5px] uppercase tracking-wider text-[var(--text-muted)] font-extrabold flex items-center gap-1">
-                        <ShieldCheck className="w-4 h-4 text-[var(--accent-teal)]" />
+                    <div className="route-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <h4 style={{ margin: 0, fontSize: '12.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <ShieldCheck style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
                         {t('ABHA Integration Binds')}
                       </h4>
 
-                      <p className="margin-0 text-[12px] text-[var(--text-secondary)] leading-relaxed">
+                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
                         {t('Link this token check-in directly under your ABHA record index to securely interlink EHR health data.')}
                       </p>
 
-                      <div className="flex flex-col gap-3">
-                        <div>
-                          <label className="text-[11px] text-[var(--text-secondary)] block mb-1">{t('Patient Registered Name')}</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div className="form-group">
+                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('Patient Registered Name')}</label>
                           <input 
                             type="text" 
                             value={patientName} 
                             onChange={(e) => setPatientName(e.target.value)} 
-                            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[12px] focus:outline-none"
+                            className="text-input-field"
                             disabled={linkingSuccess}
                           />
                         </div>
 
-                        <div>
-                          <label className="text-[11px] text-[var(--text-secondary)] block mb-1">{t('ABHA Address (Health ID)')}</label>
+                        <div className="form-group">
+                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('ABHA Address (Health ID)')}</label>
                           <input 
                             type="text" 
                             value={abhaAddress} 
                             onChange={(e) => setAbhaAddress(e.target.value)} 
-                            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[12px] focus:outline-none"
+                            className="text-input-field"
                             disabled={linkingSuccess}
                           />
                         </div>
@@ -1108,54 +1451,54 @@ export default function AppointmentsPage() {
                       {!otpSent ? (
                         <button
                           onClick={handleVerifyAndDiscover}
-                          className="primary-action w-full flex items-center justify-center gap-1.5"
-                          style={{ minHeight: '38px' }}
+                          className="primary-action"
+                          style={{ minHeight: '38px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                           disabled={isLinking}
                         >
                           {isLinking ? (
                             <>
-                              <Loader2 className="animate-spin w-4 h-4" />
+                              <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
                               <span>{t('Discovering Patient Contexts...')}</span>
                             </>
                           ) : (
                             <>
-                              <ShieldCheck className="w-4 h-4" />
+                              <ShieldCheck style={{ width: '14px', height: '14px' }} />
                               <span>{t('Verify & Discover Care Contexts')}</span>
                             </>
                           )}
                         </button>
                       ) : !linkingSuccess ? (
-                        <div className="border-t border-[var(--border-color)] pt-3 mt-1 flex flex-col gap-3">
+                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           <div>
-                            <span className="text-[11px] text-[var(--text-secondary)] block mb-1">{t('Enter NHA Verification OTP')}</span>
-                            <span className="text-[10px] text-[var(--text-muted)] italic block mb-1">({t('Enter 123456 for simulator check')})</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>{t('Enter NHA Verification OTP')}</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>({t('Enter 123456 for simulator check')})</span>
                           </div>
                           
-                          <div className="flex gap-2">
+                          <div style={{ display: 'flex', gap: '8px' }}>
                             <input 
                               type="text" 
                               value={linkOtp} 
                               onChange={(e) => setLinkOtp(e.target.value)} 
                               placeholder="123456"
                               maxLength={6}
-                              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-[13px] text-center font-bold tracking-[6px]"
+                              style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', textAlign: 'center', fontWeight: 'bold', letterSpacing: '6px' }}
                             />
                             <button
                               onClick={handleConfirmLink}
-                              className="primary-action px-4"
-                              style={{ minHeight: '36px' }}
+                              className="primary-action"
+                              style={{ minHeight: '36px', padding: '0 16px' }}
                               disabled={isLinking}
                             >
-                              {isLinking ? <Loader2 className="animate-spin w-4 h-4" /> : t('Confirm')}
+                              {isLinking ? <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} /> : t('Confirm')}
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-[var(--success)]/10 border border-[var(--success)]/30 rounded-xl p-3 flex items-center gap-3">
-                          <CheckCircle className="text-[var(--success)] w-5 h-5 flex-shrink-0" />
+                        <div style={{ background: 'color-mix(in srgb, var(--success) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <CheckCircle style={{ color: 'var(--success)', width: '20px', height: '20px', flexShrink: 0 }} />
                           <div>
-                            <div className="text-[12px] font-extrabold text-[var(--text-primary)]">{t('Care Context Registered!')}</div>
-                            <div className="text-[10px] text-[var(--text-muted)]">Ref: {linkedReference}</div>
+                            <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>{t('Care Context Registered!')}</div>
+                            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>Ref: {linkedReference}</div>
                           </div>
                         </div>
                       )}
@@ -1163,10 +1506,24 @@ export default function AppointmentsPage() {
                       {linkingSuccess && (
                         <button
                           onClick={() => setJoinedVideoConsult(true)}
-                          className="w-full flex items-center justify-center gap-2 text-[12.5px] font-bold py-3 rounded-xl transition"
-                          style={{ background: 'var(--accent-teal)', color: '#ffffff' }}
+                          className="primary-action"
+                          style={{
+                            width: '100%',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            background: 'var(--accent-teal)',
+                            color: '#ffffff',
+                            border: '0',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            fontSize: '12.5px',
+                            fontWeight: 'bold'
+                          }}
                         >
-                          <Video className="w-4 h-4" /> 
+                          <Video style={{ width: '16px', height: '16px' }} /> 
                           {t('Join Consultation Room')}
                         </button>
                       )}
@@ -1174,13 +1531,13 @@ export default function AppointmentsPage() {
 
                     {/* Transaction logs console */}
                     {linkingLogs.length > 0 && (
-                      <div className="route-card flex flex-col gap-2" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-                        <h5 className="margin-0 text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-extrabold flex items-center gap-1">
-                          <Smartphone className="w-3.5 h-3.5" /> 
+                      <div className="route-card" style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <h5 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Smartphone style={{ width: '14px', height: '14px' }} /> 
                           {t('Gateway Transaction Logs')}
                         </h5>
                         
-                        <div className="bg-[#03090e] border border-[var(--border-color)] rounded-xl p-3 h-[140px] overflow-y-auto font-mono text-[10px] text-[var(--accent-teal)] leading-relaxed flex flex-col gap-1.5 scroll-container">
+                        <div className="logs-console-window">
                           {linkingLogs.map((log, idx) => (
                             <div key={idx} style={{ color: log.startsWith('[ERROR]') ? 'var(--danger)' : log.includes('Verification Successful') ? 'var(--success)' : 'var(--accent-teal)' }}>
                               {log}
