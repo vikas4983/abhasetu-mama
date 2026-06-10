@@ -63,6 +63,10 @@ const getGenderDisplay = (gender: string | undefined): string => {
   return `${gender} / अन्य`;
 };
 
+/**
+ * @description ProfilePage component that allows users to view their verified ABHA card demographics, trigger mobile OTP updates, and request email verification links.
+ * @returns {React.JSX.Element} The rendered Profile Dashboard.
+ */
 export default function ProfilePage() {
   const router = useRouter();
   const { t } = useLanguage();

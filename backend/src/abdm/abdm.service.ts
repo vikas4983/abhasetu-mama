@@ -13,12 +13,41 @@ import { CryptoService } from './crypto.service';
 import { DbService } from '../db/db.service';
 import axios from 'axios';
 import * as crypto from 'crypto';
+import { ABDM_ENDPOINTS, ABDM_HEADERS } from '../constants/abdm.constants';
 
 
 @Injectable()
 export class AbdmService {
   private cachedToken = '';
   private cachedTokenExpiry = 0;
+
+  /**
+   * @description Resolves the dynamically selected ABDM Gateway base URL using database config or environment variables.
+   * @returns {Promise<string>} The configured ABDM Gateway Base URL.
+   */
+  async getGatewayBaseUrl(): Promise<string> {
+    const config = await this.getConfig();
+    if (config.ABDM_GATEWAY_URL) {
+      return config.ABDM_GATEWAY_URL;
+    }
+    const env = process.env.ABDM_ENV || 'sandbox';
+    if (env === 'production') {
+      return process.env.ABDM_GATEWAY_BASE_URL_PROD || 'https://live.abdm.gov.in';
+    }
+    return process.env.ABDM_GATEWAY_BASE_URL_SANDBOX || 'https://dev.abdm.gov.in';
+  }
+
+  /**
+   * @description Resolves the dynamically selected ABHA System base URL (sandbox or production) using environment variables.
+   * @returns {Promise<string>} The ABHA System Base URL.
+   */
+  async getAbhaBaseUrl(): Promise<string> {
+    const env = process.env.ABDM_ENV || 'sandbox';
+    if (env === 'production') {
+      return process.env.ABDM_ABHA_BASE_URL_PROD || 'https://abha.abdm.gov.in/abha';
+    }
+    return process.env.ABDM_ABHA_BASE_URL_SANDBOX || 'https://abhasbx.abdm.gov.in/abha';
+  }
 
   constructor(
     private readonly cryptoService: CryptoService,
@@ -77,6 +106,13 @@ export class AbdmService {
     );
   }
 
+  /**
+   * @description Writes an audit log entry with detailed metadata, ensuring sensitive PHI fields like Aadhaar, mobile, and email are masked.
+   * @param {string} event - The name of the event being logged.
+   * @param {string} status - Event outcome status (SUCCESS, FAILED, etc.).
+   * @param {string} message - Descriptive message.
+   * @param {object} metadata - Additional metadata fields to log.
+   */
   async addDetailedLog(
     event: string,
     status: string,
@@ -86,6 +122,7 @@ export class AbdmService {
       aadhaar?: string;
       abhaId?: string;
       abhaNumber?: string;
+      email?: string;
       request?: any;
       response?: any;
       clientId?: string;
@@ -100,6 +137,7 @@ export class AbdmService {
       ...metadata,
       mobile: metadata.mobile ? metadata.mobile.replace(/(\d{2})\d{4}(\d{4})/, '$1****$2') : undefined,
       aadhaar: metadata.aadhaar ? metadata.aadhaar.replace(/(\d{2})\d{8}(\d{2})/, '$1********$2') : undefined,
+      email: metadata.email ? metadata.email.replace(/^(.)(.*)(@.*)$/, (_, f, m, d) => f + '*'.repeat(m.length) + d) : undefined,
     };
 
     const detailsJson = JSON.stringify({
@@ -319,6 +357,11 @@ export class AbdmService {
   }
 
   // --- GATEWAY SESSION HANDSHAKE ---
+  /**
+   * @description Obtains an active session token from the ABDM Sandbox Gateway using Client ID and Client Secret, caching the session token internally.
+   * @returns {Promise<{ status: string, tokenPreview: string, publicKey: string, expiresIn: number, refreshExpiresIn: number }>} Session payload.
+   * @throws {Error} If credentials are not configured or the gateway authentication fails.
+   */
   async getGatewaySession() {
     const config = await this.getConfig();
     const clientId = config.ABDM_CLIENT_ID || process.env.ABDM_CLIENT_ID || '';
@@ -341,8 +384,9 @@ export class AbdmService {
     }
 
     try {
+      const baseUrl = await this.getGatewayBaseUrl();
       const response = await axios.post(
-        'https://dev.abdm.gov.in/api/hiecm/gateway/v3/sessions',
+        `${baseUrl}${ABDM_ENDPOINTS.SESSIONS_V3}`,
         {
           clientId,
           clientSecret,
@@ -351,9 +395,9 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            'TIMESTAMP': new Date().toISOString(),
-            'X-CM-ID': config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
           },
         },
       );
@@ -378,6 +422,11 @@ export class AbdmService {
     }
   }
 
+  /**
+   * @description Clear gateway session token cache and force generate a fresh session token.
+   * @returns {Promise<{ status: string, tokenPreview: string, message: string }>} Result of manual token refresh.
+   * @throws {Error} If session token generation fails.
+   */
   async generateSessionToken() {
     // Clear cache first to force a fresh call
     this.cachedToken = '';
@@ -399,6 +448,11 @@ export class AbdmService {
   }
 
   // --- PUBLIC KEY SYNC FROM GATEWAY ---
+  /**
+   * @description Manually syncs the public key certificate from the ABDM/NHA gateway and caches it in the database.
+   * @returns {Promise<{ status: string, publicKey: string }>} Result of the public key sync.
+   * @throws {Error} If session token is invalid or gateway request fails.
+   */
   async syncPublicKeyFromGateway() {
     const sessionRes = await this.getGatewaySession();
     const token = sessionRes.tokenPreview;
@@ -408,14 +462,16 @@ export class AbdmService {
     }
 
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
+      const config = await this.getConfig();
       const response = await axios.get(
-        'https://abhasbx.abdm.gov.in/abha/api/v3/profile/public/certificate',
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_PUBLIC_CERTIFICATE}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-CM-ID': 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`,
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
           },
         },
       );
@@ -459,6 +515,12 @@ export class AbdmService {
     return publicKey;
   }
 
+  /**
+   * @description Requests an Aadhaar verification OTP code from the ABHA system.
+   * @param {string} aadhaar - Plaintext 12-digit Aadhaar number.
+   * @param {object} [context] - Request context containing IP and user agent.
+   * @returns {Promise<any>} Status object with the transaction ID (txnId) on success.
+   */
   async requestAadhaarOtp(aadhaar: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
     if (!aadhaar || aadhaar.length !== 12 || !/^\d+$/.test(aadhaar)) {
       return { status: 'error', message: 'Invalid 12-digit Aadhaar number.' };
@@ -479,10 +541,10 @@ export class AbdmService {
     const encryptedAadhaar = this.cryptoService.encryptWithPublicKey(publicKey, aadhaar);
     const txnId = crypto.randomUUID();
 
-    const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
       const response = await axios.post(
-        enrollmentUrl,
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_ENROLL_REQUEST_OTP}`,
         {
           scope: ['abha-enrol'],
           loginHint: 'aadhaar',
@@ -492,10 +554,10 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-CM-ID': 'sbx',
-            'Authorization': `Bearer ${token}`
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
           },
         },
       );
@@ -524,6 +586,15 @@ export class AbdmService {
     }
   }
 
+  /**
+   * @description Verifies the Aadhaar OTP with the ABHA system and links/creates the ABHA account.
+   * @param {string} otp - Plaintext 6-digit OTP code.
+   * @param {string} txnId - Ongoing registration transaction ID.
+   * @param {string} [mobile] - Optional mobile number associated with the account.
+   * @param {string} [aadhaar] - Optional Aadhaar number for log correlation.
+   * @param {object} [context] - Optional request context.
+   * @returns {Promise<any>} The profile/account payload from the gateway on success.
+   */
   async verifyAadhaarOtp(otp: string, txnId: string, mobile?: string, aadhaar?: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
     if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
       return { status: 'error', message: 'Invalid 6-digit OTP.' };
@@ -543,10 +614,10 @@ export class AbdmService {
     // Encrypt OTP using RSA OAEP SHA-1
     const encryptedOtp = this.cryptoService.encryptWithPublicKey(publicKey, otp);
 
-    const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar';
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
       const response = await axios.post(
-        verifyUrl,
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_ENROLL_BY_AADHAAR}`,
         {
           authData: {
             authMethods: ['otp'],
@@ -564,10 +635,10 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-CM-ID': 'sbx',
-            'Authorization': `Bearer ${token}`
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
           },
         },
       );
@@ -612,6 +683,13 @@ export class AbdmService {
     }
   }
 
+  /**
+   * @description Requests a mobile verification OTP from the ABHA system.
+   * @param {string} mobile - Plain 10-digit mobile number.
+   * @param {string} [txnId] - Optional transaction ID to continue an onboarding session.
+   * @param {object} [context] - Optional request context.
+   * @returns {Promise<any>} Status object with the transaction ID (txnId) on success.
+   */
   async requestMobileOtp(mobile: string, txnId?: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
     if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
       return { status: 'error', message: 'Invalid 10-digit mobile number.' };
@@ -632,10 +710,10 @@ export class AbdmService {
     const encryptedMobile = this.cryptoService.encryptWithPublicKey(publicKey, mobile);
     const finalTxnId = txnId || crypto.randomUUID();
 
-    const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
       const response = await axios.post(
-        enrollmentUrl,
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_ENROLL_REQUEST_OTP}`,
         {
           txnId: finalTxnId,
           scope: ['abha-enrol', 'mobile-verify'],
@@ -646,10 +724,10 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-CM-ID': 'sbx',
-            'Authorization': `Bearer ${token}`
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
           },
         },
       );
@@ -678,6 +756,14 @@ export class AbdmService {
     }
   }
 
+  /**
+   * @description Verifies the mobile OTP with the ABHA system.
+   * @param {string} otp - Plaintext 6-digit OTP code.
+   * @param {string} txnId - Ongoing registration transaction ID.
+   * @param {string} [mobile] - Optional mobile number for log correlation.
+   * @param {object} [context] - Optional request context.
+   * @returns {Promise<any>} The profile/account payload from the gateway on success.
+   */
   async verifyMobileOtp(otp: string, txnId: string, mobile?: string, context?: { ip?: string; userAgent?: string }): Promise<any> {
     if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
       return { status: 'error', message: 'Invalid 6-digit OTP.' };
@@ -697,10 +783,10 @@ export class AbdmService {
     // Encrypt OTP using RSA OAEP SHA-1
     const encryptedOtp = this.cryptoService.encryptWithPublicKey(publicKey, otp);
 
-    const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/auth/byAbdm';
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
       const response = await axios.post(
-        verifyUrl,
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_ENROLL_BY_MOBILE}`,
         {
           txnId,
           scope: ['abha-enrol', 'mobile-verify'],
@@ -719,10 +805,10 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-CM-ID': 'sbx',
-            'Authorization': `Bearer ${token}`
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
           },
         },
       );
@@ -750,6 +836,12 @@ export class AbdmService {
     }
   }
 
+  /**
+   * @description Enrolls a user using document-based demographics verification (Driving License, etc.) with the ABHA system.
+   * @param {object} demographics - Demographic details of the patient.
+   * @param {object} [context] - Optional request context.
+   * @returns {Promise<any>} The profile/account payload from the gateway on success.
+   */
   async enrolByDocument(demographics: any, context?: { ip?: string; userAgent?: string }): Promise<any> {
     const {
       txnId,
@@ -782,10 +874,10 @@ export class AbdmService {
     const mockDLNumber = `DL-${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
     const encryptedDL = this.cryptoService.encryptWithPublicKey(publicKey, mockDLNumber);
 
-    const enrolUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byDocument';
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
       const response = await axios.post(
-        enrolUrl,
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_ENROLL_BY_DOCUMENT}`,
         {
           txnId,
           scope: ['dl-flow'],
@@ -815,10 +907,10 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-CM-ID': 'sbx',
-            'Authorization': `Bearer ${token}`
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
           },
         },
       );
@@ -2037,15 +2129,21 @@ export class AbdmService {
     return { status: 'success' };
   }
 
+  /**
+   * @description Downloads the official ABHA card PNG image from the ABDM/NHA gateway.
+   * @param {string} xToken - User profile verification x-token.
+   * @param {string} token - Gateway authorization bearer session token.
+   * @returns {Promise<any>} An object indicating success with raw image buffer, or failure details.
+   */
   async downloadAbhaCard(xToken: string, token: string): Promise<any> {
-    const cardUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/abha-card';
     try {
-      const response = await axios.get(cardUrl, {
+      const baseUrl = await this.getAbhaBaseUrl();
+      const response = await axios.get(`${baseUrl}${ABDM_ENDPOINTS.ABHA_CARD}`, {
         headers: {
-          'X-Token': `Bearer ${xToken}`,
-          'REQUEST-ID': crypto.randomUUID(),
-          TIMESTAMP: new Date().toISOString(),
-          'Authorization': `Bearer ${token}`
+          [ABDM_HEADERS.X_TOKEN]: `Bearer ${xToken}`,
+          [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+          [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+          [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
         },
         responseType: 'arraybuffer'
       });
@@ -2067,8 +2165,14 @@ export class AbdmService {
     }
   }
 
+  /**
+   * @description Requests an email address verification link from the ABDM/NHA gateway.
+   * @param {string} email - The target email address to verify.
+   * @param {string} xToken - User profile verification x-token.
+   * @param {string} gatewayToken - Gateway authorization bearer session token.
+   * @returns {Promise<any>} Response payload from the gateway indicating request outcome.
+   */
   async requestEmailVerificationLink(email: string, xToken: string, gatewayToken: string): Promise<any> {
-    const config = await this.getConfig();
     let publicKey: string;
     try {
       publicKey = await this.getOrFetchPublicKey(gatewayToken);
@@ -2078,11 +2182,11 @@ export class AbdmService {
 
     // Encrypt Email using RSA OAEP SHA-1
     const encryptedEmail = this.cryptoService.encryptWithPublicKey(publicKey, email);
-    const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/request/emailVerificationLink';
     
     try {
+      const baseUrl = await this.getAbhaBaseUrl();
       const response = await axios.post(
-        verifyUrl,
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_EMAIL_VERIFY_LINK}`,
         {
           scope: [
             "abha-profile",
@@ -2095,15 +2199,17 @@ export class AbdmService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'REQUEST-ID': crypto.randomUUID(),
-            TIMESTAMP: new Date().toISOString(),
-            'X-Token': `Bearer ${xToken}`,
-            'Authorization': `Bearer ${gatewayToken}`
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.X_TOKEN]: `Bearer ${xToken}`,
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${gatewayToken}`
           }
         }
       );
       
-      await this.addLog('Email Verification Link Requested', 'SUCCESS', `Email verification link requested for: ${email}`);
+      const emailParts = email.split('@');
+      const maskedEmail = emailParts[0].substring(0, Math.min(3, emailParts[0].length)) + '***@' + emailParts[1];
+      await this.addLog('Email Verification Link Requested', 'SUCCESS', `Email verification link requested for: ${maskedEmail}`);
       return { status: 'success', ...response.data };
     } catch (e: any) {
       const errMsg = e.response?.data?.message || e.message;

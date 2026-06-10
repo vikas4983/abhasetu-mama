@@ -51,11 +51,30 @@ const crypto_service_1 = require("./crypto.service");
 const db_service_1 = require("../db/db.service");
 const axios_1 = __importDefault(require("axios"));
 const crypto = __importStar(require("crypto"));
+const abdm_constants_1 = require("../constants/abdm.constants");
 let AbdmService = class AbdmService {
     cryptoService;
     db;
     cachedToken = '';
     cachedTokenExpiry = 0;
+    async getGatewayBaseUrl() {
+        const config = await this.getConfig();
+        if (config.ABDM_GATEWAY_URL) {
+            return config.ABDM_GATEWAY_URL;
+        }
+        const env = process.env.ABDM_ENV || 'sandbox';
+        if (env === 'production') {
+            return process.env.ABDM_GATEWAY_BASE_URL_PROD || 'https://live.abdm.gov.in';
+        }
+        return process.env.ABDM_GATEWAY_BASE_URL_SANDBOX || 'https://dev.abdm.gov.in';
+    }
+    async getAbhaBaseUrl() {
+        const env = process.env.ABDM_ENV || 'sandbox';
+        if (env === 'production') {
+            return process.env.ABDM_ABHA_BASE_URL_PROD || 'https://abha.abdm.gov.in/abha';
+        }
+        return process.env.ABDM_ABHA_BASE_URL_SANDBOX || 'https://abhasbx.abdm.gov.in/abha';
+    }
     constructor(cryptoService, db) {
         this.cryptoService = cryptoService;
         this.db = db;
@@ -108,6 +127,7 @@ let AbdmService = class AbdmService {
             ...metadata,
             mobile: metadata.mobile ? metadata.mobile.replace(/(\d{2})\d{4}(\d{4})/, '$1****$2') : undefined,
             aadhaar: metadata.aadhaar ? metadata.aadhaar.replace(/(\d{2})\d{8}(\d{2})/, '$1********$2') : undefined,
+            email: metadata.email ? metadata.email.replace(/^(.)(.*)(@.*)$/, (_, f, m, d) => f + '*'.repeat(m.length) + d) : undefined,
         };
         const detailsJson = JSON.stringify({
             message,
@@ -311,16 +331,17 @@ let AbdmService = class AbdmService {
             };
         }
         try {
-            const response = await axios_1.default.post('https://dev.abdm.gov.in/api/hiecm/gateway/v3/sessions', {
+            const baseUrl = await this.getGatewayBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.SESSIONS_V3}`, {
                 clientId,
                 clientSecret,
                 grantType: 'client_credentials',
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    'TIMESTAMP': new Date().toISOString(),
-                    'X-CM-ID': config.ABDM_CM_ID || 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
                 },
             });
             const token = response.data.accessToken;
@@ -364,12 +385,14 @@ let AbdmService = class AbdmService {
             throw new Error('Sync failed: Gateway session token is invalid.');
         }
         try {
-            const response = await axios_1.default.get('https://abhasbx.abdm.gov.in/abha/api/v3/profile/public/certificate', {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const config = await this.getConfig();
+            const response = await axios_1.default.get(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_PUBLIC_CERTIFICATE}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-CM-ID': 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`,
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
                 },
             });
             const publicKey = response.data.publicKey || '';
@@ -424,9 +447,9 @@ let AbdmService = class AbdmService {
         }
         const encryptedAadhaar = this.cryptoService.encryptWithPublicKey(publicKey, aadhaar);
         const txnId = crypto.randomUUID();
-        const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
         try {
-            const response = await axios_1.default.post(enrollmentUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_ENROLL_REQUEST_OTP}`, {
                 scope: ['abha-enrol'],
                 loginHint: 'aadhaar',
                 loginId: encryptedAadhaar,
@@ -434,10 +457,10 @@ let AbdmService = class AbdmService {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-CM-ID': 'sbx',
-                    'Authorization': `Bearer ${token}`
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
             const resTxnId = response.data.txnId || txnId;
@@ -479,9 +502,9 @@ let AbdmService = class AbdmService {
             return { status: 'error', message: e.message || 'Failed to fetch/sync ABDM public key certificate.' };
         }
         const encryptedOtp = this.cryptoService.encryptWithPublicKey(publicKey, otp);
-        const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar';
         try {
-            const response = await axios_1.default.post(verifyUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_ENROLL_BY_AADHAAR}`, {
                 authData: {
                     authMethods: ['otp'],
                     otp: {
@@ -497,10 +520,10 @@ let AbdmService = class AbdmService {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-CM-ID': 'sbx',
-                    'Authorization': `Bearer ${token}`
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
             await this.addDetailedLog('Aadhaar OTP Verified', 'SUCCESS', `ABHA Number successfully issued: ${response.data.abhaNumber || response.data.ABHAProfile?.ABHANumber}`, {
@@ -558,9 +581,9 @@ let AbdmService = class AbdmService {
         }
         const encryptedMobile = this.cryptoService.encryptWithPublicKey(publicKey, mobile);
         const finalTxnId = txnId || crypto.randomUUID();
-        const enrollmentUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp';
         try {
-            const response = await axios_1.default.post(enrollmentUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_ENROLL_REQUEST_OTP}`, {
                 txnId: finalTxnId,
                 scope: ['abha-enrol', 'mobile-verify'],
                 loginHint: 'mobile',
@@ -569,10 +592,10 @@ let AbdmService = class AbdmService {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-CM-ID': 'sbx',
-                    'Authorization': `Bearer ${token}`
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
             const resTxnId = response.data.txnId || txnId;
@@ -614,9 +637,9 @@ let AbdmService = class AbdmService {
             return { status: 'error', message: e.message || 'Failed to fetch/sync ABDM public key certificate.' };
         }
         const encryptedOtp = this.cryptoService.encryptWithPublicKey(publicKey, otp);
-        const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/auth/byAbdm';
         try {
-            const response = await axios_1.default.post(verifyUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_ENROLL_BY_MOBILE}`, {
                 txnId,
                 scope: ['abha-enrol', 'mobile-verify'],
                 authData: {
@@ -633,10 +656,10 @@ let AbdmService = class AbdmService {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-CM-ID': 'sbx',
-                    'Authorization': `Bearer ${token}`
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
             await this.addDetailedLog('Mobile OTP Verified', 'SUCCESS', 'Mobile OTP verified via gateway.', {
@@ -680,9 +703,9 @@ let AbdmService = class AbdmService {
         }
         const mockDLNumber = `DL-${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
         const encryptedDL = this.cryptoService.encryptWithPublicKey(publicKey, mockDLNumber);
-        const enrolUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byDocument';
         try {
-            const response = await axios_1.default.post(enrolUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_ENROLL_BY_DOCUMENT}`, {
                 txnId,
                 scope: ['dl-flow'],
                 authData: {
@@ -710,10 +733,10 @@ let AbdmService = class AbdmService {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-CM-ID': 'sbx',
-                    'Authorization': `Bearer ${token}`
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
             await this.addDetailedLog('Mobile Onboarding Completed', 'SUCCESS', `ABHA Number successfully issued: ${response.data.abhaNumber}`, {
@@ -1809,14 +1832,14 @@ let AbdmService = class AbdmService {
         return { status: 'success' };
     }
     async downloadAbhaCard(xToken, token) {
-        const cardUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/abha-card';
         try {
-            const response = await axios_1.default.get(cardUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.get(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_CARD}`, {
                 headers: {
-                    'X-Token': `Bearer ${xToken}`,
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'Authorization': `Bearer ${token}`
+                    [abdm_constants_1.ABDM_HEADERS.X_TOKEN]: `Bearer ${xToken}`,
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
                 responseType: 'arraybuffer'
             });
@@ -1839,7 +1862,6 @@ let AbdmService = class AbdmService {
         }
     }
     async requestEmailVerificationLink(email, xToken, gatewayToken) {
-        const config = await this.getConfig();
         let publicKey;
         try {
             publicKey = await this.getOrFetchPublicKey(gatewayToken);
@@ -1848,9 +1870,9 @@ let AbdmService = class AbdmService {
             return { status: 'error', message: `Failed to retrieve public key: ${e.message}` };
         }
         const encryptedEmail = this.cryptoService.encryptWithPublicKey(publicKey, email);
-        const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/request/emailVerificationLink';
         try {
-            const response = await axios_1.default.post(verifyUrl, {
+            const baseUrl = await this.getAbhaBaseUrl();
+            const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_EMAIL_VERIFY_LINK}`, {
                 scope: [
                     "abha-profile",
                     "email-link-verify"
@@ -1861,13 +1883,15 @@ let AbdmService = class AbdmService {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'REQUEST-ID': crypto.randomUUID(),
-                    TIMESTAMP: new Date().toISOString(),
-                    'X-Token': `Bearer ${xToken}`,
-                    'Authorization': `Bearer ${gatewayToken}`
+                    [abdm_constants_1.ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+                    [abdm_constants_1.ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+                    [abdm_constants_1.ABDM_HEADERS.X_TOKEN]: `Bearer ${xToken}`,
+                    [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${gatewayToken}`
                 }
             });
-            await this.addLog('Email Verification Link Requested', 'SUCCESS', `Email verification link requested for: ${email}`);
+            const emailParts = email.split('@');
+            const maskedEmail = emailParts[0].substring(0, Math.min(3, emailParts[0].length)) + '***@' + emailParts[1];
+            await this.addLog('Email Verification Link Requested', 'SUCCESS', `Email verification link requested for: ${maskedEmail}`);
             return { status: 'success', ...response.data };
         }
         catch (e) {

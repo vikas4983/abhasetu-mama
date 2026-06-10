@@ -5,6 +5,8 @@ export declare class AbdmService {
     private readonly db;
     private cachedToken;
     private cachedTokenExpiry;
+    getGatewayBaseUrl(): Promise<string>;
+    getAbhaBaseUrl(): Promise<string>;
     constructor(cryptoService: CryptoService, db: DbService);
     getConfig(): Promise<any>;
     saveConfig(newConfig: any): Promise<{
@@ -24,6 +26,7 @@ export declare class AbdmService {
         aadhaar?: string;
         abhaId?: string;
         abhaNumber?: string;
+        email?: string;
         request?: any;
         response?: any;
         clientId?: string;

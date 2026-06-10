@@ -183,6 +183,13 @@ export class AbdmController {
 
   // --- PATH-CONSISTENT ABDM V3 ENROLLMENT ENDPOINTS ---
 
+  /**
+   * @description Requests an OTP for onboarding/verification via Aadhaar or mobile with the ABHA system.
+   * @param {object} body - Request body containing loginHint and loginId.
+   * @param {express.Response} res - Express response object.
+   * @param {express.Request} req - Express request object.
+   * @returns {Promise<express.Response>} Express response with transaction ID on success.
+   */
   @Post('v3/enrollment/request/otp')
   async v3RequestOtp(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { loginHint, loginId } = body;
@@ -216,6 +223,13 @@ export class AbdmController {
     return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'Invalid loginHint.' });
   }
 
+  /**
+   * @description Verifies Aadhaar OTP via the ABHA system, setting secure session cookies upon success.
+   * @param {object} body - Request body containing txnId and authData.
+   * @param {express.Response} res - Express response object.
+   * @param {express.Request} req - Express request object.
+   * @returns {Promise<express.Response>} Express response with user details.
+   */
   @Post('v3/enrollment/enrol/byAadhaar')
   async v3EnrolByAadhaar(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { txnId, authData } = body;
@@ -277,6 +291,13 @@ export class AbdmController {
     return res.status(HttpStatus.OK).json(result);
   }
 
+  /**
+   * @description Verifies mobile OTP via the ABHA system, setting secure session cookies upon success.
+   * @param {object} body - Request body containing txnId and authData.
+   * @param {express.Response} res - Express response object.
+   * @param {express.Request} req - Express request object.
+   * @returns {Promise<express.Response>} Express response indicating validation success.
+   */
   @Post('v3/enrollment/auth/byAbdm')
   async v3AuthByAbdm(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { txnId, authData } = body;
@@ -317,6 +338,12 @@ export class AbdmController {
     return res.status(HttpStatus.OK).json(result);
   }
 
+  /**
+   * @description Proxy endpoint for downloading official ABHA card image buffer from NHA Gateway.
+   * @param {express.Request} req - Express request object.
+   * @param {express.Response} res - Express response object.
+   * @returns {Promise<express.Response>} Express response with binary image stream on success, or JSON error payload.
+   */
   @Get('v3/profile/account/abha-card')
   async downloadAbhaCard(@Req() req: express.Request, @Res() res: express.Response) {
     const xToken = getCookie(req.headers.cookie, 'x_token');
@@ -359,6 +386,13 @@ export class AbdmController {
     return res.send(Buffer.from(result.data));
   }
 
+  /**
+   * @description Proxy endpoint to trigger email address verification link via ABHA Gateway.
+   * @param {object} body - Request body containing plaintext email.
+   * @param {express.Request} req - Express request.
+   * @param {express.Response} res - Express response.
+   * @returns {Promise<express.Response>} Express response indicating link dispatch result.
+   */
   @Post('v3/profile/account/request/emailVerificationLink')
   async requestEmailVerificationLink(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
     const { email } = body;
@@ -389,6 +423,13 @@ export class AbdmController {
     return res.status(HttpStatus.OK).json(result);
   }
 
+  /**
+   * @description Enrolls a user using document-based demographic details (Driving License, etc.).
+   * @param {object} body - Request body containing demographics payload.
+   * @param {express.Response} res - Express response.
+   * @param {express.Request} req - Express request.
+   * @returns {Promise<express.Response>} Express response indicating enrollment result.
+   */
   @Post('v3/enrollment/enrol/byDocument')
   async v3EnrolByDocument(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { txnId, authData } = body;

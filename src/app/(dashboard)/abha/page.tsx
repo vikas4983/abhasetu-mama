@@ -79,6 +79,10 @@ import {
 import { showToast } from '../../../utils/toast';
 import LogoLoader from '../../../components/common/LogoLoader';
 
+/**
+ * @description AbhaPage React component containing full onboarding forms, consent managers, HIP care context linkers, Scan & Share, and UHI integrations.
+ * @returns {React.JSX.Element} The rendered ABHA system workspace.
+ */
 export default function AbhaPage() {
   const router = useRouter();
   const { t } = useLanguage();
