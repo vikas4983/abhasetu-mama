@@ -359,6 +359,36 @@ export class AbdmController {
     return res.send(Buffer.from(result.data));
   }
 
+  @Post('v3/profile/account/request/emailVerificationLink')
+  async requestEmailVerificationLink(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+    const { email } = body;
+    const xToken = getCookie(req.headers.cookie, 'x_token');
+
+    if (!xToken) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'X-token is missing or expired. Please re-verify profile.'
+      });
+    }
+
+    let gatewayToken = '';
+    try {
+      const sessionRes = await this.abdmService.getGatewaySession();
+      gatewayToken = sessionRes.tokenPreview;
+    } catch (err: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'Failed to retrieve gateway session token: ' + err.message
+      });
+    }
+
+    const result = await this.abdmService.requestEmailVerificationLink(email, xToken, gatewayToken);
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+    return res.status(HttpStatus.OK).json(result);
+  }
+
   @Post('v3/enrollment/enrol/byDocument')
   async v3EnrolByDocument(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { txnId, authData } = body;

@@ -348,6 +348,32 @@ let AbdmController = class AbdmController {
         res.setHeader('Content-Disposition', 'attachment; filename=abha-card.png');
         return res.send(Buffer.from(result.data));
     }
+    async requestEmailVerificationLink(body, req, res) {
+        const { email } = body;
+        const xToken = getCookie(req.headers.cookie, 'x_token');
+        if (!xToken) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'X-token is missing or expired. Please re-verify profile.'
+            });
+        }
+        let gatewayToken = '';
+        try {
+            const sessionRes = await this.abdmService.getGatewaySession();
+            gatewayToken = sessionRes.tokenPreview;
+        }
+        catch (err) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'Failed to retrieve gateway session token: ' + err.message
+            });
+        }
+        const result = await this.abdmService.requestEmailVerificationLink(email, xToken, gatewayToken);
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
     async v3EnrolByDocument(body, res, req) {
         const { txnId, authData } = body;
         const doc = authData?.document;
@@ -609,6 +635,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "downloadAbhaCard", null);
+__decorate([
+    (0, common_1.Post)('v3/profile/account/request/emailVerificationLink'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "requestEmailVerificationLink", null);
 __decorate([
     (0, common_1.Post)('v3/enrollment/enrol/byDocument'),
     __param(0, (0, common_1.Body)()),

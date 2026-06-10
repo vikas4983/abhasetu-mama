@@ -81,9 +81,6 @@ export default function ProfilePage() {
 
   // Update Email States
   const [newEmail, setNewEmail] = useState('');
-  const [emailOtp, setEmailOtp] = useState('');
-  const [emailOtpModal, setEmailOtpModal] = useState(false);
-  const [emailTimer, setEmailTimer] = useState(60);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
 
@@ -100,17 +97,7 @@ export default function ProfilePage() {
     };
   }, [mobileOtpModal, mobileTimer]);
 
-  useEffect(() => {
-    let timerId: any;
-    if (emailOtpModal && emailTimer > 0) {
-      timerId = setInterval(() => {
-        setEmailTimer(prev => prev - 1);
-      }, 1000);
-    }
-    return () => {
-      if (timerId) clearInterval(timerId);
-    };
-  }, [emailOtpModal, emailTimer]);
+
 
   if (!currentUser || !currentUser.abhaProfile) {
     return (
@@ -309,44 +296,32 @@ export default function ProfilePage() {
     setEmailLoading(true);
     setEmailError('');
     try {
-      // Simulate NHA Sandbox email request
-      await new Promise(r => setTimeout(r, 600));
-      setEmailOtpModal(true);
-      setEmailTimer(60);
-      showToast(t('Verification OTP sent to your email.'));
-    } catch (e: any) {
-      setEmailError(e.message || 'Failed to send OTP.');
-    } finally {
-      setEmailLoading(false);
-    }
-  };
-
-  const handleVerifyEmailOtp = async () => {
-    if (emailOtp.length !== 6) return;
-    setEmailLoading(true);
-    setEmailError('');
-    try {
-      // Simulate verification (Accepts 123456 as valid test code)
-      await new Promise(r => setTimeout(r, 600));
-      if (emailOtp === '123456') {
+      const res = await fetch('/api/abdm/v3/profile/account/request/emailVerificationLink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
         const updatedProfile = { ...abhaProfile, email: newEmail };
+        
         const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
         if (state.currentUser) {
           state.currentUser.abhaProfile = updatedProfile;
           localStorage.setItem('setu_state', JSON.stringify(state));
         }
+        
         updateCurrentUser({
           abhaProfile: updatedProfile
         });
-        showToast(t('Email address verified successfully!'));
-        setEmailOtpModal(false);
+
+        showToast(t('Email verification link sent successfully! Email updated.'));
         setNewEmail('');
-        setEmailOtp('');
       } else {
-        setEmailError('Invalid OTP code. Enter 123456 for sandbox testing.');
+        setEmailError(data.message || 'Failed to request email verification link.');
       }
     } catch (e: any) {
-      setEmailError('Failed to verify OTP.');
+      setEmailError(e.message || 'Network error requesting email verification.');
     } finally {
       setEmailLoading(false);
     }
@@ -992,156 +967,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Email OTP Verification Modal Overlay */}
-      {emailOtpModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }} onClick={() => setEmailOtpModal(false)}>
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '440px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            animation: 'fadeIn 0.3s ease-out'
-          }} onClick={(e) => e.stopPropagation()}>
-            
-            {/* Modal Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--border-color)',
-              background: 'var(--bg-secondary)'
-            }}>
-              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                <Mail style={{ color: 'var(--accent-teal)' }} />
-                <span>Email OTP Verification</span>
-              </h3>
-              <button 
-                onClick={() => setEmailOtpModal(false)}
-                style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '4px' }}
-              >
-                <X style={{ width: '18px', height: '18px' }} />
-              </button>
-            </div>
 
-            {/* Modal Body */}
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Enter 6-Digit Email OTP / ओटीपी दर्ज करें
-                </label>
-                <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
-                  Enter the verification code sent to {newEmail} (Sandbox test code is <strong>123456</strong>)
-                </p>
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="Enter 6-digit OTP"
-                  value={emailOtp}
-                  onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-secondary)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    width: '100%',
-                    textAlign: 'center',
-                    letterSpacing: '4px',
-                    fontWeight: 'bold'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginTop: '4px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Resend OTP in / दोबारा भेजें:</span>
-                <strong style={{ color: 'var(--accent-teal)' }}>
-                  {emailTimer > 0 ? `00:${String(emailTimer).padStart(2, '0')}` : '00:00'}
-                </strong>
-              </div>
-
-              {emailError && (
-                <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'left' }}>
-                  {emailError}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                  onClick={() => setEmailOtpModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    background: 'var(--bg-primary)',
-                    color: 'var(--text-primary)',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleVerifyEmailOtp}
-                  disabled={emailLoading || emailOtp.length !== 6}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: 'var(--accent-teal)',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    opacity: (emailLoading || emailOtp.length !== 6) ? 0.6 : 1
-                  }}
-                >
-                  {emailLoading ? 'Verifying...' : 'Verify & Link'}
-                </button>
-              </div>
-
-              {emailTimer === 0 && (
-                <button
-                  onClick={handleRequestEmailOtp}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--accent-blue)',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    marginTop: '6px',
-                    textAlign: 'left'
-                  }}
-                >
-                  Resend OTP / ओटीपी दोबारा भेजें
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

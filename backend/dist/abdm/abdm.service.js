@@ -1838,6 +1838,43 @@ let AbdmService = class AbdmService {
             return { status: 'error', message: errorMsg, details: errorDetails };
         }
     }
+    async requestEmailVerificationLink(email, xToken, gatewayToken) {
+        const config = await this.getConfig();
+        let publicKey;
+        try {
+            publicKey = await this.getOrFetchPublicKey(gatewayToken);
+        }
+        catch (e) {
+            return { status: 'error', message: `Failed to retrieve public key: ${e.message}` };
+        }
+        const encryptedEmail = this.cryptoService.encryptWithPublicKey(publicKey, email);
+        const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/request/emailVerificationLink';
+        try {
+            const response = await axios_1.default.post(verifyUrl, {
+                scope: [
+                    "abha-profile",
+                    "email-link-verify"
+                ],
+                loginHint: "email",
+                loginId: encryptedEmail,
+                otpSystem: "abdm"
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'REQUEST-ID': crypto.randomUUID(),
+                    TIMESTAMP: new Date().toISOString(),
+                    'X-Token': `Bearer ${xToken}`,
+                    'Authorization': `Bearer ${gatewayToken}`
+                }
+            });
+            await this.addLog('Email Verification Link Requested', 'SUCCESS', `Email verification link requested for: ${email}`);
+            return { status: 'success', ...response.data };
+        }
+        catch (e) {
+            const errMsg = e.response?.data?.message || e.message;
+            return { status: 'error', message: `ABDM Gateway Error: ${errMsg}`, details: e.response?.data };
+        }
+    }
 };
 exports.AbdmService = AbdmService;
 exports.AbdmService = AbdmService = __decorate([

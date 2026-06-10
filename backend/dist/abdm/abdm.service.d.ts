@@ -196,4 +196,5 @@ export declare class AbdmService {
         status: string;
     }>;
     downloadAbhaCard(xToken: string, token: string): Promise<any>;
+    requestEmailVerificationLink(email: string, xToken: string, gatewayToken: string): Promise<any>;
 }

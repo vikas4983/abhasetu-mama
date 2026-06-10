@@ -2066,5 +2066,49 @@ export class AbdmService {
       return { status: 'error', message: errorMsg, details: errorDetails };
     }
   }
+
+  async requestEmailVerificationLink(email: string, xToken: string, gatewayToken: string): Promise<any> {
+    const config = await this.getConfig();
+    let publicKey: string;
+    try {
+      publicKey = await this.getOrFetchPublicKey(gatewayToken);
+    } catch (e: any) {
+      return { status: 'error', message: `Failed to retrieve public key: ${e.message}` };
+    }
+
+    // Encrypt Email using RSA OAEP SHA-1
+    const encryptedEmail = this.cryptoService.encryptWithPublicKey(publicKey, email);
+    const verifyUrl = 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/request/emailVerificationLink';
+    
+    try {
+      const response = await axios.post(
+        verifyUrl,
+        {
+          scope: [
+            "abha-profile",
+            "email-link-verify"
+          ],
+          loginHint: "email",
+          loginId: encryptedEmail,
+          otpSystem: "abdm"
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'REQUEST-ID': crypto.randomUUID(),
+            TIMESTAMP: new Date().toISOString(),
+            'X-Token': `Bearer ${xToken}`,
+            'Authorization': `Bearer ${gatewayToken}`
+          }
+        }
+      );
+      
+      await this.addLog('Email Verification Link Requested', 'SUCCESS', `Email verification link requested for: ${email}`);
+      return { status: 'success', ...response.data };
+    } catch (e: any) {
+      const errMsg = e.response?.data?.message || e.message;
+      return { status: 'error', message: `ABDM Gateway Error: ${errMsg}`, details: e.response?.data };
+    }
+  }
 }
 
