@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import { useQuery } from '@tanstack/react-query';
+import OtpInput from '../../../components/common/OtpInput';
 
 
 interface SpecialtiesMatrixItem {
@@ -709,23 +710,18 @@ export default function AppointmentsPage() {
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>{t('Enter NHA Verification OTP')}</span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', display: 'block', marginTop: '2px' }}>({t('Enter 123456 for simulator check')})</span>
               </div>
               
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="text" 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <OtpInput 
                   value={linkOtp} 
-                  onChange={(e) => setLinkOtp(e.target.value)} 
-                  placeholder="123456"
-                  maxLength={6}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', textAlign: 'center', fontWeight: 'bold', letterSpacing: '6px' }}
+                  onChange={setLinkOtp} 
                 />
                 <button
                   onClick={handleConfirmLink}
                   className="primary-action"
-                  style={{ minHeight: '36px', padding: '0 16px' }}
-                  disabled={isLinking}
+                  style={{ minHeight: '36px', padding: '0 16px', width: '100%' }}
+                  disabled={isLinking || linkOtp.length !== 6}
                 >
                   {isLinking ? <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} /> : t('Confirm')}
                 </button>

@@ -285,7 +285,7 @@ let AbdmController = class AbdmController {
     }
     async v3AuthByAbdm(body, res, req) {
         const { txnId, authData } = body;
-        const otp = authData?.otp?.otpValue;
+        const otp = authData?.otp?.otpValue || body.otp?.otpValue;
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
         const userAgent = req.headers['user-agent'] || '';
         const context = { ip, userAgent };

@@ -307,7 +307,7 @@ export class AbdmController {
   @Post('v3/enrollment/auth/byAbdm')
   async v3AuthByAbdm(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
     const { txnId, authData } = body;
-    const otp = authData?.otp?.otpValue;
+    const otp = authData?.otp?.otpValue || body.otp?.otpValue;
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const context = { ip, userAgent };

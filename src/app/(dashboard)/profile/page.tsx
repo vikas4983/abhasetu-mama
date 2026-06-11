@@ -16,6 +16,7 @@ import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { showToast } from '../../../utils/toast';
 import { useForm } from 'react-hook-form';
+import OtpInput from '../../../components/common/OtpInput';
 
 import {
   User,
@@ -90,7 +91,8 @@ export default function ProfilePage() {
   const [mobileOtp, setMobileOtp] = useState('');
   const [mobileTxnId, setMobileTxnId] = useState('');
   const [mobileOtpModal, setMobileOtpModal] = useState(false);
-  const [mobileTimer, setMobileTimer] = useState(30);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [otpExpiryTimer, setOtpExpiryTimer] = useState(600);
   const [mobileLoading, setMobileLoading] = useState(false);
   const [mobileError, setMobileError] = useState('');
   const [shakeOtp, setShakeOtp] = useState(false);
@@ -108,15 +110,16 @@ export default function ProfilePage() {
   // Timer Countdown Handlers
   useEffect(() => {
     let timerId: any;
-    if (mobileOtpModal && mobileTimer > 0) {
+    if (mobileOtpModal) {
       timerId = setInterval(() => {
-        setMobileTimer(prev => prev - 1);
+        setResendTimer(prev => (prev > 0 ? prev - 1 : 0));
+        setOtpExpiryTimer(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [mobileOtpModal, mobileTimer]);
+  }, [mobileOtpModal]);
 
 
 
@@ -256,7 +259,8 @@ export default function ProfilePage() {
       if (res.ok && data.status === 'success') {
         setMobileTxnId(data.txnId);
         setMobileOtpModal(true);
-        setMobileTimer(30);
+        setResendTimer(60);
+        setOtpExpiryTimer(600);
         showToast(t('OTP code sent successfully.'));
       } else {
         setMobileError(data.message || 'Failed to request OTP');
@@ -284,10 +288,12 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           txnId: mobileTxnId,
-          authMethods: ['otp'],
-          otp: {
-            txnId: mobileTxnId,
-            otpValue: mobileOtp
+          authData: {
+            authMethods: ['otp'],
+            otp: {
+              txnId: mobileTxnId,
+              otpValue: mobileOtp
+            }
           }
         })
       });
@@ -925,32 +931,50 @@ export default function ProfilePage() {
                 <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
                   OTP sent to mobile ending with ******{newMobile.slice(-4)}
                 </p>
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="Enter 6-digit OTP"
+                <OtpInput
                   value={mobileOtp}
-                  onChange={(e) => setMobileOtp(e.target.value.replace(/\D/g, ''))}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-secondary)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    width: '100%',
-                    textAlign: 'center',
-                    letterSpacing: '4px',
-                    fontWeight: 'bold'
-                  }}
+                  onChange={setMobileOtp}
+                  error={!!mobileError}
                 />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginTop: '4px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Resend OTP in / दोबारा भेजें:</span>
-                <strong style={{ color: 'var(--accent-teal)' }}>
-                  {mobileTimer > 0 ? `00:${String(mobileTimer).padStart(2, '0')}` : '00:00'}
-                </strong>
+                
+                {/* Ultra-compact Expiry & Resend Cooldown Line */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
+                  marginTop: '4px',
+                  padding: '0 2px'
+                }}>
+                  <span>
+                    Expires in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: otpExpiryTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                      {otpExpiryTimer === 0 ? 'EXPIRED' : `${Math.floor(otpExpiryTimer / 60)}:${String(otpExpiryTimer % 60).padStart(2, '0')}`}
+                    </span>
+                  </span>
+                  <span>
+                    {resendTimer > 0 ? (
+                      `Resend in ${resendTimer}s`
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestMobileOtp}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--accent-teal)',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          textDecoration: 'underline',
+                          fontSize: '11px',
+                          padding: 0
+                        }}
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </span>
+                </div>
               </div>
 
               {mobileError && (
@@ -961,6 +985,7 @@ export default function ProfilePage() {
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button
+                  type="button"
                   onClick={() => setMobileOtpModal(false)}
                   style={{
                     flex: 1,
@@ -976,42 +1001,24 @@ export default function ProfilePage() {
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleVerifyMobileOtp}
-                  disabled={mobileLoading || mobileOtp.length !== 6}
+                  disabled={mobileLoading || mobileOtp.length !== 6 || otpExpiryTimer === 0}
                   style={{
                     flex: 1,
                     padding: '10px',
                     border: 'none',
                     borderRadius: '8px',
-                    background: 'var(--accent-teal)',
+                    background: (mobileLoading || mobileOtp.length !== 6 || otpExpiryTimer === 0) ? 'var(--border-color)' : 'var(--accent-teal)',
                     color: '#ffffff',
                     fontWeight: 700,
-                    cursor: 'pointer',
-                    opacity: (mobileLoading || mobileOtp.length !== 6) ? 0.6 : 1
+                    cursor: (mobileLoading || mobileOtp.length !== 6 || otpExpiryTimer === 0) ? 'not-allowed' : 'pointer',
+                    opacity: (mobileLoading || mobileOtp.length !== 6 || otpExpiryTimer === 0) ? 0.6 : 1
                   }}
                 >
                   {mobileLoading ? 'Verifying...' : 'Verify & Update'}
                 </button>
               </div>
-
-              {mobileTimer === 0 && (
-                <button
-                  onClick={handleRequestMobileOtp}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--accent-blue)',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    marginTop: '6px',
-                    textAlign: 'left'
-                  }}
-                >
-                  Resend OTP / ओटीपी दोबारा भेजें
-                </button>
-              )}
             </div>
           </div>
         </div>

@@ -78,6 +78,8 @@ import {
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import LogoLoader from '../../../components/common/LogoLoader';
+import OtpInput from '../../../components/common/OtpInput';
+
 
 /**
  * @description AbhaPage React component containing full onboarding forms, consent managers, HIP care context linkers, Scan & Share, and UHI integrations.
@@ -829,7 +831,8 @@ export default function AbhaPage() {
   const [onboardStep, setOnboardStep] = useState<'verification' | 'otp' | 'demographics' | 'completed'>('verification');
   const [loading, setLoading] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(30);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [otpExpiryTimer, setOtpExpiryTimer] = useState(600);
   const [otpError, setOtpError] = useState('');
   const [shakeOtp, setShakeOtp] = useState(false);
 
@@ -840,15 +843,14 @@ export default function AbhaPage() {
 
   useEffect(() => {
     let timer: any;
-    if (showOtpModal && otpTimer > 0) {
+    if (showOtpModal || onboardStep === 'otp') {
       timer = setInterval(() => {
-        setOtpTimer(prev => prev - 1);
+        setResendTimer(prev => (prev > 0 ? prev - 1 : 0));
+        setOtpExpiryTimer(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
-    } else if (otpTimer === 0) {
-      clearInterval(timer);
     }
     return () => clearInterval(timer);
-  }, [showOtpModal, otpTimer]);
+  }, [showOtpModal, onboardStep]);
 
   useEffect(() => {
     if (currentUser?.abhaProfile) {
@@ -1034,8 +1036,9 @@ export default function AbhaPage() {
       if (data.status === 'success') {
         setTxnId(data.txnId);
         setOtpError('');
+        setResendTimer(60);
+        setOtpExpiryTimer(600);
         if (onboardMethod === 'aadhaar') {
-          setOtpTimer(30);
           setShowOtpModal(true);
         } else {
           setOnboardStep('otp');
@@ -1240,10 +1243,17 @@ export default function AbhaPage() {
         showToast(t('Please enter a valid 12-digit Aadhaar Number.'));
         return;
       }
+    } else {
+      if (mobileInput.length !== 10 || isNaN(Number(mobileInput))) {
+        showToast(t('Please enter a valid 10-digit Mobile Number.'));
+        return;
+      }
     }
     setLoading(true);
     try {
-      const payload = { loginHint: 'aadhaar', loginId: aadhaarInput };
+      const payload = onboardMethod === 'aadhaar'
+        ? { loginHint: 'aadhaar', loginId: aadhaarInput }
+        : { loginHint: 'mobile', loginId: mobileInput };
       const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1252,10 +1262,11 @@ export default function AbhaPage() {
       const data = await res.json();
       if (data.status === 'success') {
         setTxnId(data.txnId);
-        setOtpTimer(30);
+        setResendTimer(60);
+        setOtpExpiryTimer(600);
         setOtpError('');
         showToast(t('OTP resent successfully.'));
-        logSecurityEvent('ABDM OTP Resent', 'Successfully resent Aadhaar OTP.');
+        logSecurityEvent('ABDM OTP Resent', `Successfully resent ${onboardMethod === 'aadhaar' ? 'Aadhaar' : 'Mobile'} OTP.`);
       } else {
         setOtpError(data.message || 'OTP request failed');
         triggerShake();
@@ -2199,7 +2210,7 @@ export default function AbhaPage() {
               <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
                 <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
-                  <span>Enter verification code sent to your mobile. <strong>Enter "123456" for instant sandbox pass.</strong></span>
+                  <span>Enter verification code sent to your mobile.</span>
                 </div>
 
                 {onboardMethod === 'aadhaar' && (
@@ -2221,19 +2232,76 @@ export default function AbhaPage() {
 
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>6-Digit OTP Code</label>
-                  <input 
-                    type="text" 
-                    maxLength={6} 
+                  <OtpInput
                     value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit OTP (e.g. 123456)" 
-                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                    onChange={setOtpInput}
+                    error={!!otpError}
                   />
+                  
+                  {/* Ultra-compact Expiry & Resend Cooldown Line */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    color: 'var(--text-muted)',
+                    marginTop: '4px',
+                    padding: '0 2px'
+                  }}>
+                    <span>
+                      Expires in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: otpExpiryTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                        {otpExpiryTimer === 0 ? 'EXPIRED' : `${Math.floor(otpExpiryTimer / 60)}:${String(otpExpiryTimer % 60).padStart(2, '0')}`}
+                      </span>
+                    </span>
+                    <span>
+                      {resendTimer > 0 ? (
+                        `Resend in ${resendTimer}s`
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleResendOtp}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--accent-teal)',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            textDecoration: 'underline',
+                            fontSize: '11px',
+                            padding: 0
+                          }}
+                        >
+                          Resend OTP
+                        </button>
+                      )}
+                    </span>
+                  </div>
                 </div>
+
+                {otpError && (
+                  <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'left', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    {otpError}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={loading}
-                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  disabled={loading || otpExpiryTimer === 0 || otpInput.length !== 6}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: 'none',
+                    borderRadius: '10px',
+                    background: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    cursor: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
                 >
                   {loading ? <RefreshCw className="animate-spin" /> : <Key style={{ width: '16px', height: '16px' }} />}
                   <span>Verify OTP</span>
@@ -2577,22 +2645,19 @@ export default function AbhaPage() {
                 <form onSubmit={confirmHipLinking} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
                   <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
-                    <span>Enter OTP verification code sent to patient mobile. <strong>Enter "123456" to authorize.</strong></span>
+                    <span>Enter OTP verification code sent to patient mobile.</span>
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Patient Verification OTP</label>
-                    <input 
-                      type="text" 
-                      maxLength={6} 
+                    <OtpInput 
                       value={m2OtpInput}
-                      onChange={(e) => setM2OtpInput(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Enter OTP (e.g. 123456)" 
-                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                      onChange={setM2OtpInput}
                     />
                   </div>
                   <button
                     type="submit"
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    disabled={m2OtpInput.length !== 6}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: m2OtpInput.length === 6 ? 'var(--accent-teal)' : 'var(--border-color)', color: '#ffffff', fontWeight: 800, cursor: m2OtpInput.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   >
                     <ShieldCheck style={{ width: '16px', height: '16px' }} />
                     <span>Verify & Link Record</span>
@@ -2894,23 +2959,19 @@ export default function AbhaPage() {
                   {hprStep === 'otp' && (
                     <form onSubmit={handleHprVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ padding: '8px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '6px', fontSize: '10px' }}>
-                        * Aadhaar verified successfully. Enter OTP. <strong>Enter "123456" for sandbox mock registration.</strong>
+                        * Aadhaar verified successfully. Enter OTP.
                       </div>
                       <div>
                         <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>6-Digit OTP Code</label>
-                        <input 
-                          type="text" 
-                          maxLength={6} 
+                        <OtpInput 
                           value={hprOtp}
-                          onChange={(e) => setHprOtp(e.target.value.replace(/\D/g, ''))}
-                          placeholder="Enter OTP" 
-                          style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', textAlign: 'center', fontWeight: 'bold', letterSpacing: '4px' }}
+                          onChange={setHprOtp}
                         />
                       </div>
                       <button
                         type="submit"
-                        disabled={loading}
-                        style={{ width: '100%', padding: '11px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        disabled={loading || hprOtp.length !== 6}
+                        style={{ width: '100%', padding: '11px', border: 'none', borderRadius: '8px', background: (loading || hprOtp.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: (loading || hprOtp.length !== 6) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         {loading ? <RefreshCw className="animate-spin" /> : <ShieldCheck style={{ width: '16px', height: '16px' }} />}
                         <span>Verify & Onboard Professional</span>
@@ -3914,7 +3975,7 @@ export default function AbhaPage() {
             }}>
               <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0, width: '16px', height: '16px', marginTop: '2px' }} />
               <div>
-                <span>Enter the OTP sent to your Aadhaar-linked mobile. <strong>Enter "123456" for instant sandbox pass.</strong></span>
+                <span>Enter the OTP sent to your Aadhaar-linked mobile.</span>
               </div>
             </div>
 
@@ -3923,49 +3984,6 @@ export default function AbhaPage() {
                 {otpError}
               </div>
             )}
-
-            {/* Countdown Timer Row */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 14px',
-              background: 'var(--bg-primary)',
-              borderRadius: '10px',
-              border: '1px solid var(--border-color)',
-              fontSize: '12px',
-              fontWeight: 600
-            }}>
-              <span style={{ color: 'var(--text-secondary)' }}>OTP Expiration:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  fontWeight: 800,
-                  color: otpTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)'
-                }}>
-                  {otpTimer === 0 ? 'EXPIRED' : `${Math.floor(otpTimer / 60)}:${String(otpTimer % 60).padStart(2, '0')}`}
-                </span>
-                {otpTimer === 0 && (
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    style={{
-                      background: 'var(--accent-teal)',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Resend
-                  </button>
-                )}
-              </div>
-            </div>
 
             {/* Input Form */}
             <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -3997,27 +4015,50 @@ export default function AbhaPage() {
                 <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', marginBottom: '6px' }}>
                   6-Digit OTP / ओटीपी कोड
                 </label>
-                <input 
-                  type="text"
-                  maxLength={6}
+                <OtpInput
                   value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                  placeholder="e.g., 123456"
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-primary)',
-                    color: 'var(--text-primary)',
-                    fontSize: '20px',
-                    letterSpacing: '6px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    outline: 'none'
-                  }}
-                  required
+                  onChange={setOtpInput}
+                  error={!!otpError}
                 />
+                
+                {/* Ultra-compact Expiry & Resend Cooldown Line */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
+                  marginTop: '4px',
+                  padding: '0 2px'
+                }}>
+                  <span>
+                    Expires in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: otpExpiryTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                      {otpExpiryTimer === 0 ? 'EXPIRED' : `${Math.floor(otpExpiryTimer / 60)}:${String(otpExpiryTimer % 60).padStart(2, '0')}`}
+                    </span>
+                  </span>
+                  <span>
+                    {resendTimer > 0 ? (
+                      `Resend in ${resendTimer}s`
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResendOtp}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--accent-teal)',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          textDecoration: 'underline',
+                          fontSize: '11px',
+                          padding: 0
+                        }}
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </span>
+                </div>
               </div>
 
               {/* Form Buttons */}
@@ -4041,16 +4082,16 @@ export default function AbhaPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || otpTimer === 0}
+                  disabled={loading || otpExpiryTimer === 0 || otpInput.length !== 6}
                   style={{
                     flex: 2,
                     padding: '12px',
                     border: 'none',
                     borderRadius: '10px',
-                    background: otpTimer === 0 ? 'var(--border-color)' : 'var(--accent-teal)',
+                    background: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)',
                     color: '#ffffff',
                     fontWeight: 800,
-                    cursor: otpTimer === 0 ? 'not-allowed' : 'pointer',
+                    cursor: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'not-allowed' : 'pointer',
                     fontSize: '13px',
                     display: 'flex',
                     alignItems: 'center',

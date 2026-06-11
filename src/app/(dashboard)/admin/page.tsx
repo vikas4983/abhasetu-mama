@@ -27,6 +27,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
+import OtpInput from '../../../components/common/OtpInput';
 
 interface Doctor {
   id: number;
@@ -1419,13 +1420,9 @@ export default function AdminDashboardPage() {
                     </p>
                     <label style={{ display: 'grid', gap: '4px', fontSize: '10.5px', color: 'var(--text-secondary)' }}>
                       Enter 6-digit OTP
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="e.g. 123456"
+                      <OtpInput
                         value={playgroundOtp}
-                        onChange={(e) => setPlaygroundOtp(e.target.value.replace(/\D/g, ''))}
-                        style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
+                        onChange={setPlaygroundOtp}
                       />
                     </label>
                     <button
