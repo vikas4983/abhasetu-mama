@@ -156,6 +156,21 @@ let CryptoService = class CryptoService {
             }, null, 2);
         }
     }
+    decryptWithPrivateKey(privateKeyPem, cipherTextB64) {
+        let pemKey = privateKeyPem.trim();
+        if (!pemKey.includes('-----BEGIN PRIVATE KEY-----') && !pemKey.includes('-----BEGIN RSA PRIVATE KEY-----')) {
+            const cleaned = pemKey.replace(/\s+/g, '');
+            const formatted = cleaned.replace(/(.{64})/g, '$1\n');
+            pemKey = `-----BEGIN PRIVATE KEY-----\n${formatted.trim()}\n-----END PRIVATE KEY-----\n`;
+        }
+        const buffer = Buffer.from(cipherTextB64, 'base64');
+        const decrypted = crypto.privateDecrypt({
+            key: pemKey,
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+            oaepHash: 'sha1',
+        }, buffer);
+        return decrypted.toString('utf8');
+    }
 };
 exports.CryptoService = CryptoService;
 exports.CryptoService = CryptoService = __decorate([

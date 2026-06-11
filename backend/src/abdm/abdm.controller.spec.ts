@@ -12,6 +12,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AbdmController } from './abdm.controller';
 import { AbdmService } from './abdm.service';
 import { AuthService } from '../auth/auth.service';
+import { CryptoService } from './crypto.service';
 import { HttpStatus } from '@nestjs/common';
 import * as express from 'express';
 
@@ -63,6 +64,14 @@ describe('AbdmController', () => {
     validateAndLogin: jest.fn(),
   };
 
+  const mockCryptoService = {
+    encryptWithPublicKey: jest.fn(),
+    decryptWithPrivateKey: jest.fn(),
+    generateEphemeralKeys: jest.fn(),
+    deriveFideliusSymmetricKey: jest.fn(),
+    decryptFhirPayload: jest.fn(),
+  };
+
   const createMockResponse = () => {
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -88,6 +97,7 @@ describe('AbdmController', () => {
       providers: [
         { provide: AbdmService, useValue: mockAbdmService },
         { provide: AuthService, useValue: mockAuthService },
+        { provide: CryptoService, useValue: mockCryptoService },
       ],
     }).compile();
 

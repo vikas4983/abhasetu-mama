@@ -16,19 +16,21 @@ interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   error?: boolean;
+  disabled?: boolean;
 }
 
 /**
  * @description OtpInput component renders 6 individual numeric inputs for entering verification codes.
  * Supports auto-focusing subsequent inputs, backspacing to delete/focus previous inputs, and clipboard paste events.
  */
-export default function OtpInput({ value, onChange, error }: OtpInputProps) {
+export default function OtpInput({ value, onChange, error, disabled }: OtpInputProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // Split value into an array of 6 characters, padded with empty strings
   const otpArray = value.split('').concat(Array(6).fill('')).slice(0, 6);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    if (disabled) return;
     const val = e.target.value.replace(/\D/g, ''); // Extract only digits
     if (val === '') {
       const newOtp = [...otpArray];
@@ -49,6 +51,7 @@ export default function OtpInput({ value, onChange, error }: OtpInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (disabled) return;
     if (e.key === 'Backspace') {
       if (otpArray[index] === '') {
         // If current box is empty, delete previous and move focus back
@@ -73,6 +76,7 @@ export default function OtpInput({ value, onChange, error }: OtpInputProps) {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
     e.preventDefault();
     const pastedText = e.clipboardData.getData('text');
     const digits = pastedText.replace(/\D/g, '').slice(0, 6);
@@ -92,6 +96,7 @@ export default function OtpInput({ value, onChange, error }: OtpInputProps) {
           type="text"
           maxLength={1}
           value={digit}
+          disabled={disabled}
           onChange={(e) => handleChange(e, idx)}
           onKeyDown={(e) => handleKeyDown(e, idx)}
           onPaste={handlePaste}
@@ -109,6 +114,8 @@ export default function OtpInput({ value, onChange, error }: OtpInputProps) {
             textAlign: 'center',
             outline: 'none',
             transition: 'border-color 0.2s ease',
+            opacity: disabled ? 0.6 : 1,
+            cursor: disabled ? 'not-allowed' : 'auto',
           }}
           aria-label={`Digit ${idx + 1}`}
         />

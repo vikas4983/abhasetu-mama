@@ -19,3 +19,10 @@ export const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
 
 /** 12-digit Aadhaar number format */
 export const AADHAAR_REGEX = /^\d{12}$/;
+
+/** Driving License Validation Regex string */
+export const DRIVING_LICENSE_VALIDATION_STR = '^[A-Z0-9\\s]+$';
+
+/** Driving License Validation Regex (uppercase letters and numbers only, no hyphens, space allowed) */
+export const DRIVING_LICENSE_REGEX = /^[A-Z0-9\s]+$/;
+

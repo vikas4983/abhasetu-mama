@@ -11,5 +11,6 @@ export declare class CryptoService {
         iv: Buffer;
     };
     decryptFhirPayload(encryptedDataB64: string, aesKey: Buffer, iv: Buffer, authTagB64?: string): string;
+    decryptWithPrivateKey(privateKeyPem: string, cipherTextB64: string): string;
 }
 export {};

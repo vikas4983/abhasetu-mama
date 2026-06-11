@@ -17,7 +17,7 @@ export const OTP_VALIDATION_STR = '[0-9]{6}';
 export const PASSWORD_VALIDATION_STR = '^(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$^-])[A-Za-z\\d!@#$%^&*-]{8,}$';
 export const UUID_VALIDATION_STR = '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
 export const EMAIL_VALIDATION_STR = '^[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$';
-export const DRIVING_LICENSE_VALIDATION_STR = '^[a-zA-Z0-9]+([-\\s]{0,1})[a-zA-Z0-9]+$';
+export const DRIVING_LICENSE_VALIDATION_STR = '^[A-Z0-9\\s]+$';
 export const TXN_ID_VALIDATION_STR = '^[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$';
 
 // Executable RegExp objects for validation logic
@@ -29,5 +29,5 @@ export const OTP_REGEX = /^[0-9]{6}$/;
 export const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$^-])[A-Za-z\d!@#$%^&*-]{8,}$/;
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const EMAIL_REGEX = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,7}$/;
-export const DRIVING_LICENSE_REGEX = /^[a-zA-Z0-9]+([-\s]{0,1})[a-zA-Z0-9]+$/;
+export const DRIVING_LICENSE_REGEX = /^[A-Z0-9\s]+$/;
 export const TXN_ID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

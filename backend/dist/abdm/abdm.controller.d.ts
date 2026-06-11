@@ -1,10 +1,13 @@
 import { AbdmService } from './abdm.service';
 import { AuthService } from '../auth/auth.service';
+import { CryptoService } from './crypto.service';
 import * as express from 'express';
 export declare class AbdmController {
     private readonly abdmService;
     private readonly authService;
-    constructor(abdmService: AbdmService, authService: AuthService);
+    private readonly cryptoService;
+    private lastEmailRequestTime;
+    constructor(abdmService: AbdmService, authService: AuthService, cryptoService: CryptoService);
     adminLogin(body: any): Promise<{
         status: string;
         token: string;
@@ -174,4 +177,47 @@ export declare class AbdmController {
     getDoctors(medicalSystem: string, speciality: string, specialistRole: string, search: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     saveDoctor(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     deleteDoctor(id: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    getDlSession(req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    requestDlOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    verifyDlOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    enrolByDl(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    getCryptoPublicKey(req: express.Request): Promise<{
+        status: string;
+        publicKey: string;
+    }>;
+    encryptData(body: {
+        plainText: string;
+        publicKey?: string;
+    }, req: express.Request): Promise<{
+        status: string;
+        cipherText: string;
+        message?: undefined;
+    } | {
+        status: string;
+        message: any;
+        cipherText?: undefined;
+    }>;
+    decryptData(body: {
+        cipherText: string;
+        privateKey: string;
+    }): {
+        status: string;
+        plainText: string;
+        message?: undefined;
+    } | {
+        status: string;
+        message: any;
+        plainText?: undefined;
+    };
+    generateKeyPair(): {
+        status: string;
+        publicKey: string;
+        privateKey: string;
+        message?: undefined;
+    } | {
+        status: string;
+        message: any;
+        publicKey?: undefined;
+        privateKey?: undefined;
+    };
 }

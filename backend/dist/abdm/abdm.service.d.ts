@@ -205,4 +205,8 @@ export declare class AbdmService {
     }>;
     downloadAbhaCard(xToken: string, token: string): Promise<any>;
     requestEmailVerificationLink(email: string, xToken: string, gatewayToken: string): Promise<any>;
+    getDlGatewaySession(): Promise<any>;
+    requestDlOtp(mobile: string, dlToken: string, context?: any): Promise<any>;
+    verifyDlOtp(otp: string, txnId: string, context?: any): Promise<any>;
+    enrolByDl(dlDetails: any, context?: any): Promise<any>;
 }

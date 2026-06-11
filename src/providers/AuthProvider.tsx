@@ -63,6 +63,7 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<boolean>;
   loginWithJwt: (token: string, user: User) => Promise<void>;
   loginWithOtp: (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string) => Promise<boolean>;
+  loginWithDl: (dlNumber: string, name: string) => Promise<boolean>;
   logout: () => void;
   register: (name: string, email: string, mobile: string) => void;
   logSecurityEvent: (event: string, details: string) => void;
@@ -288,6 +289,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const loginWithDl = async (dlNumber: string, name: string): Promise<boolean> => {
+    const newUser: User = {
+      email: 'patient@abhasetu.com',
+      role: 'patient',
+      name: name || 'Aarav Sharma',
+      photo: '/assets/doctors/dr-ayesha-ali.jpeg',
+      abhaId: 'aarav.sharma@sbx'
+    };
+    setCurrentUser(newUser);
+    syncToLocalStorage({ currentUser: newUser });
+    logSecurityEvent("User DL Login", `Authenticated via Driving License (${dlNumber}) as ${name}`);
+    addNotification("Login Successful", `DL verified and access granted.`, "security");
+    return true;
+  };
+
   const register = (name: string, email: string, mobile: string) => {
     const newUser: User = {
       email,
@@ -390,7 +406,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isPublicPath = 
       pathname === '/login' || 
       pathname === '/register' || 
-      pathname === '/admin/login';
+      pathname === '/admin/login' ||
+      pathname === '/staff-login';
 
     if (!currentUser && !isPublicPath) {
       // Check if we have loaded from localStorage
@@ -420,6 +437,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       loginWithJwt,
       loginWithOtp,
+      loginWithDl,
       logout,
       register,
       logSecurityEvent,

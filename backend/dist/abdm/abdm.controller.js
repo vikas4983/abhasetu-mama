@@ -50,6 +50,8 @@ const common_1 = require("@nestjs/common");
 const abdm_service_1 = require("./abdm.service");
 const auth_service_1 = require("../auth/auth.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const crypto_service_1 = require("./crypto.service");
+const crypto = __importStar(require("crypto"));
 const express = __importStar(require("express"));
 function getCookie(cookieHeader, name) {
     if (!cookieHeader)
@@ -66,9 +68,12 @@ function getCookie(cookieHeader, name) {
 let AbdmController = class AbdmController {
     abdmService;
     authService;
-    constructor(abdmService, authService) {
+    cryptoService;
+    lastEmailRequestTime = new Map();
+    constructor(abdmService, authService, cryptoService) {
         this.abdmService = abdmService;
         this.authService = authService;
+        this.cryptoService = cryptoService;
     }
     async adminLogin(body) {
         const { email, password } = body;
@@ -369,6 +374,16 @@ let AbdmController = class AbdmController {
                 message: 'X-token is missing or expired. Please re-verify profile.'
             });
         }
+        const now = Date.now();
+        const lastRequest = this.lastEmailRequestTime.get(xToken);
+        if (lastRequest && (now - lastRequest) < 60000) {
+            const remaining = Math.ceil((60000 - (now - lastRequest)) / 1000);
+            return res.status(common_1.HttpStatus.TOO_MANY_REQUESTS).json({
+                status: 'error',
+                message: `Please wait ${remaining} seconds before requesting another email verification link.`
+            });
+        }
+        this.lastEmailRequestTime.set(xToken, now);
         let gatewayToken = '';
         try {
             const sessionRes = await this.abdmService.getGatewaySession();
@@ -576,6 +591,165 @@ let AbdmController = class AbdmController {
         }
         catch (error) {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async getDlSession(req, res) {
+        try {
+            const result = await this.abdmService.getDlGatewaySession();
+            if (result && result.accessToken) {
+                res.cookie('dl_access_token', result.accessToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: (result.expiresIn || 1200) * 1000
+                });
+                return res.status(common_1.HttpStatus.OK).json({ status: 'success', ...result });
+            }
+            throw new Error('Invalid gateway session response.');
+        }
+        catch (error) {
+            const mockToken = 'mock-dl-access-token-jwt-style-abc123xyz';
+            res.cookie('dl_access_token', mockToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 1200 * 1000
+            });
+            return res.status(common_1.HttpStatus.OK).json({
+                status: 'success',
+                accessToken: mockToken,
+                expiresIn: 1200,
+                refreshExpiresIn: 1800,
+                refreshToken: 'mock-dl-refresh-token',
+                tokenType: 'bearer',
+                warning: 'Gateway call failed: ' + (error.message || 'unknown error') + '. Mock session used.'
+            });
+        }
+    }
+    async requestDlOtp(body, req, res) {
+        try {
+            const { mobileNumber, dlNumber } = body;
+            const dlToken = getCookie(req.headers.cookie, 'dl_access_token');
+            if (!dlToken) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                    status: 'error',
+                    message: 'Driving License session (dl_access_token cookie) is missing or expired. Please request session first.'
+                });
+            }
+            const result = await this.abdmService.requestDlOtp(mobileNumber, dlToken, {
+                ip: req.ip,
+                userAgent: req.headers['user-agent']
+            });
+            if (result.txnId) {
+                res.cookie('dl_txn_id', result.txnId, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 3600 * 1000
+                });
+            }
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async verifyDlOtp(body, req, res) {
+        try {
+            const { otp } = body;
+            const txnId = getCookie(req.headers.cookie, 'dl_txn_id');
+            const result = await this.abdmService.verifyDlOtp(otp, txnId);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async enrolByDl(body, req, res) {
+        try {
+            const dlToken = getCookie(req.headers.cookie, 'dl_access_token');
+            if (!dlToken) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                    status: 'error',
+                    message: 'DL Access Token cookie is missing or expired.'
+                });
+            }
+            const result = await this.abdmService.enrolByDl(body);
+            if (result.status === 'error') {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async getCryptoPublicKey(req) {
+        let pubKey = getCookie(req.headers.cookie, 'public_key');
+        if (!pubKey) {
+            try {
+                const config = await this.abdmService.getConfig();
+                pubKey = config.ABDM_PUBLIC_KEY || '';
+            }
+            catch (e) { }
+        }
+        return { status: 'success', publicKey: pubKey };
+    }
+    async encryptData(body, req) {
+        try {
+            let pubKey = body.publicKey;
+            if (!pubKey) {
+                pubKey = getCookie(req.headers.cookie, 'public_key');
+            }
+            if (!pubKey) {
+                try {
+                    const config = await this.abdmService.getConfig();
+                    pubKey = config.ABDM_PUBLIC_KEY || '';
+                }
+                catch (e) { }
+            }
+            if (!pubKey) {
+                throw new Error('No active public key found. Please provide a public key or ensure a gateway session is active.');
+            }
+            const cipherText = this.cryptoService.encryptWithPublicKey(pubKey, body.plainText);
+            return { status: 'success', cipherText };
+        }
+        catch (error) {
+            return { status: 'error', message: error.message || 'Encryption failed.' };
+        }
+    }
+    decryptData(body) {
+        try {
+            if (!body.privateKey) {
+                throw new Error('Private key is required for decryption.');
+            }
+            const plainText = this.cryptoService.decryptWithPrivateKey(body.privateKey, body.cipherText);
+            return { status: 'success', plainText };
+        }
+        catch (error) {
+            return { status: 'error', message: error.message || 'Decryption failed.' };
+        }
+    }
+    generateKeyPair() {
+        try {
+            const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+                modulusLength: 2048,
+                publicKeyEncoding: {
+                    type: 'spki',
+                    format: 'pem'
+                },
+                privateKeyEncoding: {
+                    type: 'pkcs8',
+                    format: 'pem'
+                }
+            });
+            return { status: 'success', publicKey, privateKey };
+        }
+        catch (error) {
+            return { status: 'error', message: error.message || 'Key pair generation failed.' };
         }
     }
 };
@@ -902,9 +1076,73 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "deleteDoctor", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/dl/session'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "getDlSession", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/dl/request/otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "requestDlOtp", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/dl/verify/otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "verifyDlOtp", null);
+__decorate([
+    (0, common_1.Post)('v3/enrollment/enrol/byDl'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "enrolByDl", null);
+__decorate([
+    (0, common_1.Get)('crypto/public-key'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "getCryptoPublicKey", null);
+__decorate([
+    (0, common_1.Post)('crypto/encrypt'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "encryptData", null);
+__decorate([
+    (0, common_1.Post)('crypto/decrypt'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AbdmController.prototype, "decryptData", null);
+__decorate([
+    (0, common_1.Post)('crypto/generate-keypair'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AbdmController.prototype, "generateKeyPair", null);
 exports.AbdmController = AbdmController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [abdm_service_1.AbdmService,
-        auth_service_1.AuthService])
+        auth_service_1.AuthService,
+        crypto_service_1.CryptoService])
 ], AbdmController);
 //# sourceMappingURL=abdm.controller.js.map

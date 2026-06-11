@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, demoOtpCredentials } from '../../../providers/AuthProvider';
+import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { 
   UserRound, 
@@ -18,41 +18,40 @@ import {
   ChevronDown, 
   ChevronUp, 
   Smartphone,
-  Lock
+  Lock,
+  ArrowLeft,
+  Fingerprint
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import LogoLoader from '../../../components/common/LogoLoader';
+import { DRIVING_LICENSE_REGEX } from '../../../constants/regex.constants';
 
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { loginWithOtp } = useAuth();
+  const { loginWithOtp, loginWithDl } = useAuth();
 
   const [selectedRole, setSelectedRole] = useState<'patient' | 'doctor' | 'operator'>('patient');
-  const [activeTab, setActiveTab] = useState<'mobile' | 'aadhaar' | 'abha'>('mobile');
+  const [activeTab, setActiveTab] = useState<'mobile' | 'aadhaar' | 'abha' | 'dl'>('mobile');
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [showSelectModal, setShowSelectModal] = useState(true);
 
-  // Prefill helper
-  const handleDemoPrefill = (role: 'patient' | 'doctor' | 'operator', type: 'mobile' | 'aadhaar' | 'abha') => {
-    setSelectedRole(role);
-    setActiveTab(type);
-    setOtpSent(false);
-    setOtp('');
-    setErrorMsg('');
-
-    const creds = demoOtpCredentials[role];
-    if (creds) {
-      const val = type === 'mobile' ? creds.mobile : type === 'aadhaar' ? creds.aadhaar : creds.abha;
-      setIdentifier(val);
-      showToast(t(`Prefilled ${role}'s ${type.toUpperCase()}`));
-    }
-  };
+  // DL Specific States
+  const [dlNumber, setDlNumber] = useState('');
+  const [dlMobile, setDlMobile] = useState('');
+  const [showDlModal, setShowDlModal] = useState(false);
+  const [dlFirstName, setDlFirstName] = useState('');
+  const [dlMiddleName, setDlMiddleName] = useState('');
+  const [dlLastName, setDlLastName] = useState('');
+  const [dlDob, setDlDob] = useState('1994-04-26');
+  const [dlGender, setDlGender] = useState('M');
+  const [dlFrontPhoto, setDlFrontPhoto] = useState('');
+  const [dlBackPhoto, setDlBackPhoto] = useState('');
 
   // Simulate OTP sending
   const handleSendOtp = (e: React.FormEvent) => {
@@ -70,6 +69,49 @@ export default function LoginPage() {
       setOtpSent(true);
       showToast(t('Simulated OTP sent! Use verification code: 123456'));
     }, 1200);
+  };
+
+  // DL OTP Request Flow
+  const handleSendDlOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dlMobile || dlMobile.length !== 10) {
+      showToast(t('Please enter a valid 10-digit mobile number.'));
+      return;
+    }
+
+    setIsSendingOtp(true);
+    setErrorMsg('');
+
+    try {
+      const sessionRes = await fetch('/api/abdm/v3/enrollment/dl/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const sessionData = await sessionRes.json();
+      if (sessionData.status !== 'success') {
+        throw new Error(sessionData.message || 'Failed to establish DL session');
+      }
+
+      const otpRes = await fetch('/api/abdm/v3/enrollment/dl/request/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobileNumber: dlMobile, dlNumber: '' })
+      });
+      const otpData = await otpRes.json();
+      setIsSendingOtp(false);
+
+      if (otpRes.ok && otpData.status === 'success') {
+        setOtpSent(true);
+        showToast(t('OTP sent successfully to DL linked mobile!'));
+      } else {
+        setErrorMsg(otpData.message || t('Failed to send DL OTP.'));
+        showToast(t('Failed to send OTP.'));
+      }
+    } catch (err: any) {
+      setIsSendingOtp(false);
+      setErrorMsg(err.message || t('DL Gateway connection failed.'));
+      showToast(t('Network error.'));
+    }
   };
 
   // Verify and login
@@ -94,6 +136,105 @@ export default function LoginPage() {
         showToast(t('Authorization failed.'));
       }
     }, 1500);
+  };
+
+  // DL OTP Verify Flow
+  const handleVerifyDlOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp) {
+      showToast(t('Please enter the verification OTP.'));
+      return;
+    }
+
+    setIsVerifying(true);
+    setErrorMsg('');
+
+    try {
+      const res = await fetch('/api/abdm/v3/enrollment/dl/verify/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp })
+      });
+      const data = await res.json();
+      setIsVerifying(false);
+
+      if (res.ok && data.status === 'success') {
+        showToast(t('OTP Verified! Please complete DL demographic details.'));
+        setShowDlModal(true);
+      } else {
+        setErrorMsg(data.message || t('Invalid OTP. Please try again.'));
+        showToast(t('Verification failed.'));
+      }
+    } catch (err: any) {
+      setIsVerifying(false);
+      showToast(err.message || t('DL verification connection failed.'));
+    }
+  };
+
+  // Submit DL details
+  const handleDlDemographicsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dlNumber) {
+      showToast(t('Driving License number is required.'));
+      return;
+    }
+    if (dlNumber.includes('-') || dlNumber !== dlNumber.toUpperCase() || !DRIVING_LICENSE_REGEX.test(dlNumber)) {
+      showToast(t('Driving License number must be fully in CAPS and contain no hyphens (-).'));
+      return;
+    }
+    if (!dlFirstName || !dlLastName) {
+      showToast(t('First Name and Last Name are required.'));
+      return;
+    }
+    setIsVerifying(true);
+
+    try {
+      const res = await fetch('/api/abdm/v3/enrollment/enrol/byDl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dlNumber,
+          firstName: dlFirstName,
+          middleName: dlMiddleName,
+          lastName: dlLastName,
+          dob: dlDob,
+          gender: dlGender,
+          mobile: dlMobile,
+          frontPhoto: dlFrontPhoto,
+          backPhoto: dlBackPhoto
+        })
+      });
+      const data = await res.json();
+      setIsVerifying(false);
+
+      if (res.ok && data.status === 'success') {
+        setShowDlModal(false);
+        await loginWithDl(dlNumber, `${dlFirstName} ${dlLastName}`);
+        showToast(t('Authentication successful! Welcome back.'));
+        router.push('/');
+      } else {
+        showToast(data.message || t('DL Demographics validation failed.'));
+      }
+    } catch (err: any) {
+      setIsVerifying(false);
+      showToast(err.message || t('DL registration request failed.'));
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (side === 'front') {
+          setDlFrontPhoto(reader.result as string);
+        } else {
+          setDlBackPhoto(reader.result as string);
+        }
+        showToast(t(`${side === 'front' ? 'Front' : 'Back'} side photo uploaded and encoded.`));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Format labels and inputs based on tabs
@@ -155,59 +296,20 @@ export default function LoginPage() {
             Access clinical records, UHI consults, and link care contexts using secure OTP.
           </p>
 
-          {/* Interactive Role Selection */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>1. Choose Your Portal Role</span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-              {[
-                { id: 'patient', label: 'Patient', icon: UserRound },
-                { id: 'doctor', label: 'Doctor', icon: Stethoscope },
-                { id: 'operator', label: 'Operator', icon: Users }
-              ].map(role => {
-                const Icon = role.icon;
-                const isSelected = selectedRole === role.id;
-                return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedRole(role.id as any);
-                      setOtpSent(false);
-                      setIdentifier('');
-                      setOtp('');
-                    }}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '8px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      border: isSelected ? '1px solid var(--accent-teal)' : '1px solid var(--border-color)',
-                      background: isSelected ? 'rgba(20, 184, 166, 0.08)' : 'var(--bg-secondary)',
-                      color: isSelected ? 'var(--accent-teal)' : 'var(--text-primary)',
-                      transition: 'all 0.2s ease',
-                      fontSize: '11px',
-                      fontWeight: isSelected ? 'bold' : 'normal'
-                    }}
-                  >
-                    <Icon style={{ width: '15px', height: '15px' }} />
-                    <span>{role.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Subtitle / Role Context Header */}
+          <div style={{ textAlign: 'center', marginBottom: '16px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--accent-teal)', textTransform: 'uppercase' }}>Citizen / Patient Portal</span>
           </div>
 
           {/* Tabbed Auth Mode Selector */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2. Select Validation Method</span>
+            <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Validation Method</span>
             <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: '30px', padding: '3px', border: '1px solid var(--border-color)' }}>
               {[
                 { id: 'mobile', label: 'Mobile OTP', icon: Phone },
                 { id: 'aadhaar', label: 'Aadhaar OTP', icon: CreditCard },
-                { id: 'abha', label: 'ABHA OTP', icon: Heart }
+                { id: 'abha', label: 'ABHA OTP', icon: Heart },
+                { id: 'dl', label: 'DL Validation', icon: CreditCard }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -248,177 +350,542 @@ export default function LoginPage() {
 
           {/* Form Area */}
           {!otpSent ? (
-            <form onSubmit={handleSendOtp} style={{ display: 'grid', gap: '12px' }}>
-              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                {getIdentifierLabel()}
-                <input
-                  type={activeTab === 'mobile' ? 'tel' : 'text'}
-                  required
-                  maxLength={getMaxIdentifierLength()}
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={getIdentifierPlaceholder()}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace' }}
-                />
-              </label>
-
-              <button
-                type="submit"
-                disabled={isSendingOtp}
-                className="join-btn"
-                style={{ width: '100%', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                {isSendingOtp ? (
-                  <>
-                    <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
-                    <span>Requesting OTP...</span>
-                  </>
-                ) : (
-                  <>
-                    <Smartphone style={{ width: '14px', height: '14px' }} />
-                    <span>Send Gateway Verification OTP</span>
-                  </>
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} style={{ display: 'grid', gap: '12px' }}>
-              <div style={{ background: 'rgba(20, 184, 166, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(20, 184, 166, 0.15)', fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                <Info style={{ width: '14px', height: '14px', color: 'var(--accent-teal)', flexShrink: 0 }} />
-                <div>
-                  OTP sent to credential linked phone. Use dummy code <strong>123456</strong> for testing.
-                </div>
-              </div>
-
-              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Enter 6-Digit OTP Code
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="••••••"
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', textAlign: 'center', letterSpacing: '8px', fontWeight: 'bold', fontFamily: 'monospace' }}
-                />
-              </label>
-
-              {errorMsg && (
-                <div style={{ color: 'var(--danger)', fontSize: '10.5px', fontWeight: '600', background: 'rgba(239,68,68,0.08)', padding: '6px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.15)' }}>
-                  {errorMsg}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setOtpSent(false)}
-                  style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Edit Number
-                </button>
+            activeTab === 'dl' ? (
+              <form onSubmit={handleSendDlOtp} style={{ display: 'grid', gap: '12px' }}>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  10-Digit Mobile Number
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    disabled={isSendingOtp}
+                    value={dlMobile}
+                    onChange={(e) => setDlMobile(e.target.value.replace(/\D/g, ''))}
+                    placeholder="e.g. 9876543210"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace', outline: 'none', opacity: isSendingOtp ? 0.6 : 1 }}
+                  />
+                </label>
                 <button
                   type="submit"
-                  disabled={isVerifying}
+                  disabled={isSendingOtp}
                   className="join-btn"
-                  style={{ flex: 2, minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  style={{ width: '100%', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: isSendingOtp ? 'not-allowed' : 'pointer' }}
                 >
-                  {isVerifying ? (
+                  {isSendingOtp ? (
                     <>
                       <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
-                      <span>Verifying...</span>
+                      <span>Requesting OTP...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles style={{ width: '14px', height: '14px' }} />
-                      <span>Verify & Login</span>
+                      <Smartphone style={{ width: '14px', height: '14px' }} />
+                      <span>Send DL Verification OTP</span>
                     </>
                   )}
                 </button>
-              </div>
-            </form>
+              </form>
+            ) : (
+              <form onSubmit={handleSendOtp} style={{ display: 'grid', gap: '12px' }}>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {getIdentifierLabel()}
+                  <input
+                    type={activeTab === 'mobile' ? 'tel' : 'text'}
+                    required
+                    maxLength={getMaxIdentifierLength()}
+                    disabled={isSendingOtp}
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder={getIdentifierPlaceholder()}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace', outline: 'none', opacity: isSendingOtp ? 0.6 : 1 }}
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isSendingOtp}
+                  className="join-btn"
+                  style={{ width: '100%', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: isSendingOtp ? 'not-allowed' : 'pointer' }}
+                >
+                  {isSendingOtp ? (
+                    <>
+                      <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
+                      <span>Requesting OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone style={{ width: '14px', height: '14px' }} />
+                      <span>Send Gateway Verification OTP</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )
+          ) : null}
+
+          {/* Change Method Button */}
+          {!otpSent && (
+            <button
+              type="button"
+              onClick={() => setShowSelectModal(true)}
+              style={{
+                alignSelf: 'center',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--accent-teal)',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '12px',
+                justifyContent: 'center',
+                width: '100%'
+              }}
+            >
+              <ArrowLeft style={{ width: '12px', height: '12px' }} />
+              <span>Change Login Method</span>
+            </button>
           )}
 
-          {/* Quick link to admin console */}
+          {otpSent && (
+            activeTab === 'dl' ? (
+              <form onSubmit={handleVerifyDlOtp} style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ background: 'rgba(20, 184, 166, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(20, 184, 166, 0.15)', fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
+                  <Info style={{ width: '14px', height: '14px', color: 'var(--accent-teal)', flexShrink: 0 }} />
+                  <div>
+                    OTP sent to DL linked phone. Use dummy code <strong>123456</strong> for testing.
+                  </div>
+                </div>
+
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Enter 6-Digit OTP Code
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    disabled={isVerifying}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••••"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', textAlign: 'center', letterSpacing: '8px', fontWeight: 'bold', fontFamily: 'monospace', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                  />
+                </label>
+
+                {errorMsg && (
+                  <div style={{ color: 'var(--danger)', fontSize: '10.5px', fontWeight: '600', background: 'rgba(239,68,68,0.08)', padding: '6px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.15)' }}>
+                    {errorMsg}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    disabled={isVerifying}
+                    onClick={() => setOtpSent(false)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      color: 'var(--text-secondary)',
+                      cursor: isVerifying ? 'not-allowed' : 'pointer',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s',
+                      opacity: isVerifying ? 0.6 : 1
+                    }}
+                  >
+                    <ArrowLeft style={{ width: '13px', height: '13px' }} />
+                    <span>Edit Mobile</span>
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isVerifying}
+                    className="join-btn"
+                    style={{ flex: 2, minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: isVerifying ? 'not-allowed' : 'pointer' }}
+                  >
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles style={{ width: '14px', height: '14px' }} />
+                        <span>Verify & Continue</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} style={{ display: 'grid', gap: '12px' }}>
+                <div style={{ background: 'rgba(20, 184, 166, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(20, 184, 166, 0.15)', fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
+                  <Info style={{ width: '14px', height: '14px', color: 'var(--accent-teal)', flexShrink: 0 }} />
+                  <div>
+                    OTP sent to credential linked phone. Use dummy code <strong>123456</strong> for testing.
+                  </div>
+                </div>
+
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Enter 6-Digit OTP Code
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    disabled={isVerifying}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••••"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', textAlign: 'center', letterSpacing: '8px', fontWeight: 'bold', fontFamily: 'monospace', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                  />
+                </label>
+
+                {errorMsg && (
+                  <div style={{ color: 'var(--danger)', fontSize: '10.5px', fontWeight: '600', background: 'rgba(239,68,68,0.08)', padding: '6px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.15)' }}>
+                    {errorMsg}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    disabled={isVerifying}
+                    onClick={() => setOtpSent(false)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      color: 'var(--text-secondary)',
+                      cursor: isVerifying ? 'not-allowed' : 'pointer',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s',
+                      opacity: isVerifying ? 0.6 : 1
+                    }}
+                  >
+                    <ArrowLeft style={{ width: '13px', height: '13px' }} />
+                    <span>{activeTab === 'mobile' ? t('Edit Mobile') : activeTab === 'aadhaar' ? t('Edit Aadhaar') : t('Edit ABHA')}</span>
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isVerifying}
+                    className="join-btn"
+                    style={{ flex: 2, minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: isVerifying ? 'not-allowed' : 'pointer' }}
+                  >
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles style={{ width: '14px', height: '14px' }} />
+                        <span>Verify & Login</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )
+          )}
+
+          {/* Quick link to staff portal */}
           <div style={{ textAlign: 'center', fontSize: '11px', marginTop: '20px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Are you an administrator? </span>
+            <span style={{ color: 'var(--text-muted)' }}>Are you clinical staff, operator, or admin? </span>
             <a
               href="#"
-              onClick={(e) => { e.preventDefault(); router.push('/admin/login'); }}
+              onClick={(e) => { e.preventDefault(); router.push('/staff-login'); }}
               style={{ color: 'var(--accent-teal)', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
             >
               <ShieldCheck style={{ width: '12px', height: '12px' }} />
-              Access Admin Console
+              Access Stakeholder Suite
             </a>
           </div>
 
         </div>
 
-        {/* Demo Accounts Prefill Accordion/Drawer */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
-          <button
-            type="button"
-            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              background: 'rgba(255,255,255,0.02)',
-              border: 'none',
-              color: 'var(--text-primary)',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Lock style={{ width: '13px', height: '13px', color: 'var(--accent-teal)' }} />
-              ABHA Demo Testing Accounts
-            </span>
-            {isDrawerOpen ? <ChevronUp style={{ width: '14px', height: '14px' }} /> : <ChevronDown style={{ width: '14px', height: '14px' }} />}
-          </button>
-
-          {isDrawerOpen && (
-            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.1)', borderTop: '1px solid var(--border-color)' }}>
-              {[
-                { role: 'patient', label: 'Aarav Sharma (Patient)', mobile: '9876543210', aadhaar: '123456789012', abha: '91-1234-5678-9012' },
-                { role: 'doctor', label: 'Dr. Ayesha Ali (Doctor)', mobile: '9981057765', aadhaar: '987654321098', abha: '91-9876-5432-1098' },
-                { role: 'operator', label: 'OPD Operator (Operator)', mobile: '8888888888', aadhaar: '888888888888', abha: '91-8888-8888-8888' }
-              ].map(item => (
-                <div key={item.role} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', fontSize: '10.5px' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '6px', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{item.label}</span>
-                    <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px', color: 'var(--text-muted)' }}>OTP: 123456</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
-                    <button
-                      onClick={() => handleDemoPrefill(item.role as any, 'mobile')}
-                      style={{ padding: '4px 2px', border: '1px solid rgba(20, 184, 166, 0.2)', borderRadius: '4px', background: 'rgba(20, 184, 166, 0.04)', color: 'var(--accent-teal)', cursor: 'pointer', fontSize: '9px' }}
-                    >
-                      Prefill Mobile
-                    </button>
-                    <button
-                      onClick={() => handleDemoPrefill(item.role as any, 'aadhaar')}
-                      style={{ padding: '4px 2px', border: '1px solid rgba(23, 162, 184, 0.2)', borderRadius: '4px', background: 'rgba(23, 162, 184, 0.04)', color: 'var(--accent-cyan)', cursor: 'pointer', fontSize: '9px' }}
-                    >
-                      Prefill Aadhaar
-                    </button>
-                    <button
-                      onClick={() => handleDemoPrefill(item.role as any, 'abha')}
-                      style={{ padding: '4px 2px', border: '1px solid rgba(235, 94, 40, 0.2)', borderRadius: '4px', background: 'rgba(235, 94, 40, 0.04)', color: '#eb5e28', cursor: 'pointer', fontSize: '9px' }}
-                    >
-                      Prefill ABHA
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
       </div>
+
+      {/* Select Authentication Method Modal Overlay */}
+      {showSelectModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(10px)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 9998,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '500px',
+            padding: '30px',
+            boxShadow: 'var(--surface-shadow)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            textAlign: 'center'
+          }}>
+            {/* Header */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <img src="/assets/logos/logo7.png" alt="Logo" style={{ width: '30px', height: '30px', objectFit: 'contain' }} />
+                <h1 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>ABHA SETU</h1>
+              </div>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>Select Authentication Method</h2>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>Choose how you want to log into your Digital Health Portal</p>
+            </div>
+
+            {/* Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '6px' }}>
+              {[
+                { id: 'mobile', label: 'Mobile OTP', desc: 'Login via linked mobile number', icon: Phone },
+                { id: 'aadhaar', label: 'Aadhaar OTP', desc: 'Verify via Aadhaar secure OTP', icon: Fingerprint },
+                { id: 'abha', label: 'ABHA OTP', desc: 'Access via your health ID address', icon: Heart },
+                { id: 'dl', label: 'Driving License', desc: 'Authenticate via DL linked phone', icon: CreditCard }
+              ].map(item => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.id as any);
+                      setOtpSent(false);
+                      setIdentifier('');
+                      setOtp('');
+                      setShowSelectModal(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '16px 10px',
+                      borderRadius: '16px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-secondary)',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.2s ease-in-out'
+                    }}
+                  >
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(20, 184, 166, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
+                      <Icon style={{ width: '16px', height: '16px' }} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block' }}>{item.label}</span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', lineHeight: '1.3' }}>{item.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Staff Redirect Link */}
+            <div style={{ marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Are you clinical staff or operator?</span>
+              <button
+                type="button"
+                onClick={() => router.push('/staff-login')}
+                style={{ marginLeft: '6px', background: 'transparent', border: 'none', color: 'var(--accent-teal)', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Staff Access Suite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DL Demographics Modal */}
+      {showDlModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 9999,
+          padding: '20px',
+          overflowY: 'auto'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '500px',
+            padding: '24px',
+            boxShadow: 'var(--surface-shadow)',
+            position: 'relative'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', textAlign: 'left' }}>
+              Complete DL Demographic Verification
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>
+              Provide demographic details as linked in your Driving License card.
+            </p>
+            <form onSubmit={handleDlDemographicsSubmit} style={{ display: 'grid', gap: '12px', textAlign: 'left' }}>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Driving License Number (CAPS, no hyphen)
+                <input
+                  type="text"
+                  required
+                  disabled={isVerifying}
+                  value={dlNumber}
+                  onChange={(e) => setDlNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9\s]/g, ''))}
+                  placeholder="e.g. DL1420110012345"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                />
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  First Name
+                  <input
+                    type="text"
+                    required
+                    disabled={isVerifying}
+                    value={dlFirstName}
+                    onChange={(e) => setDlFirstName(e.target.value)}
+                    placeholder="First Name"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Middle Name (Optional)
+                  <input
+                    type="text"
+                    disabled={isVerifying}
+                    value={dlMiddleName}
+                    onChange={(e) => setDlMiddleName(e.target.value)}
+                    placeholder="Middle Name"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Last Name
+                  <input
+                    type="text"
+                    required
+                    disabled={isVerifying}
+                    value={dlLastName}
+                    onChange={(e) => setDlLastName(e.target.value)}
+                    placeholder="Last Name"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Gender
+                  <select
+                    value={dlGender}
+                    disabled={isVerifying}
+                    onChange={(e) => setDlGender(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', height: '38px', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                  >
+                    <option value="M">Male / पुरुष</option>
+                    <option value="F">Female / महिला</option>
+                    <option value="O">Other / अन्य</option>
+                  </select>
+                </label>
+              </div>
+
+              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Date of Birth
+                <input
+                  type="date"
+                  required
+                  disabled={isVerifying}
+                  value={dlDob}
+                  onChange={(e) => setDlDob(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                />
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                <div style={{ display: 'grid', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>DL Front Photo (jpeg/png)</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg, image/png"
+                    disabled={isVerifying}
+                    onChange={(e) => handlePhotoUpload(e, 'front')}
+                    style={{ fontSize: '11px', width: '100%' }}
+                  />
+                  {dlFrontPhoto && (
+                    <span style={{ fontSize: '9px', color: 'var(--accent-teal)' }}>✓ Front Loaded</span>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>DL Back Photo (jpeg/png)</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg, image/png"
+                    disabled={isVerifying}
+                    onChange={(e) => handlePhotoUpload(e, 'back')}
+                    style={{ fontSize: '11px', width: '100%' }}
+                  />
+                  {dlBackPhoto && (
+                    <span style={{ fontSize: '9px', color: 'var(--accent-teal)' }}>✓ Back Loaded</span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  disabled={isVerifying}
+                  onClick={() => setShowDlModal(false)}
+                  style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', cursor: isVerifying ? 'not-allowed' : 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className="join-btn"
+                  style={{ flex: 2, minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: isVerifying ? 'not-allowed' : 'pointer' }}
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="animate-spin" style={{ width: '14px', height: '14px' }} />
+                      <span>Saving Profile...</span>
+                    </>
+                  ) : (
+                    <span>Complete Authentication</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -106,6 +106,7 @@ export default function ProfilePage() {
   const [newEmail, setNewEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const [emailResendTimer, setEmailResendTimer] = useState(0);
 
   // Timer Countdown Handlers
   useEffect(() => {
@@ -120,6 +121,18 @@ export default function ProfilePage() {
       if (timerId) clearInterval(timerId);
     };
   }, [mobileOtpModal]);
+
+  useEffect(() => {
+    let timerId: any;
+    if (emailResendTimer > 0) {
+      timerId = setInterval(() => {
+        setEmailResendTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [emailResendTimer]);
 
 
 
@@ -347,6 +360,7 @@ export default function ProfilePage() {
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         showToast(t('Email verification link sent successfully! Please check your email to verify.'));
+        setEmailResendTimer(60);
         setNewEmail('');
         setEmailVal('newEmail', '');
       } else {
@@ -843,22 +857,24 @@ export default function ProfilePage() {
 
               <button
                 type="submit"
-                disabled={emailLoading}
+                disabled={emailLoading || emailResendTimer > 0}
                 style={{
                   padding: '12px',
-                  border: 'none',
                   borderRadius: '10px',
-                  background: 'var(--accent-teal)',
-                  color: '#ffffff',
+                  background: (emailLoading || emailResendTimer > 0) ? 'var(--bg-primary)' : 'var(--accent-teal)',
+                  color: (emailLoading || emailResendTimer > 0) ? 'var(--text-secondary)' : '#ffffff',
+                  border: '1px solid var(--border-color)',
                   fontWeight: 800,
                   fontSize: '13px',
-                  cursor: 'pointer',
-                  opacity: emailLoading ? 0.6 : 1,
+                  cursor: (emailLoading || emailResendTimer > 0) ? 'not-allowed' : 'pointer',
+                  opacity: (emailLoading || emailResendTimer > 0) ? 0.85 : 1,
                   transition: 'all 0.2s ease',
                   marginTop: '8px'
                 }}
               >
-                {emailLoading ? 'Sending...' : 'Verify Email / ईमेल सत्यापित करें'}
+                {emailResendTimer > 0 
+                  ? `Resend link in ${emailResendTimer}s` 
+                  : (emailLoading ? 'Sending...' : 'Verify Email / ईमेल सत्यापित करें')}
               </button>
             </form>
           )}
@@ -935,6 +951,7 @@ export default function ProfilePage() {
                   value={mobileOtp}
                   onChange={setMobileOtp}
                   error={!!mobileError}
+                  disabled={mobileLoading}
                 />
                 
                 {/* Ultra-compact Expiry & Resend Cooldown Line */}

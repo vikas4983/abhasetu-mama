@@ -21,6 +21,7 @@ import {
   Accessibility,
   X,
   Code,
+  Key,
   Stethoscope,
   Pill,
   FlaskConical,
@@ -972,6 +973,32 @@ export default function Header() {
                   >
                     <Code className="small-icon" style={{ width: '14px', height: '14px' }} />
                     <span>{t('Sandbox API Docs')}</span>
+                  </button>
+
+                  <a
+                    href="/api/abdm/docs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box' }}
+                    onClick={() => setIsProfileOpen(false)}
+                  >
+                    <FileText className="small-icon" style={{ width: '14px', height: '14px' }} />
+                    <span>{t('Swagger API Docs')}</span>
+                  </a>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push('/crypto');
+                    }}
+                    className="dropdown-item"
+                    role="menuitem"
+                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--text-primary)' }}
+                  >
+                    <Key className="small-icon" style={{ width: '14px', height: '14px' }} />
+                    <span>{t('RSA Cryptography')}</span>
                   </button>
 
                   <hr className="dropdown-divider" />

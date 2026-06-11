@@ -78,6 +78,7 @@ import {
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import LogoLoader from '../../../components/common/LogoLoader';
+import { DRIVING_LICENSE_REGEX } from '../../../constants/regex.constants';
 import OtpInput from '../../../components/common/OtpInput';
 
 
@@ -823,14 +824,25 @@ export default function AbhaPage() {
   const [verificationMessage, setVerificationMessage] = useState('');
 
   // Tab 2: Onboarding (Milestone 1) State
-  const [onboardMethod, setOnboardMethod] = useState<'aadhaar' | 'mobile'>('aadhaar');
+  const [onboardMethod, setOnboardMethod] = useState<'mobile' | 'aadhaar' | 'abha' | 'dl'>('mobile');
+  const [showOnboardMethodModal, setShowOnboardMethodModal] = useState(true);
+  const [abhaIdInput, setAbhaIdInput] = useState('');
+  const [dlNumber, setDlNumber] = useState('');
+  const [dlMobile, setDlMobile] = useState('');
+  const [showOnboardWizard, setShowOnboardWizard] = useState(true);
+  const [dlFirstName, setDlFirstName] = useState('');
+  const [dlMiddleName, setDlMiddleName] = useState('');
+  const [dlLastName, setDlLastName] = useState('');
+  const [dlDob, setDlDob] = useState('1994-04-26');
+  const [dlGender, setDlGender] = useState('M');
+  const [dlFrontPhoto, setDlFrontPhoto] = useState('');
+  const [dlBackPhoto, setDlBackPhoto] = useState('');
   const [aadhaarInput, setAadhaarInput] = useState('');
   const [mobileInput, setMobileInput] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [txnId, setTxnId] = useState('');
   const [onboardStep, setOnboardStep] = useState<'verification' | 'otp' | 'demographics' | 'completed'>('verification');
   const [loading, setLoading] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [otpExpiryTimer, setOtpExpiryTimer] = useState(600);
   const [otpError, setOtpError] = useState('');
@@ -843,14 +855,14 @@ export default function AbhaPage() {
 
   useEffect(() => {
     let timer: any;
-    if (showOtpModal || onboardStep === 'otp') {
+    if (onboardStep === 'otp') {
       timer = setInterval(() => {
         setResendTimer(prev => (prev > 0 ? prev - 1 : 0));
         setOtpExpiryTimer(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [showOtpModal, onboardStep]);
+  }, [onboardStep]);
 
   useEffect(() => {
     if (currentUser?.abhaProfile) {
@@ -1004,10 +1016,206 @@ export default function AbhaPage() {
     }
   };
 
+  // ABHA ID & Driving License Onboarding Handlers
+  const handleVerifyAbhaId = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!abhaIdInput) {
+      showToast(t('Please enter an ABHA ID or Address.'));
+      return;
+    }
+
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      const isAarav = abhaIdInput === '91-1234-5678-9012' || abhaIdInput === 'aarav.sharma@sbx';
+      const name = isAarav ? 'Aarav Sharma' : 'Verified ABHA User';
+      const abhaNumber = isAarav ? '91-1234-5678-9012' : (abhaIdInput.includes('-') ? abhaIdInput : '91-8823-1145-9010');
+      const abhaAddress = isAarav ? 'aarav.sharma@sbx' : (abhaIdInput.includes('@') ? abhaIdInput : 'user@sbx');
+
+      const profile = {
+        name,
+        abhaNumber,
+        abhaId: abhaAddress,
+        mobile: '9876543210',
+        gender: 'Male',
+        dob: '1994-04-26',
+        photo: ''
+      };
+
+      setAbhaDetails(profile);
+      const simProfile = {
+        firstName: name,
+        preferredAddress: abhaAddress,
+        ABHANumber: abhaNumber,
+        gender: 'M',
+        dob: '1994-04-26',
+        mobile: '9876543210',
+        photo: '',
+        address: '1787, Nagpur Road, Medical, Jabalpur, Madhya Pradesh',
+        districtName: 'Jabalpur',
+        stateName: 'Madhya Pradesh',
+        pinCode: '482001',
+        abhaStatus: 'ACTIVE',
+        abhaType: 'STANDARD'
+      };
+      setAbhaProfile(simProfile);
+      updateCurrentUser({
+        abhaId: abhaAddress,
+        abhaProfile: simProfile
+      });
+
+      setOnboardStep('completed');
+      showToast(t('Existing ABHA Card linked and verified successfully!'));
+      logSecurityEvent('ABHA Linked', `Successfully linked existing ABHA: ${abhaNumber}`);
+    }, 1200);
+  };
+
+  const handleDlPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (side === 'front') {
+          setDlFrontPhoto(reader.result as string);
+        } else {
+          setDlBackPhoto(reader.result as string);
+        }
+        showToast(t(`${side === 'front' ? 'Front' : 'Back'} side photo uploaded and encoded.`));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDlOnboardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dlNumber) {
+      showToast(t('Driving License number is required.'));
+      return;
+    }
+    if (dlNumber.includes('-') || dlNumber !== dlNumber.toUpperCase() || !DRIVING_LICENSE_REGEX.test(dlNumber)) {
+      showToast(t('Driving License number must be fully in CAPS and contain no hyphens (-).'));
+      return;
+    }
+    if (!dlFirstName || !dlLastName) {
+      showToast(t('First Name and Last Name are required.'));
+      return;
+    }
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/abdm/v3/enrollment/enrol/byDl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dlNumber,
+          firstName: dlFirstName,
+          middleName: dlMiddleName,
+          lastName: dlLastName,
+          dob: dlDob,
+          gender: dlGender,
+          mobile: dlMobile,
+          frontPhoto: dlFrontPhoto,
+          backPhoto: dlBackPhoto
+        })
+      });
+      const data = await res.json();
+      setLoading(false);
+
+      if (res.ok && data.status === 'success') {
+        const profile = data.abhaProfile;
+        
+        setAbhaDetails({
+          name: profile.name,
+          mobile: profile.mobile,
+          abhaId: profile.abhaId,
+          abhaNumber: profile.abhaNumber,
+          gender: profile.gender === 'M' ? 'Male' : profile.gender === 'F' ? 'Female' : profile.gender,
+          dob: profile.dob,
+          photo: profile.photo
+        });
+        const simProfile = {
+          firstName: profile.name,
+          preferredAddress: profile.abhaId,
+          ABHANumber: profile.abhaNumber,
+          gender: profile.gender,
+          dob: profile.dob,
+          mobile: profile.mobile,
+          photo: profile.photo,
+          address: '1787, Nagpur Road, Medical, Jabalpur, Madhya Pradesh',
+          districtName: 'Jabalpur',
+          stateName: 'Madhya Pradesh',
+          pinCode: '482001',
+          abhaStatus: 'ACTIVE',
+          abhaType: 'STANDARD'
+        };
+        setAbhaProfile(simProfile);
+        updateCurrentUser({
+          abhaId: profile.abhaId,
+          abhaProfile: simProfile
+        });
+
+        setOnboardStep('completed');
+        showToast(t('ABHA Card generated successfully via Driving License Onboarding!'));
+        logSecurityEvent('ABHA Generated', `Successfully generated ABHA via DL: ${profile.abhaNumber}`);
+      } else {
+        showToast(data.message || t('DL demographic verification failed.'));
+      }
+    } catch (err: any) {
+      setLoading(false);
+      showToast(err.message || t('DL registration request failed.'));
+    }
+  };
+
   // Milestone 1 Onboarding API triggers
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (onboardMethod === 'dl') {
+      if (!dlMobile || dlMobile.length !== 10) {
+        showToast(t('Please enter a valid 10-digit Mobile Number.'));
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const sessionRes = await fetch('/api/abdm/v3/enrollment/dl/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const sessionData = await sessionRes.json();
+        if (sessionData.status !== 'success') {
+          throw new Error(sessionData.message || 'Failed to establish DL session');
+        }
+
+        const res = await fetch('/api/abdm/v3/enrollment/dl/request/otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobileNumber: dlMobile, dlNumber: '' }),
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+          setTxnId(data.txnId);
+          setOtpError('');
+          setResendTimer(60);
+          setOtpExpiryTimer(600);
+          setOnboardStep('otp');
+          showToast(t(data.message));
+          logSecurityEvent(
+            'ABDM OTP Requested', 
+            `Successfully initialized DL OTP simulation request.`
+          );
+        } else {
+          showToast(t(data.message || 'OTP request failed'));
+        }
+      } catch (err: any) {
+        showToast(t(err.message || 'Network error requesting OTP.'));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (onboardMethod === 'aadhaar') {
       if (aadhaarInput.length !== 12 || isNaN(Number(aadhaarInput))) {
         showToast(t('Please enter a valid 12-digit Aadhaar Number.'));
@@ -1038,11 +1246,7 @@ export default function AbhaPage() {
         setOtpError('');
         setResendTimer(60);
         setOtpExpiryTimer(600);
-        if (onboardMethod === 'aadhaar') {
-          setShowOtpModal(true);
-        } else {
-          setOnboardStep('otp');
-        }
+        setOnboardStep('otp');
         showToast(t(data.message));
         logSecurityEvent(
           'ABDM OTP Requested', 
@@ -1074,9 +1278,27 @@ export default function AbhaPage() {
     setLoading(true);
     setIsVerifyingOtp(true);
     
-    // Immersive 1.8 seconds holographic decrypter sequence
     setTimeout(async () => {
       try {
+        if (onboardMethod === 'dl') {
+          const res = await fetch('/api/abdm/v3/enrollment/dl/verify/otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ otp: otpInput })
+          });
+          const data = await res.json();
+          if (data.status === 'success') {
+            showToast(t('DL OTP Verified! Please enter demographic details.'));
+            setOnboardStep('demographics');
+          } else {
+            setOtpError(data.message || 'OTP verification failed.');
+            triggerShake();
+          }
+          setLoading(false);
+          setIsVerifyingOtp(false);
+          return;
+        }
+
         let url = '';
         let payload = {};
 
@@ -1125,7 +1347,6 @@ export default function AbhaPage() {
 
         if (data.status === 'success') {
           if (onboardMethod === 'aadhaar') {
-            setShowOtpModal(false);
             if (data.ABHAProfile) {
               const profile = data.ABHAProfile;
               
@@ -1505,6 +1726,7 @@ export default function AbhaPage() {
       showToast(t('Please enter a valid 6-digit OTP.'));
       return;
     }
+    setLoading(true);
 
     const writeLog = (msg: string) => {
       setM2Console(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -1546,6 +1768,8 @@ export default function AbhaPage() {
     } catch (err) {
       showToast(t('Linking error. Sandbox fallback complete.'));
       setM2Step('completed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -2037,536 +2261,826 @@ export default function AbhaPage() {
           </>
         )}
 
-        {/* ==================== TAB 2: MILESTONE 1 ONBOARD ==================== */}
+                {/* ==================== TAB 2: MILESTONE 1 ONBOARD ==================== */}
         {activeTab === 'onboard' && (
-          <article className="route-card" style={{ width: '100%', padding: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-            
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
-                <Fingerprint />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <h3 style={{ margin: 0, fontSize: '16px' }}>{t('Create Your ABHA Card')}</h3>
-                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>{t('Generate your 14-digit national health card securely via Aadhaar or Mobile number.')}</p>
-              </div>
-            </div>
+          <>
+            {/* Inline Completed State or Start Wizard View */}
+            <article className="route-card" style={{ width: '100%', padding: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+              {onboardStep === 'completed' ? (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
+                    <CheckCircle2 style={{ width: '28px', height: '28px' }} />
+                  </div>
+                  <h4 style={{ margin: '0 0 6px' }}>ABHA Onboarding Complete</h4>
+                  
+                  {verificationMessage && (
+                    <div style={{ 
+                      padding: '12px', 
+                      background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', 
+                      border: '1px solid var(--accent-teal)', 
+                      borderRadius: '8px', 
+                      fontSize: '13px', 
+                      fontWeight: '600',
+                      color: 'var(--text-primary)',
+                      margin: '12px 0 20px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      gap: '8px' 
+                    }}>
+                      <ShieldCheck style={{ color: 'var(--accent-teal)', width: '18px', height: '18px' }} />
+                      <span>{verificationMessage}</span>
+                    </div>
+                  )}
 
-            {/* Stepper Progress Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', width: '100%', padding: '0 10px', marginBottom: '24px' }}>
-              <div style={{ position: 'absolute', top: '15px', left: '10%', right: '10%', height: '2px', background: 'rgba(255,255,255,0.1)', zIndex: 0 }} />
-              <div style={{
-                position: 'absolute',
-                top: '15px',
-                left: '10%',
-                width: onboardStep === 'verification' ? '0%' : onboardStep === 'otp' ? (onboardMethod === 'aadhaar' ? '80%' : '40%') : onboardStep === 'demographics' ? '80%' : '80%',
-                height: '2px',
-                background: 'var(--accent-teal)',
-                transition: 'all 0.3s ease',
-                zIndex: 0
-              }} />
+                  {abhaProfile ? (
+                    <div style={{ 
+                      background: 'var(--bg-primary)', 
+                      padding: '20px', 
+                      borderRadius: '12px', 
+                      border: '1px solid var(--border-color)', 
+                      marginBottom: '20px', 
+                      fontSize: '12px', 
+                      textAlign: 'left',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px'
+                    }}>
+                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                        {abhaProfile.photo ? (
+                          <img 
+                            src={getPhotoSrc(abhaProfile.photo)} 
+                            alt="Profile" 
+                            style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-teal)' }}
+                          />
+                        ) : (
+                          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--border-color)', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                            {abhaProfile.firstName?.[0] || 'U'}
+                          </div>
+                        )}
+                        <div>
+                          <h5 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 800 }}>
+                            {[abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ')}
+                          </h5>
+                          <div style={{ color: 'var(--accent-teal)', fontWeight: 'bold', fontSize: '11px', fontFamily: 'monospace' }}>
+                            {abhaProfile.preferredAddress || abhaProfile.abhaAddress}
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
+                            ABHA No: <span style={{ fontFamily: 'monospace' }}>{abhaProfile.ABHANumber || abhaProfile.abhaNumber}</span>
+                          </div>
+                        </div>
+                      </div>
 
-              {/* Step 1 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, cursor: onboardStep === 'verification' ? 'default' : 'pointer' }} onClick={() => onboardStep !== 'completed' && setOnboardStep('verification')}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'verification' ? 'var(--accent-teal)' : 'var(--bg-primary)', border: '2px solid var(--accent-teal)', display: 'grid', placeItems: 'center', color: onboardStep === 'verification' ? '#fff' : 'var(--accent-teal)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>1</div>
-                <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'verification' ? 'var(--text-primary)' : 'var(--text-muted)' }}>{t('Verify')}</span>
-              </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Date of Birth</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.dob}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Gender</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.gender === 'M' ? 'Male' : abhaProfile.gender === 'F' ? 'Female' : abhaProfile.gender}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Mobile</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.mobile || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Status / Type</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ padding: '2px 6px', background: (abhaProfile.abhaStatus || 'ACTIVE') === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: (abhaProfile.abhaStatus || 'ACTIVE') === 'ACTIVE' ? 'var(--success)' : 'var(--error)', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
+                              {abhaProfile.abhaStatus || 'ACTIVE'}
+                            </span>
+                            <span style={{ padding: '2px 6px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
+                              {abhaProfile.abhaType || 'STANDARD'}
+                            </span>
+                          </span>
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Address</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)', lineHeight: '1.4' }}>{abhaProfile.address || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>District</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.districtName || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>State & Pincode</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.stateName || 'N/A'} - {abhaProfile.pinCode || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ background: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '12px', textAlign: 'left' }}>
+                      <strong>ABHA Name:</strong> {abhaDetails.name}<br />
+                      <strong>ABHA Number:</strong> {abhaDetails.abhaNumber}<br />
+                      <strong>ABHA Address:</strong> {abhaDetails.abhaId}
+                    </div>
+                  )}
 
-              {/* Step 2 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'otp' ? 'var(--accent-teal)' : (onboardStep === 'demographics' || onboardStep === 'completed') ? 'var(--accent-teal)' : 'var(--bg-primary)', border: `2px solid ${onboardStep === 'verification' ? 'rgba(255,255,255,0.1)' : 'var(--accent-teal)'}`, display: 'grid', placeItems: 'center', color: (onboardStep === 'otp' || onboardStep === 'demographics' || onboardStep === 'completed') ? '#fff' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>2</div>
-                <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'otp' ? 'var(--text-primary)' : (onboardStep === 'demographics' || onboardStep === 'completed') ? 'var(--accent-teal)' : 'var(--text-muted)' }}>{t('OTP')}</span>
-              </div>
-
-              {/* Step 3 (Mobile Onboarding Only) */}
-              {onboardMethod === 'mobile' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'demographics' ? 'var(--accent-teal)' : onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--bg-primary)', border: `2px solid ${(onboardStep === 'verification' || onboardStep === 'otp') ? 'rgba(255,255,255,0.1)' : 'var(--accent-teal)'}`, display: 'grid', placeItems: 'center', color: (onboardStep === 'demographics' || onboardStep === 'completed') ? '#fff' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>3</div>
-                  <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'demographics' ? 'var(--text-primary)' : onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--text-muted)' }}>{t('Profile')}</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="prefill-btn" style={{ flex: 1 }} onClick={() => { setOnboardStep('verification'); setShowOnboardMethodModal(true); setShowOnboardWizard(true); }}>Register Another</button>
+                    <button className="join-btn" style={{ flex: 1, margin: 0 }} onClick={() => setActiveTab('card')}>View Smart Card</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
+                    <Fingerprint style={{ width: '30px', height: '30px' }} />
+                  </div>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 800 }}>ABHA Onboarding Wizard</h4>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '400px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+                    Please complete the onboarding steps in the wizard to verify and generate your official ABHA card.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOnboardMethodModal(true);
+                      setOnboardStep('verification');
+                      setShowOnboardWizard(true);
+                    }}
+                    style={{
+                      padding: '10px 24px',
+                      background: 'var(--accent-teal)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s'
+                    }}
+                  >
+                    Open Onboarding Wizard
+                  </button>
                 </div>
               )}
+            </article>
 
-              {/* Step 4 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--bg-primary)', border: `2px solid ${onboardStep === 'completed' ? 'var(--accent-teal)' : 'rgba(255,255,255,0.1)'}`, display: 'grid', placeItems: 'center', color: onboardStep === 'completed' ? '#fff' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s ease' }}>
-                  {onboardStep === 'completed' ? '✓' : onboardMethod === 'mobile' ? '4' : '3'}
-                </div>
-                <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: 600, color: onboardStep === 'completed' ? 'var(--accent-teal)' : 'var(--text-muted)' }}>{t('Done')}</span>
-              </div>
-            </div>
-
-            {/* Step 1: Verification Form */}
-            {onboardStep === 'verification' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                
-                {/* Method Switcher */}
-                <div style={{ display: 'flex', background: 'var(--bg-primary)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border-color)', marginBottom: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setOnboardMethod('aadhaar')}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      background: onboardMethod === 'aadhaar' ? 'var(--accent-teal)' : 'transparent',
-                      color: onboardMethod === 'aadhaar' ? '#ffffff' : 'var(--text-secondary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Fingerprint style={{ width: '14px', height: '14px' }} />
-                    <span>Aadhaar eKYC</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOnboardMethod('mobile')}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      background: onboardMethod === 'mobile' ? 'var(--accent-teal)' : 'transparent',
-                      color: onboardMethod === 'mobile' ? '#ffffff' : 'var(--text-secondary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <FileText style={{ width: '14px', height: '14px' }} />
-                    <span>Mobile & Docs</span>
-                  </button>
-                </div>
-
-                {/* Aadhaar Verification Input */}
-                {onboardMethod === 'aadhaar' ? (
-                  <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                    <div>
-                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>12-Digit Aadhaar Number</label>
-                      <input 
-                        type="text" 
-                        maxLength={12} 
-                        value={aadhaarInput}
-                        onChange={(e) => setAadhaarInput(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Enter Aadhaar Number (e.g. 543210987654)" 
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      />
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                        * In sandbox mode, enter any dummy 12-digit number to trigger secure OTP simulation.
-                      </span>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                    >
-                      {loading ? <RefreshCw className="animate-spin" /> : <Send style={{ width: '16px', height: '16px' }} />}
-                      <span>Request Aadhaar OTP</span>
-                    </button>
-                  </form>
-                ) : (
-                  // Mobile Verification Input
-                  <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                    <div>
-                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>10-Digit Mobile Number</label>
-                      <input 
-                        type="text" 
-                        maxLength={10} 
-                        value={mobileInput}
-                        onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Enter Mobile Number (e.g. 9876543210)" 
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      />
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                        * Verify your communication mobile via OTP. Afterwards, complete profile registration.
-                      </span>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                    >
-                      {loading ? <RefreshCw className="animate-spin" /> : <Send style={{ width: '16px', height: '16px' }} />}
-                      <span>Request Mobile OTP</span>
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* Step 2: OTP Form */}
-            {onboardStep === 'otp' && (
-              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
-                  <span>Enter verification code sent to your mobile.</span>
-                </div>
-
-                {onboardMethod === 'aadhaar' && (
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Mobile Number</label>
-                    <input 
-                      type="text" 
-                      maxLength={10} 
-                      value={mobileInput}
-                      onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Enter 10-digit Mobile Number (e.g. 9981435702)" 
-                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                    />
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                      * Provide the mobile number associated with your Aadhaar card for registration.
-                    </span>
-                  </div>
-                )}
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>6-Digit OTP Code</label>
-                  <OtpInput
-                    value={otpInput}
-                    onChange={setOtpInput}
-                    error={!!otpError}
-                  />
-                  
-                  {/* Ultra-compact Expiry & Resend Cooldown Line */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: '11px',
-                    color: 'var(--text-muted)',
-                    marginTop: '4px',
-                    padding: '0 2px'
-                  }}>
-                    <span>
-                      Expires in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: otpExpiryTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)' }}>
-                        {otpExpiryTimer === 0 ? 'EXPIRED' : `${Math.floor(otpExpiryTimer / 60)}:${String(otpExpiryTimer % 60).padStart(2, '0')}`}
-                      </span>
-                    </span>
-                    <span>
-                      {resendTimer > 0 ? (
-                        `Resend in ${resendTimer}s`
-                      ) : (
+            {/* Persistent Onboarding Wizard Modal */}
+            {onboardStep !== 'completed' && showOnboardWizard && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.6)',
+                backdropFilter: 'blur(10px)',
+                display: 'grid',
+                placeItems: 'center',
+                zIndex: 1100,
+                padding: '20px',
+                overflowY: 'auto'
+              }}>
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '24px',
+                  width: '100%',
+                  maxWidth: '520px',
+                  padding: '24px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  color: 'var(--text-primary)',
+                  position: 'relative'
+                }}>
+                  {/* Modal Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {!showOnboardMethodModal && (
                         <button
                           type="button"
-                          onClick={handleResendOtp}
+                          onClick={() => {
+                            if (onboardStep === 'demographics') {
+                              setOnboardStep('otp');
+                            } else if (onboardStep === 'otp') {
+                              setOnboardStep('verification');
+                            } else if (onboardStep === 'verification') {
+                              setShowOnboardMethodModal(true);
+                            }
+                          }}
                           style={{
                             background: 'transparent',
                             border: 'none',
                             color: 'var(--accent-teal)',
                             cursor: 'pointer',
-                            fontWeight: 700,
-                            textDecoration: 'underline',
-                            fontSize: '11px',
-                            padding: 0
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%'
                           }}
+                          aria-label="Back to previous step"
                         >
-                          Resend OTP
+                          <ArrowLeft style={{ width: '18px', height: '18px' }} />
                         </button>
                       )}
-                    </span>
-                  </div>
-                </div>
-
-                {otpError && (
-                  <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'left', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                    {otpError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || otpExpiryTimer === 0 || otpInput.length !== 6}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: 'none',
-                    borderRadius: '10px',
-                    background: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    cursor: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  {loading ? <RefreshCw className="animate-spin" /> : <Key style={{ width: '16px', height: '16px' }} />}
-                  <span>Verify OTP</span>
-                </button>
-              </form>
-            )}
-
-            {/* Step 3: Demographics Form (Mobile only) */}
-            {onboardStep === 'demographics' && (
-              <form onSubmit={handleEnrolByDocument} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
-                <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
-                  <span>Mobile OTP verified! Enter demographic details below to register and issue your official ABHA card.</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>First Name</label>
-                    <input 
-                      type="text" 
-                      value={demoFirstName}
-                      onChange={(e) => setDemoFirstName(e.target.value)}
-                      placeholder="First Name (e.g. Aarav)" 
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Last Name</label>
-                    <input 
-                      type="text" 
-                      value={demoLastName}
-                      onChange={(e) => setDemoLastName(e.target.value)}
-                      placeholder="Last Name (e.g. Sharma)" 
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Date of Birth</label>
-                    <input 
-                      type="date" 
-                      value={demoDob}
-                      onChange={(e) => setDemoDob(e.target.value)}
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Gender</label>
-                    <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-primary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
-                      {(['Male', 'Female', 'Others'] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => setDemoGender(g)}
-                          style={{
-                            flex: 1,
-                            padding: '6px 8px',
-                            border: 'none',
-                            borderRadius: '6px',
-                            background: demoGender === g ? 'var(--accent-teal)' : 'transparent',
-                            color: demoGender === g ? '#ffffff' : 'var(--text-secondary)',
-                            fontWeight: 600,
-                            fontSize: '11px',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          {g}
-                        </button>
-                      ))}
+                      <div style={{ textAlign: 'left' }}>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>
+                          {showOnboardMethodModal ? 'Select ABHA Onboarding Method' : (
+                            onboardMethod === 'mobile' ? 'Mobile Onboarding' :
+                            onboardMethod === 'aadhaar' ? 'Aadhaar eKYC Onboarding' :
+                            onboardMethod === 'abha' ? 'Link Existing ABHA ID' : 'Driving License Onboarding'
+                          )}
+                        </h3>
+                        <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
+                          {showOnboardMethodModal ? 'Choose a method below to generate your card.' : (
+                            onboardStep === 'verification' ? 'Enter identity credentials' :
+                            onboardStep === 'otp' ? 'Verify OTP sent to mobile' : 'Enter demographics details'
+                          )}
+                        </p>
+                      </div>
                     </div>
+                    <button 
+                      type="button"
+                      onClick={() => setShowOnboardWizard(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%'
+                      }}
+                      aria-label="Close wizard"
+                    >
+                      <X style={{ width: '20px', height: '20px' }} />
+                    </button>
                   </div>
-                </div>
 
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Street Address</label>
-                  <input 
-                    type="text" 
-                    value={demoAddress}
-                    onChange={(e) => setDemoAddress(e.target.value)}
-                    placeholder="Flat, Road, Area (e.g. H-402, Green Valley Apartments)" 
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                    required
-                  />
-                </div>
+                  {/* Wizard Content */}
+                  {showOnboardMethodModal ? (
+                    /* Method Selector Grid */
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '8px 0' }}>
+                      {[
+                        { id: 'mobile', label: 'Mobile & Docs', desc: 'Verify mobile & fill details', icon: FileText },
+                        { id: 'aadhaar', label: 'Aadhaar eKYC', desc: 'Secure direct Aadhaar link', icon: Fingerprint },
+                        { id: 'abha', label: 'Existing ABHA ID', desc: 'Search & link existing ID', icon: Search },
+                        { id: 'dl', label: 'Driving License', desc: 'Register via DL mobile & card', icon: CreditCard }
+                      ].map(item => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setOnboardMethod(item.id as any);
+                              setOnboardStep('verification');
+                              setShowOnboardMethodModal(false);
+                            }}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '16px 10px',
+                              borderRadius: '16px',
+                              border: '1px solid var(--border-color)',
+                              background: 'var(--bg-primary)',
+                              cursor: 'pointer',
+                              color: 'var(--text-primary)',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(20, 184, 166, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
+                              <Icon style={{ width: '16px', height: '16px' }} />
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{item.label}</span>
+                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', lineHeight: '1.3' }}>{item.desc}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Active step forms */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Step 1: Verification Form */}
+                      {onboardStep === 'verification' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          {/* Mobile Verification */}
+                          {onboardMethod === 'mobile' && (
+                            <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>10-Digit Mobile Number</span>
+                                <input 
+                                  type="text" 
+                                  maxLength={10} 
+                                  disabled={loading}
+                                  value={mobileInput}
+                                  onChange={(e) => setMobileInput(e.target.value.replace(/D/g, ''))}
+                                  placeholder="Enter Mobile Number (e.g. 9876543210)" 
+                                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  required
+                                />
+                              </label>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                * Verify your communication mobile via OTP. Afterwards, complete profile registration.
+                              </span>
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Send style={{ width: '16px', height: '16px' }} />}
+                                <span>Request Mobile OTP</span>
+                              </button>
+                            </form>
+                          )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>State</label>
-                    <input 
-                      type="text" 
-                      value={demoState}
-                      onChange={(e) => setDemoState(e.target.value)}
-                      placeholder="State (e.g. Haryana)" 
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>District</label>
-                    <input 
-                      type="text" 
-                      value={demoDistrict}
-                      onChange={(e) => setDemoDistrict(e.target.value)}
-                      placeholder="District (e.g. Gurgaon)" 
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Pin Code</label>
-                    <input 
-                      type="text" 
-                      maxLength={6}
-                      value={demoPinCode}
-                      onChange={(e) => setDemoPinCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="122011" 
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                      required
-                    />
-                  </div>
-                </div>
+                          {/* Aadhaar Verification */}
+                          {onboardMethod === 'aadhaar' && (
+                            <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>12-Digit Aadhaar Number</span>
+                                <input 
+                                  type="text" 
+                                  maxLength={12} 
+                                  disabled={loading}
+                                  value={aadhaarInput}
+                                  onChange={(e) => setAadhaarInput(e.target.value.replace(/D/g, ''))}
+                                  placeholder="Enter Aadhaar Number (e.g. 543210987654)" 
+                                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  required
+                                />
+                              </label>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                * In sandbox mode, enter any dummy 12-digit number to trigger secure OTP simulation.
+                              </span>
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Send style={{ width: '16px', height: '16px' }} />}
+                                <span>Request Aadhaar OTP</span>
+                              </button>
+                            </form>
+                          )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}
-                >
-                  {loading ? <RefreshCw className="animate-spin" /> : <ShieldCheck style={{ width: '16px', height: '16px' }} />}
-                  <span>Create & Issue ABHA Card</span>
-                </button>
-              </form>
-            )}
+                          {/* Existing ABHA Link */}
+                          {onboardMethod === 'abha' && (
+                            <form onSubmit={handleVerifyAbhaId} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>ABHA Address / Number</span>
+                                <input 
+                                  type="text" 
+                                  disabled={loading}
+                                  value={abhaIdInput}
+                                  onChange={(e) => setAbhaIdInput(e.target.value)}
+                                  placeholder="Enter ABHA Address (e.g. aarav.sharma@sbx or 91-1234-5678-9012)" 
+                                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  required
+                                />
+                              </label>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                * Enter your existing ABHA address or 14-digit number to link it.
+                              </span>
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Link2 style={{ width: '16px', height: '16px' }} />}
+                                <span>Link & Verify ABHA ID</span>
+                              </button>
+                            </form>
+                          )}
 
-            {/* Step 4: Onboarding Completed */}
-            {onboardStep === 'completed' && (
-              <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
-                  <CheckCircle2 style={{ width: '28px', height: '28px' }} />
-                </div>
-                <h4 style={{ margin: '0 0 6px' }}>ABHA Onboarding Complete</h4>
-                
-                {/* Verification / Already Exist Message banner */}
-                {verificationMessage && (
-                  <div style={{ 
-                    padding: '12px', 
-                    background: 'color-mix(in srgb, var(--accent-teal) 10%, transparent)', 
-                    border: '1px solid var(--accent-teal)', 
-                    borderRadius: '8px', 
-                    fontSize: '13px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)',
-                    margin: '12px 0 20px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    gap: '8px' 
-                  }}>
-                    <ShieldCheck style={{ color: 'var(--accent-teal)', width: '18px', height: '18px' }} />
-                    <span>{verificationMessage}</span>
-                  </div>
-                )}
-
-                {/* Detailed ABHA Profile Panel */}
-                {abhaProfile ? (
-                  <div style={{ 
-                    background: 'var(--bg-primary)', 
-                    padding: '20px', 
-                    borderRadius: '12px', 
-                    border: '1px solid var(--border-color)', 
-                    marginBottom: '20px', 
-                    fontSize: '12px', 
-                    textAlign: 'left',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                  }}>
-                    {/* Profile Card Header */}
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-                      {abhaProfile.photo ? (
-                        <img 
-                          src={getPhotoSrc(abhaProfile.photo)} 
-                          alt="Profile" 
-                          style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-teal)' }}
-                        />
-                      ) : (
-                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--border-color)', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                          {abhaProfile.firstName?.[0] || 'U'}
+                          {/* Driving License Verification */}
+                          {onboardMethod === 'dl' && (
+                            <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Mobile Number</span>
+                                <input 
+                                  type="text" 
+                                  maxLength={10} 
+                                  disabled={loading}
+                                  value={dlMobile}
+                                  onChange={(e) => setDlMobile(e.target.value.replace(/D/g, ''))}
+                                  placeholder="Enter Mobile Number (e.g. 9876543210)" 
+                                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  required
+                                />
+                              </label>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                * Provide mobile number linked with your DL.
+                              </span>
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Send style={{ width: '16px', height: '16px' }} />}
+                                <span>Request DL OTP</span>
+                              </button>
+                            </form>
+                          )}
                         </div>
                       )}
-                      <div>
-                        <h5 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 800 }}>
-                          {[abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ')}
-                        </h5>
-                        <div style={{ color: 'var(--accent-teal)', fontWeight: 'bold', fontSize: '11px', fontFamily: 'monospace' }}>
-                          {abhaProfile.preferredAddress || abhaProfile.abhaAddress}
-                        </div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
-                          ABHA No: <span style={{ fontFamily: 'monospace' }}>{abhaProfile.ABHANumber || abhaProfile.abhaNumber}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Profile Details Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Date of Birth</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.dob}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Gender</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.gender === 'M' ? 'Male' : abhaProfile.gender === 'F' ? 'Female' : abhaProfile.gender}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Mobile</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.mobile || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Status / Type</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <span style={{ padding: '2px 6px', background: (abhaProfile.abhaStatus || 'ACTIVE') === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: (abhaProfile.abhaStatus || 'ACTIVE') === 'ACTIVE' ? 'var(--success)' : 'var(--error)', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
-                            {abhaProfile.abhaStatus || 'ACTIVE'}
-                          </span>
-                          <span style={{ padding: '2px 6px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>
-                            {abhaProfile.abhaType || 'STANDARD'}
-                          </span>
-                        </span>
-                      </div>
-                      <div style={{ gridColumn: 'span 2' }}>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Address</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', lineHeight: '1.4' }}>{abhaProfile.address || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>District</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.districtName || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }}>State & Pincode</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{abhaProfile.stateName || 'N/A'} - {abhaProfile.pinCode || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // Fallback card view
-                  <div style={{ background: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '12px', textAlign: 'left' }}>
-                    <strong>ABHA Name:</strong> {abhaDetails.name}<br />
-                    <strong>ABHA Number:</strong> {abhaDetails.abhaNumber}<br />
-                    <strong>ABHA Address:</strong> {abhaDetails.abhaId}
-                  </div>
-                )}
+                      {/* Step 2: OTP Verification Form */}
+                      {onboardStep === 'otp' && (
+                        <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                          <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
+                            <span>Enter verification code sent to your mobile.</span>
+                          </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="prefill-btn" style={{ flex: 1 }} onClick={() => setOnboardStep('verification')}>Register Another</button>
-                  <button className="join-btn" style={{ flex: 1, margin: 0 }} onClick={() => setActiveTab('card')}>View Smart Card</button>
+                          {onboardMethod === 'aadhaar' && (
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Mobile Number</span>
+                              <input 
+                                type="text" 
+                                maxLength={10} 
+                                disabled={loading || isVerifyingOtp}
+                                value={mobileInput}
+                                onChange={(e) => setMobileInput(e.target.value.replace(/D/g, ''))}
+                                placeholder="Enter 10-digit Mobile Number (e.g. 9981435702)" 
+                                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: (loading || isVerifyingOtp) ? 0.6 : 1 }}
+                                required
+                              />
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                * Provide the mobile number associated with your Aadhaar card for registration.
+                              </span>
+                            </label>
+                          )}
+
+                          <div>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>6-Digit OTP Code</span>
+                            <OtpInput
+                              value={otpInput}
+                              onChange={setOtpInput}
+                              error={!!otpError}
+                              disabled={loading || isVerifyingOtp}
+                            />
+                            
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '11px',
+                              color: 'var(--text-muted)',
+                              marginTop: '4px',
+                              padding: '0 2px'
+                            }}>
+                              <span>
+                                Expires in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: otpExpiryTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)' }}>
+                                  {otpExpiryTimer === 0 ? 'EXPIRED' : `${Math.floor(otpExpiryTimer / 60)}:${String(otpExpiryTimer % 60).padStart(2, '0')}`}
+                                </span>
+                              </span>
+                              <span>
+                                {resendTimer > 0 ? (
+                                  `Resend in ${resendTimer}s`
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={handleResendOtp}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: 'var(--accent-teal)',
+                                      cursor: 'pointer',
+                                      fontWeight: 700,
+                                      textDecoration: 'underline',
+                                      fontSize: '11px',
+                                      padding: 0
+                                    }}
+                                  >
+                                    Resend OTP
+                                  </button>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          {otpError && (
+                            <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'left', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                              {otpError}
+                            </div>
+                          )}
+
+                          <button
+                            type="submit"
+                            disabled={loading || isVerifyingOtp || otpExpiryTimer === 0 || otpInput.length !== 6}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              border: 'none',
+                              borderRadius: '10px',
+                              background: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)',
+                              color: '#ffffff',
+                              fontWeight: 800,
+                              cursor: (loading || isVerifyingOtp || otpExpiryTimer === 0 || otpInput.length !== 6) ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px'
+                            }}
+                          >
+                            {(loading || isVerifyingOtp) ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Key style={{ width: '16px', height: '16px' }} />}
+                            <span>Verify OTP</span>
+                          </button>
+                        </form>
+                      )}
+
+                      {/* Step 3: Demographics Form */}
+                      {onboardStep === 'demographics' && (
+                        <>
+                          {/* Mobile Demographics form */}
+                          {onboardMethod === 'mobile' && (
+                            <form onSubmit={handleEnrolByDocument} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
+                                <span>Mobile OTP verified! Enter demographic details below to register and issue your official ABHA card.</span>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>First Name</span>
+                                  <input 
+                                    type="text" 
+                                    disabled={loading}
+                                    value={demoFirstName}
+                                    onChange={(e) => setDemoFirstName(e.target.value)}
+                                    placeholder="First Name (e.g. Aarav)" 
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                    required
+                                  />
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Last Name</span>
+                                  <input 
+                                    type="text" 
+                                    disabled={loading}
+                                    value={demoLastName}
+                                    onChange={(e) => setDemoLastName(e.target.value)}
+                                    placeholder="Last Name (e.g. Sharma)" 
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                    required
+                                  />
+                                </label>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Date of Birth</span>
+                                  <input 
+                                    type="date" 
+                                    disabled={loading}
+                                    value={demoDob}
+                                    onChange={(e) => setDemoDob(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                    required
+                                  />
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Gender</span>
+                                  <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-primary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)', opacity: loading ? 0.6 : 1 }}>
+                                    {(['Male', 'Female', 'Others'] as const).map((g) => (
+                                      <button
+                                        key={g}
+                                        type="button"
+                                        disabled={loading}
+                                        onClick={() => setDemoGender(g)}
+                                        style={{
+                                          flex: 1,
+                                          padding: '6px 8px',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          background: demoGender === g ? 'var(--accent-teal)' : 'transparent',
+                                          color: demoGender === g ? '#ffffff' : 'var(--text-secondary)',
+                                          fontWeight: 600,
+                                          fontSize: '11px',
+                                          cursor: loading ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                      >
+                                        {g}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Street Address</span>
+                                <input 
+                                  type="text" 
+                                  disabled={loading}
+                                  value={demoAddress}
+                                  onChange={(e) => setDemoAddress(e.target.value)}
+                                  placeholder="Flat, Road, Area (e.g. H-402, Green Valley Apartments)" 
+                                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  required
+                                />
+                              </label>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '10px' }}>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>State</span>
+                                  <input 
+                                    type="text" 
+                                    disabled={loading}
+                                    value={demoState}
+                                    onChange={(e) => setDemoState(e.target.value)}
+                                    placeholder="State (e.g. Haryana)" 
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                    required
+                                  />
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>District</span>
+                                  <input 
+                                    type="text" 
+                                    disabled={loading}
+                                    value={demoDistrict}
+                                    onChange={(e) => setDemoDistrict(e.target.value)}
+                                    placeholder="District (e.g. Gurgaon)" 
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                    required
+                                  />
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Pin Code</span>
+                                  <input 
+                                    type="text" 
+                                    maxLength={6}
+                                    disabled={loading}
+                                    value={demoPinCode}
+                                    onChange={(e) => setDemoPinCode(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="122011" 
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                    required
+                                  />
+                                </label>
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <ShieldCheck style={{ width: '16px', height: '16px' }} />}
+                                <span>Create & Issue ABHA Card</span>
+                              </button>
+                            </form>
+                          )}
+
+                          {/* Driving License Demographics form */}
+                          {onboardMethod === 'dl' && (
+                            <form onSubmit={handleDlOnboardSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
+                                <span>DL OTP Verified! Provide demographic details as linked in your Driving License card.</span>
+                              </div>
+
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Driving License Number (CAPS, no hyphen)</span>
+                                <input
+                                  type="text"
+                                  required
+                                  disabled={loading}
+                                  value={dlNumber}
+                                  onChange={(e) => setDlNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9\s]/g, ''))}
+                                  placeholder="e.g. DL1420110012345"
+                                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                />
+                              </label>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>First Name</span>
+                                  <input
+                                    type="text"
+                                    required
+                                    disabled={loading}
+                                    value={dlFirstName}
+                                    onChange={(e) => setDlFirstName(e.target.value)}
+                                    placeholder="First Name"
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  />
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Middle Name (Optional)</span>
+                                  <input
+                                    type="text"
+                                    disabled={loading}
+                                    value={dlMiddleName}
+                                    onChange={(e) => setDlMiddleName(e.target.value)}
+                                    placeholder="Middle Name"
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  />
+                                </label>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Last Name</span>
+                                  <input
+                                    type="text"
+                                    required
+                                    disabled={loading}
+                                    value={dlLastName}
+                                    onChange={(e) => setDlLastName(e.target.value)}
+                                    placeholder="Last Name"
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  />
+                                </label>
+                                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Gender</span>
+                                  <select
+                                    value={dlGender}
+                                    disabled={loading}
+                                    onChange={(e) => setDlGender(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', height: '38px', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  >
+                                    <option value="M">Male / पुरुष</option>
+                                    <option value="F">Female / महिला</option>
+                                    <option value="O">Other / अन्य</option>
+                                  </select>
+                                </label>
+                              </div>
+
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>Date of Birth</span>
+                                <input
+                                  type="date"
+                                  required
+                                  disabled={loading}
+                                  value={dlDob}
+                                  onChange={(e) => setDlDob(e.target.value)}
+                                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                />
+                              </label>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>DL Front Photo (jpeg/png)</span>
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg, image/png"
+                                    disabled={loading}
+                                    onChange={(e) => handleDlPhotoUpload(e, 'front')}
+                                    style={{ fontSize: '11px', width: '100%' }}
+                                  />
+                                  {dlFrontPhoto && (
+                                    <span style={{ fontSize: '9px', color: 'var(--accent-teal)' }}>✓ Front Loaded</span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>DL Back Photo (jpeg/png)</span>
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg, image/png"
+                                    disabled={loading}
+                                    onChange={(e) => handleDlPhotoUpload(e, 'back')}
+                                    style={{ fontSize: '11px', width: '100%' }}
+                                  />
+                                  {dlBackPhoto && (
+                                    <span style={{ fontSize: '9px', color: 'var(--accent-teal)' }}>✓ Back Loaded</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{
+                                  width: '100%',
+                                  padding: '12px',
+                                  border: 'none',
+                                  borderRadius: '10px',
+                                  background: 'var(--accent-teal)',
+                                  color: '#ffffff',
+                                  fontWeight: 800,
+                                  cursor: loading ? 'not-allowed' : 'pointer',
+                                  fontSize: '13px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  marginTop: '6px'
+                                }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Key style={{ width: '16px', height: '16px' }} />}
+                                <span>Complete Onboarding</span>
+                              </button>
+                            </form>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
-          </article>
+          </>
         )}
-
         {/* ==================== TAB 3: MILESTONE 2 HIP LINK ==================== */}
         {activeTab === 'hiplink' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -2652,15 +3166,16 @@ export default function AbhaPage() {
                     <OtpInput 
                       value={m2OtpInput}
                       onChange={setM2OtpInput}
+                      disabled={loading}
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={m2OtpInput.length !== 6}
-                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: m2OtpInput.length === 6 ? 'var(--accent-teal)' : 'var(--border-color)', color: '#ffffff', fontWeight: 800, cursor: m2OtpInput.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    disabled={loading || m2OtpInput.length !== 6}
+                    style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: (loading || m2OtpInput.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: (loading || m2OtpInput.length !== 6) ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   >
-                    <ShieldCheck style={{ width: '16px', height: '16px' }} />
-                    <span>Verify & Link Record</span>
+                    {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <ShieldCheck style={{ width: '16px', height: '16px' }} />}
+                    <span>{loading ? 'Linking...' : 'Verify & Link Record'}</span>
                   </button>
                 </form>
               )}
@@ -3896,217 +4411,6 @@ export default function AbhaPage() {
         </div>
       )}
 
-      {/* Aadhaar OTP Verification Modal */}
-      {showOtpModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(8px)',
-          display: 'grid',
-          placeItems: 'center',
-          zIndex: 1100,
-          padding: '16px',
-          animation: 'fadeIn 0.2s ease-out'
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-        }}>
-          <div 
-            className={shakeOtp ? 'shake-modal' : ''}
-            style={{
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              width: '100%',
-              maxWidth: '440px',
-              padding: '24px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-              color: 'var(--text-primary)',
-              position: 'relative'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldCheck style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>{t('Aadhaar Verification')}</h3>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setShowOtpModal(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '50%'
-                }}
-                aria-label="Close modal"
-              >
-                <X style={{ width: '20px', height: '20px' }} />
-              </button>
-            </div>
-
-            {/* Sandbox Notice Banner */}
-            <div style={{
-              padding: '10px 12px',
-              background: 'color-mix(in srgb, var(--accent-teal) 8%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)',
-              borderRadius: '10px',
-              fontSize: '11px',
-              lineHeight: '1.4',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'flex-start'
-            }}>
-              <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0, width: '16px', height: '16px', marginTop: '2px' }} />
-              <div>
-                <span>Enter the OTP sent to your Aadhaar-linked mobile.</span>
-              </div>
-            </div>
-
-            {otpError && (
-              <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'left', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                {otpError}
-              </div>
-            )}
-
-            {/* Input Form */}
-            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Mobile Number / मोबाइल नंबर
-                </label>
-                <input 
-                  type="text"
-                  maxLength={10}
-                  value={mobileInput}
-                  onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Enter 10-digit Mobile Number"
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-primary)',
-                    color: 'var(--text-primary)',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  6-Digit OTP / ओटीपी कोड
-                </label>
-                <OtpInput
-                  value={otpInput}
-                  onChange={setOtpInput}
-                  error={!!otpError}
-                />
-                
-                {/* Ultra-compact Expiry & Resend Cooldown Line */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '11px',
-                  color: 'var(--text-muted)',
-                  marginTop: '4px',
-                  padding: '0 2px'
-                }}>
-                  <span>
-                    Expires in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: otpExpiryTimer === 0 ? 'var(--danger)' : 'var(--accent-teal)' }}>
-                      {otpExpiryTimer === 0 ? 'EXPIRED' : `${Math.floor(otpExpiryTimer / 60)}:${String(otpExpiryTimer % 60).padStart(2, '0')}`}
-                    </span>
-                  </span>
-                  <span>
-                    {resendTimer > 0 ? (
-                      `Resend in ${resendTimer}s`
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleResendOtp}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--accent-teal)',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          textDecoration: 'underline',
-                          fontSize: '11px',
-                          padding: 0
-                        }}
-                      >
-                        Resend OTP
-                      </button>
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Form Buttons */}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowOtpModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    background: 'var(--bg-primary)',
-                    color: 'var(--text-primary)',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontSize: '13px'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || otpExpiryTimer === 0 || otpInput.length !== 6}
-                  style={{
-                    flex: 2,
-                    padding: '12px',
-                    border: 'none',
-                    borderRadius: '10px',
-                    background: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'var(--border-color)' : 'var(--accent-teal)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    cursor: (otpExpiryTimer === 0 || otpInput.length !== 6) ? 'not-allowed' : 'pointer',
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Key style={{ width: '16px', height: '16px' }} />}
-                  <span>Verify OTP</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
+          </>
   );
 }
