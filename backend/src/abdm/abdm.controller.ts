@@ -350,6 +350,87 @@ export class AbdmController {
   }
 
   /**
+   * @description Requests a profile login verification OTP from the ABHA system.
+   * @param {object} body - Request body containing loginHint and loginId.
+   * @param {express.Response} res - Express response object.
+   * @param {express.Request} req - Express request object.
+   * @returns {Promise<express.Response>} Express response with transaction ID on success.
+   */
+  @Post('v3/profile/login/request/otp')
+  async v3ProfileLoginRequestOtp(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
+    const { scope, loginHint, loginId, otpSystem } = body;
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const userAgent = req.headers['user-agent'] || '';
+    const context = { ip, userAgent };
+
+    const result = await this.abdmService.requestProfileLoginOtp(loginId, scope, loginHint, otpSystem, context);
+
+    if (result.scope === 'Invalid Scope' || result.loginId === 'Invalid LoginId' || result.loginHint === 'Invalid Login Hint') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+    if (result.code === '900901') {
+      return res.status(HttpStatus.UNAUTHORIZED).json(result);
+    }
+
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+
+    return res.status(HttpStatus.OK).json(result);
+  }
+
+  /**
+   * @description Verifies profile login OTP and returns patient profiles on success.
+   * @param {object} body - Request body containing scope and authData.
+   * @param {express.Response} res - Express response.
+   * @param {express.Request} req - Express request.
+   * @returns {Promise<express.Response>} Express response indicating validation success.
+   */
+  @Post('v3/profile/login/verify')
+  async v3ProfileLoginVerify(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
+    const { scope, authData } = body;
+    const otp = authData?.otp?.otpValue;
+    const txnId = authData?.otp?.txnId;
+    const authMethods = authData?.authMethods;
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const userAgent = req.headers['user-agent'] || '';
+    const context = { ip, userAgent };
+
+    const result = await this.abdmService.verifyProfileLoginOtp(otp, txnId, scope, authMethods, context);
+
+    if (result.scope === 'Invalid Scope' || result.authMethods === 'Invalid Auth Method' || result.txnId === 'Invalid Transaction Id' || result.otpValue === 'Invalid OTP Value') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+    if (result.code === '900901') {
+      return res.status(HttpStatus.UNAUTHORIZED).json(result);
+    }
+    if (result.authResult === 'failed') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+
+    if (result.token) {
+      res.cookie('x_token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: (result.expiresIn || 300) * 1000
+      });
+      res.cookie('session_id', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: (result.expiresIn || 300) * 1000
+      });
+    }
+
+    return res.status(HttpStatus.OK).json(result);
+  }
+
+  /**
    * @description Proxy endpoint for downloading official ABHA card image buffer from NHA Gateway.
    * @param {express.Request} req - Express request object.
    * @param {express.Response} res - Express response object.
@@ -460,23 +541,45 @@ export class AbdmController {
    */
   @Post('v3/enrollment/enrol/byDocument')
   async v3EnrolByDocument(@Body() body: any, @Res() res: express.Response, @Req() req: express.Request) {
-    const { txnId, authData } = body;
-    const doc = authData?.document;
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const context = { ip, userAgent };
 
+    // Support both root-level flat properties and legacy nested authData.document structure
+    const txnId = body.txnId || '';
+    const doc = body.authData?.document;
+    
+    const documentType = body.documentType || doc?.documentType || 'DRIVING_LICENCE';
+    const documentId = body.documentId || doc?.documentId || '';
+    const firstName = body.firstName || doc?.firstName || '';
+    const middleName = body.middleName || doc?.middleName || '';
+    const lastName = body.lastName || doc?.lastName || '';
+    const dob = body.dob || doc?.dob || '';
+    const gender = body.gender || doc?.gender || '';
+    const frontSidePhoto = body.frontSidePhoto || doc?.frontSidePhoto || '';
+    const backSidePhoto = body.backSidePhoto || doc?.backSidePhoto || '';
+    const address = body.address || doc?.address || '';
+    const state = body.state || doc?.state || '';
+    const district = body.district || doc?.district || '';
+    const pinCode = body.pinCode || doc?.pinCode || '';
+    const mobile = body.mobile || doc?.mobile || '';
+
     const demographics = {
       txnId,
-      firstName: doc?.firstName,
-      lastName: doc?.lastName,
-      dob: doc?.dob,
-      gender: doc?.gender,
-      mobile: doc?.mobile,
-      address: doc?.address,
-      state: doc?.state,
-      district: doc?.district,
-      pinCode: doc?.pinCode
+      documentType,
+      documentId,
+      firstName,
+      middleName,
+      lastName,
+      dob,
+      gender,
+      frontSidePhoto,
+      backSidePhoto,
+      address,
+      state,
+      district,
+      pinCode,
+      mobile
     };
 
     const result = await this.abdmService.enrolByDocument(demographics, context);

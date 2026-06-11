@@ -322,6 +322,60 @@ let AbdmController = class AbdmController {
         }
         return res.status(common_1.HttpStatus.OK).json(result);
     }
+    async v3ProfileLoginRequestOtp(body, res, req) {
+        const { scope, loginHint, loginId, otpSystem } = body;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.requestProfileLoginOtp(loginId, scope, loginHint, otpSystem, context);
+        if (result.scope === 'Invalid Scope' || result.loginId === 'Invalid LoginId' || result.loginHint === 'Invalid Login Hint') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        if (result.code === '900901') {
+            return res.status(common_1.HttpStatus.UNAUTHORIZED).json(result);
+        }
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
+    async v3ProfileLoginVerify(body, res, req) {
+        const { scope, authData } = body;
+        const otp = authData?.otp?.otpValue;
+        const txnId = authData?.otp?.txnId;
+        const authMethods = authData?.authMethods;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const userAgent = req.headers['user-agent'] || '';
+        const context = { ip, userAgent };
+        const result = await this.abdmService.verifyProfileLoginOtp(otp, txnId, scope, authMethods, context);
+        if (result.scope === 'Invalid Scope' || result.authMethods === 'Invalid Auth Method' || result.txnId === 'Invalid Transaction Id' || result.otpValue === 'Invalid OTP Value') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        if (result.code === '900901') {
+            return res.status(common_1.HttpStatus.UNAUTHORIZED).json(result);
+        }
+        if (result.authResult === 'failed') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        if (result.status === 'error') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+        }
+        if (result.token) {
+            res.cookie('x_token', result.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: (result.expiresIn || 300) * 1000
+            });
+            res.cookie('session_id', result.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: (result.expiresIn || 300) * 1000
+            });
+        }
+        return res.status(common_1.HttpStatus.OK).json(result);
+    }
     async downloadAbhaCard(req, res) {
         const xToken = getCookie(req.headers.cookie, 'x_token');
         console.log('[downloadAbhaCard] X-Token cookie length:', xToken ? xToken.length : 0);
@@ -402,22 +456,41 @@ let AbdmController = class AbdmController {
         return res.status(common_1.HttpStatus.OK).json(result);
     }
     async v3EnrolByDocument(body, res, req) {
-        const { txnId, authData } = body;
-        const doc = authData?.document;
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
         const userAgent = req.headers['user-agent'] || '';
         const context = { ip, userAgent };
+        const txnId = body.txnId || '';
+        const doc = body.authData?.document;
+        const documentType = body.documentType || doc?.documentType || 'DRIVING_LICENCE';
+        const documentId = body.documentId || doc?.documentId || '';
+        const firstName = body.firstName || doc?.firstName || '';
+        const middleName = body.middleName || doc?.middleName || '';
+        const lastName = body.lastName || doc?.lastName || '';
+        const dob = body.dob || doc?.dob || '';
+        const gender = body.gender || doc?.gender || '';
+        const frontSidePhoto = body.frontSidePhoto || doc?.frontSidePhoto || '';
+        const backSidePhoto = body.backSidePhoto || doc?.backSidePhoto || '';
+        const address = body.address || doc?.address || '';
+        const state = body.state || doc?.state || '';
+        const district = body.district || doc?.district || '';
+        const pinCode = body.pinCode || doc?.pinCode || '';
+        const mobile = body.mobile || doc?.mobile || '';
         const demographics = {
             txnId,
-            firstName: doc?.firstName,
-            lastName: doc?.lastName,
-            dob: doc?.dob,
-            gender: doc?.gender,
-            mobile: doc?.mobile,
-            address: doc?.address,
-            state: doc?.state,
-            district: doc?.district,
-            pinCode: doc?.pinCode
+            documentType,
+            documentId,
+            firstName,
+            middleName,
+            lastName,
+            dob,
+            gender,
+            frontSidePhoto,
+            backSidePhoto,
+            address,
+            state,
+            district,
+            pinCode,
+            mobile
         };
         const result = await this.abdmService.enrolByDocument(demographics, context);
         if (result.status === 'error') {
@@ -820,6 +893,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "v3AuthByAbdm", null);
+__decorate([
+    (0, common_1.Post)('v3/profile/login/request/otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3ProfileLoginRequestOtp", null);
+__decorate([
+    (0, common_1.Post)('v3/profile/login/verify'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3ProfileLoginVerify", null);
 __decorate([
     (0, common_1.Get)('v3/profile/account/abha-card'),
     __param(0, (0, common_1.Req)()),

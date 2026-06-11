@@ -58,6 +58,8 @@ describe('AbdmController', () => {
     getDoctors: jest.fn(),
     saveDoctor: jest.fn(),
     deleteDoctor: jest.fn(),
+    requestProfileLoginOtp: jest.fn(),
+    verifyProfileLoginOtp: jest.fn(),
   };
 
   const mockAuthService = {
@@ -786,6 +788,87 @@ describe('AbdmController', () => {
       mockAbdmService.deleteDoctor.mockRejectedValue(new Error('Fail'));
 
       await controller.deleteDoctor('1', res);
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('v3ProfileLoginRequestOtp', () => {
+    it('should request profile login OTP successfully', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.requestProfileLoginOtp.mockResolvedValue({
+        txnId: 'd4196ae3-f302-45bc-9460-a798a17b4c3a',
+        message: 'OTP sent successfully'
+      });
+
+      await controller.v3ProfileLoginRequestOtp(
+        { loginId: '9876543210', scope: ['abha-login', 'mobile-verify'], loginHint: 'mobile', otpSystem: 'abdm' },
+        res,
+        req
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.json).toHaveBeenCalledWith({
+        txnId: 'd4196ae3-f302-45bc-9460-a798a17b4c3a',
+        message: 'OTP sent successfully'
+      });
+    });
+
+    it('should return bad request for scope negative validation', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.requestProfileLoginOtp.mockResolvedValue({
+        scope: 'Invalid Scope',
+        timestamp: '2024-05-10 11:13:04'
+      });
+
+      await controller.v3ProfileLoginRequestOtp(
+        { loginId: '9876543210', scope: ['invalid'], loginHint: 'mobile', otpSystem: 'abdm' },
+        res,
+        req
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('v3ProfileLoginVerify', () => {
+    it('should verify profile login OTP and set cookies on success', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.verifyProfileLoginOtp.mockResolvedValue({
+        txnId: '588453aa-4bb0-44c0-bbdd-62ebd53c37c6',
+        authResult: 'success',
+        message: 'OTP verified successfully',
+        token: 'mock-session-token',
+        expiresIn: 300,
+        accounts: []
+      });
+
+      await controller.v3ProfileLoginVerify(
+        { scope: ['abha-login', 'mobile-verify'], authData: { authMethods: ['otp'], otp: { txnId: 'txn-id', otpValue: 'encrypted-otp' } } },
+        res,
+        req
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith('x_token', 'mock-session-token', expect.any(Object));
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    });
+
+    it('should return bad request for invalid OTP negative validation', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.verifyProfileLoginOtp.mockResolvedValue({
+        otpValue: 'Invalid OTP Value',
+        timestamp: '2024-05-10 12:51:40'
+      });
+
+      await controller.v3ProfileLoginVerify(
+        { scope: ['abha-login', 'mobile-verify'], authData: { authMethods: ['otp'], otp: { txnId: 'txn-id', otpValue: 'invalid-otp' } } },
+        res,
+        req
+      );
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });

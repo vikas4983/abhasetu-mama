@@ -145,6 +145,14 @@ export declare class AbdmService {
         ip?: string;
         userAgent?: string;
     }): Promise<any>;
+    requestProfileLoginOtp(mobile: string, scope?: string[], loginHint?: string, otpSystem?: string, context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
+    verifyProfileLoginOtp(otp: string, txnId: string, scope?: string[], authMethods?: string[], context?: {
+        ip?: string;
+        userAgent?: string;
+    }): Promise<any>;
     enrolByDocument(demographics: any, context?: {
         ip?: string;
         userAgent?: string;

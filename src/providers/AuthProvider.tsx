@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * @file        AuthProvider.tsx
+ * @description Provides authentication state and operations for different roles (patient, doctor, admin) in Abha Setu application.
+ * @module      auth
+ * @layer       provider
+ * @author      Platform Team
+ * @created     2026-06-10
+ * @modified    2026-06-11
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -64,6 +74,7 @@ interface AuthContextType {
   loginWithJwt: (token: string, user: User) => Promise<void>;
   loginWithOtp: (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string) => Promise<boolean>;
   loginWithDl: (dlNumber: string, name: string) => Promise<boolean>;
+  loginWithAbhaAccount: (role: 'patient' | 'doctor' | 'operator', account: any) => Promise<boolean>;
   logout: () => void;
   register: (name: string, email: string, mobile: string) => void;
   logSecurityEvent: (event: string, details: string) => void;
@@ -304,6 +315,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const loginWithAbhaAccount = async (role: 'patient' | 'doctor' | 'operator', account: any): Promise<boolean> => {
+    const newUser: User = {
+      email: `${role}@abhasetu.com`,
+      role,
+      name: account.name,
+      photo: account.profilePhoto || "",
+      abhaId: account.preferredAbhaAddress || account.ABHANumber,
+      abhaProfile: account,
+      mobile: account.mobile || ""
+    };
+
+    setCurrentUser(newUser);
+    syncToLocalStorage({ currentUser: newUser });
+    logSecurityEvent("User ABHA Account Login", `Authenticated via ABHA account as ${account.name} (${role.toUpperCase()})`);
+    addNotification("Login Successful", `ABHA Verified. Welcomed ${account.name}.`, "security");
+    return true;
+  };
+
   const register = (name: string, email: string, mobile: string) => {
     const newUser: User = {
       email,
@@ -438,6 +467,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginWithJwt,
       loginWithOtp,
       loginWithDl,
+      loginWithAbhaAccount,
       logout,
       register,
       logSecurityEvent,

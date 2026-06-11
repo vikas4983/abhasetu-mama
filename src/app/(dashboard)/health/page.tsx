@@ -303,7 +303,7 @@ export default function HealthPage() {
         </div>
       </section>
 
-      <section className="route-grid metrics-grid" style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+      <section className="route-grid metrics-grid" style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '12px' }}>
         <article className="metric-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTrend('bp')}>
           <div className={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').className} style={getIconConfig(iconStyle, 'linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)', '0 4px 14px rgba(0, 180, 216, 0.4)').style}>
             <Activity />

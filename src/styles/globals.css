@@ -862,8 +862,20 @@ body.theme-light .theme-toggle-btn .moon-icon {
 /* Quick Access Grid */
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+@media (min-width: 400px) {
+  .quick-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .quick-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
 }
 
 .quick-item {
@@ -2050,10 +2062,6 @@ body.theme-light .theme-toggle-btn .moon-icon {
     display: flex;
   }
 
-  .quick-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .health-status {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2174,8 +2182,8 @@ body.theme-light .theme-toggle-btn .moon-icon {
   }
 
   .quick-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
   }
 
   .quick-item {
@@ -6035,11 +6043,25 @@ body.theme-light .site-footer {
 /* Symmetrical Responsive Grid Breakthroughs */
 @media (max-width: 640px) {
   .abha-tab-menu {
-    grid-template-columns: repeat(3, 1fr) !important; /* Balanced 3x3 mobile grid */
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important; /* Firefox */
+  }
+  .abha-tab-menu::-webkit-scrollbar {
+    display: none !important; /* Safari and Chrome */
   }
   .abha-tab-button {
-    padding: 8px 4px !important;
+    flex: 0 0 auto !important;
+    min-width: 96px !important;
+    max-width: 120px !important;
+    padding: 8px 6px !important;
     font-size: 10px !important;
+    text-align: center !important;
   }
 }
 
@@ -6510,10 +6532,11 @@ body.theme-abdm-sandbox .modal-overlay {
   position: relative !important;
   width: 100% !important;
   max-width: 100% !important;
-  height: 80vh !important; /* height-limited sheet on mobile */
+  height: auto !important;
+  max-height: 92vh !important; /* dynamically sized bottom sheet */
   background: var(--bg-card) !important;
   border: 1px solid var(--border-color) !important;
-  border-radius: 20px 20px 0 0 !important;
+  border-radius: 24px 24px 0 0 !important;
   box-shadow: var(--surface-shadow) !important;
   overflow: hidden !important;
   display: flex !important;
@@ -7026,6 +7049,62 @@ body.theme-light .medicine-search-input:focus {
 }
 .shake-modal {
   animation: shake 0.5s ease-in-out !important;
+}
+
+/* ==================== RESPONSIVE ABHA FORM & LAUNCHPAD GRIDS ==================== */
+
+.setu-grid-2col {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+.setu-grid-3col {
+  display: grid !important;
+  grid-template-columns: 1.2fr 1.2fr 1fr !important;
+  gap: 10px !important;
+}
+
+.setu-launchpad-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 20px !important;
+  margin-top: 10px !important;
+}
+
+.setu-method-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  padding: 8px 0 !important;
+}
+
+@media (max-width: 600px) {
+  .setu-grid-2col,
+  .setu-grid-3col,
+  .setu-launchpad-grid,
+  .setu-method-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* Rounded bottom-sheet drag handle indicator */
+.modal-drag-indicator {
+  display: none;
+}
+
+@media (max-width: 991px) {
+  .modal-drag-indicator {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 99px;
+    margin: 8px auto 0;
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
 }
 
 
