@@ -10,7 +10,13 @@ export class AuthService {
   constructor(private readonly db: DbService) {}
 
   async validateAndLogin(email: string, pass: string) {
-    const res = await this.db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const res = await this.db.query(`
+      SELECT u.*, r.name as role_name 
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.email = $1
+    `, [email]);
+
     if (res.rowCount === 0) {
       throw new UnauthorizedException('Invalid credentials.');
     }
@@ -23,9 +29,27 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    // Check role
-    if (user.role !== 'admin' && user.role !== 'master_admin') {
-      throw new UnauthorizedException('Unauthorized access.');
+    const resolvedRole = user.role_name || user.role;
+
+    // Reject patients from stakeholder console
+    if (resolvedRole === 'patient') {
+      throw new UnauthorizedException('Please log in via the Citizen Portal.');
+    }
+
+    // Enforce approval status for all non-admins
+    if (resolvedRole !== 'admin' && resolvedRole !== 'master_admin') {
+      if (user.status === 'pending') {
+        throw new UnauthorizedException('Your facility registration is pending administrator approval.');
+      }
+      if (user.status === 'rejected') {
+        throw new UnauthorizedException('Your facility registration request was rejected.');
+      }
+      if (user.status === 'blocked') {
+        throw new UnauthorizedException('Your facility account has been blocked. Please contact support.');
+      }
+      if (user.status !== 'approved') {
+        throw new UnauthorizedException(`Your account status is ${user.status || 'pending'}. Access denied.`);
+      }
     }
 
     // Sign JWT token
@@ -33,7 +57,7 @@ export class AuthService {
       {
         id: user.id,
         email: user.email,
-        role: user.role,
+        role: resolvedRole,
         name: user.name,
       },
       this.jwtSecret,
@@ -45,7 +69,7 @@ export class AuthService {
       token,
       user: {
         email: user.email,
-        role: user.role,
+        role: resolvedRole,
         name: user.name,
       },
     };

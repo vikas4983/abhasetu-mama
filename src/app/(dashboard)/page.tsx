@@ -126,7 +126,7 @@ export default function DashboardHome() {
             <div className="setu-skeleton setu-skeleton-text" style={{ width: '60px' }}></div>
           </div>
           <div className="quick-grid">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
               <div key={i} className="quick-item" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
                 <div className="setu-skeleton" style={{ width: '32px', height: '32px', borderRadius: '50%', marginBottom: '6px' }}></div>
                 <div className="setu-skeleton setu-skeleton-text" style={{ width: '70%', height: '10px' }}></div>

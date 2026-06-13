@@ -824,7 +824,7 @@ export default function AbhaPage() {
   const [verificationMessage, setVerificationMessage] = useState('');
 
   // Tab 2: Onboarding (Milestone 1) State
-  const [onboardMethod, setOnboardMethod] = useState<'mobile' | 'aadhaar' | 'abha' | 'dl' | 'mobile_login'>('mobile');
+  const [onboardMethod, setOnboardMethod] = useState<'mobile' | 'aadhaar' | 'abha' | 'dl' | 'mobile_login' | 'abha_number_login'>('mobile');
   const [showOnboardMethodModal, setShowOnboardMethodModal] = useState(true);
   const [abhaIdInput, setAbhaIdInput] = useState('');
   const [dlNumber, setDlNumber] = useState('');
@@ -848,6 +848,7 @@ export default function AbhaPage() {
   const [onboardStep, setOnboardStep] = useState<'verification' | 'otp' | 'demographics' | 'select_accounts' | 'completed'>('verification');
   const [loading, setLoading] = useState(false);
   const [mobileLoginInput, setMobileLoginInput] = useState('');
+  const [abhaNumberLoginInput, setAbhaNumberLoginInput] = useState('');
   const [otpLoginInput, setOtpLoginInput] = useState('');
   const [mobileLoginAccounts, setMobileLoginAccounts] = useState<any[]>([]);
   const [onboardError, setOnboardError] = useState('');
@@ -860,6 +861,17 @@ export default function AbhaPage() {
     setShakeOtp(true);
     setTimeout(() => setShakeOtp(false), 500);
   };
+
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (onboardStep === 'otp' && (onboardMethod === 'mobile_login' || onboardMethod === 'abha_number_login')) {
+      const t = setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [onboardStep, onboardMethod]);
 
   useEffect(() => {
     let timer: any;
@@ -888,18 +900,24 @@ export default function AbhaPage() {
   useEffect(() => {
     if (currentUser?.abhaProfile) {
       const profile = currentUser.abhaProfile;
-      const fullName = [profile.firstName, profile.middleName, profile.lastName]
+      const calculatedName = [profile.firstName, profile.middleName, profile.lastName]
         .filter(Boolean)
         .join(' ');
+      const finalName = profile.name || calculatedName || currentUser.name || '';
+      const finalGender = (profile.gender === 'M' || profile.gender === 'Male') 
+        ? 'Male' 
+        : (profile.gender === 'F' || profile.gender === 'Female') 
+          ? 'Female' 
+          : profile.gender || '';
       
       setAbhaDetails({
-        name: fullName,
-        mobile: profile.mobile || '',
-        abhaId: profile.preferredAddress || profile.abhaAddress || '',
-        abhaNumber: profile.ABHANumber || profile.abhaNumber || '',
-        gender: profile.gender === 'M' ? 'Male' : profile.gender === 'F' ? 'Female' : profile.gender,
+        name: finalName,
+        mobile: profile.mobile || currentUser.mobile || '',
+        abhaId: profile.preferredAddress || profile.preferredAbhaAddress || profile.abhaAddress || profile.abhaId || currentUser.abhaId || '',
+        abhaNumber: profile.abhaNumber || profile.ABHANumber || '',
+        gender: finalGender,
         dob: profile.dob || '',
-        photo: profile.photo || ''
+        photo: profile.photo || profile.profilePhoto || currentUser.photo || ''
       });
       setAbhaProfile(profile);
       setVerificationMessage(t('ABHA Profile Verified & Loaded from Session'));
@@ -1088,6 +1106,50 @@ export default function AbhaPage() {
     }
   };
 
+  // ABHA Number Login Handlers
+  const handleRequestAbhaNumberLoginOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const strippedAbha = abhaNumberLoginInput.replace(/-/g, '').trim();
+    if (!strippedAbha || strippedAbha.length !== 14 || isNaN(Number(strippedAbha))) {
+      showToast(t('Please enter a valid 14-digit ABHA Number.'));
+      return;
+    }
+
+    setLoading(true);
+    setOnboardError('');
+    try {
+      const res = await fetch('/api/abdm/v3/profile/login/request/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scope: ['abha-login', 'mobile-verify'],
+          loginHint: 'abha-number',
+          loginId: abhaNumberLoginInput,
+          otpSystem: 'abdm'
+        })
+      });
+      const data = await res.json();
+      setLoading(false);
+
+      if (res.ok && data.txnId) {
+        setTxnId(data.txnId);
+        setOnboardStep('otp');
+        setOtpError('');
+        setResendTimer(60);
+        setOtpExpiryTimer(600);
+        showToast(t(data.message || 'OTP sent successfully!'));
+      } else {
+        const msg = data.description || data.message || data.loginId || data.scope || data.loginHint || t('Failed to send OTP.');
+        setOnboardError(msg);
+        showToast(t('Failed to send OTP.'));
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setOnboardError(err.message || t('Gateway connection failed.'));
+      showToast(t('Network error.'));
+    }
+  };
+
   const handleVerifyMobileLoginOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpLoginInput || otpLoginInput.length !== 6) {
@@ -1120,7 +1182,7 @@ export default function AbhaPage() {
         if (data.accounts && data.accounts.length > 0) {
           setMobileLoginAccounts(data.accounts);
           if (data.accounts.length === 1) {
-            handleSelectAbhaAccount(data.accounts[0]);
+            handleSelectAbhaAccount(data.accounts[0], data.accounts);
           } else {
             setOnboardStep('select_accounts');
           }
@@ -1141,10 +1203,10 @@ export default function AbhaPage() {
     }
   };
 
-  const handleSelectAbhaAccount = async (acc: any) => {
+  const handleSelectAbhaAccount = async (acc: any, allAccounts?: any[]) => {
     setLoading(true);
     try {
-      const success = await loginWithAbhaAccount('patient', acc);
+      const success = await loginWithAbhaAccount('patient', acc, allAccounts || mobileLoginAccounts || [acc]);
       setLoading(false);
       if (success) {
         const sessionTtl = 300;
@@ -1155,7 +1217,7 @@ export default function AbhaPage() {
 
         setAbhaDetails({
           name: acc.name,
-          mobile: acc.mobile || mobileLoginInput || '',
+          mobile: acc.mobile || mobileLoginInput || abhaNumberLoginInput || '',
           abhaId: acc.preferredAbhaAddress || '',
           abhaNumber: acc.ABHANumber || '',
           gender: acc.gender === 'M' ? 'Male' : acc.gender === 'F' ? 'Female' : acc.gender,
@@ -1169,9 +1231,9 @@ export default function AbhaPage() {
           ABHANumber: acc.ABHANumber,
           gender: acc.gender,
           dob: acc.dob,
-          mobile: acc.mobile || mobileLoginInput || '',
+          mobile: acc.mobile || mobileLoginInput || abhaNumberLoginInput || '',
           photo: acc.profilePhoto || '',
-          address: 'Verified via Mobile OTP Login',
+          address: onboardMethod === 'abha_number_login' ? 'Verified via ABHA Number OTP Login' : 'Verified via Mobile OTP Login',
           districtName: 'Jabalpur',
           stateName: 'Madhya Pradesh',
           pinCode: '482001',
@@ -2702,6 +2764,49 @@ export default function AbhaPage() {
                         Login via Mobile
                       </button>
                     </div>
+
+                    {/* Card 3: Retrieve / ABHA Number Login */}
+                    <div style={{
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(20, 184, 166, 0.1)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center' }}>
+                        <ShieldCheck style={{ width: '24px', height: '24px' }} />
+                      </div>
+                      <h5 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>Retrieve via ABHA Number</h5>
+                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4', minHeight: '40px' }}>
+                        Verify your identity using your 14-digit ABHA Number and receive OTP on registered mobile.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOnboardMethod('abha_number_login');
+                          setOnboardStep('verification');
+                          setShowOnboardMethodModal(false);
+                          setShowOnboardWizard(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          background: 'rgba(20, 184, 166, 0.15)',
+                          color: 'var(--accent-teal)',
+                          border: '1px solid rgba(20, 184, 166, 0.3)',
+                          borderRadius: '8px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          marginTop: '8px'
+                        }}
+                      >
+                        Verify via ABHA Number
+                      </button>
+                    </div>
                   </div>
                 </div>
                 </div>
@@ -2711,7 +2816,23 @@ export default function AbhaPage() {
             {/* Persistent Onboarding Wizard Modal */}
             {onboardStep !== 'completed' && showOnboardWizard && (
               <div className="modal-overlay">
-                <div className={`modal-content ${shakeOtp ? 'shake-modal' : ''}`} style={{ maxWidth: '520px' }}>
+                <div className={`modal-content ${shakeOtp ? 'shake-modal' : ''}`} style={{ maxWidth: '520px', position: 'relative' }}>
+                  
+                  {/* Shimmer progress bar at top of modal when loading */}
+                  {loading && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: 'linear-gradient(90deg, transparent, var(--accent-teal), transparent)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer-sweep 1.2s infinite linear',
+                      borderTopLeftRadius: '24px',
+                      borderTopRightRadius: '24px'
+                    }} />
+                  )}
                   <div className="modal-drag-indicator" />
                   {/* Modal Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', padding: '16px 20px', flexShrink: 0 }}>
@@ -2727,7 +2848,7 @@ export default function AbhaPage() {
                             } else if (onboardStep === 'otp') {
                               setOnboardStep('verification');
                             } else if (onboardStep === 'verification') {
-                              if (onboardMethod === 'mobile_login') {
+                              if (onboardMethod === 'mobile_login' || onboardMethod === 'abha_number_login') {
                                 setShowOnboardWizard(false);
                               } else {
                                 setShowOnboardMethodModal(true);
@@ -2756,7 +2877,8 @@ export default function AbhaPage() {
                             onboardMethod === 'mobile' ? 'Mobile Onboarding' :
                             onboardMethod === 'aadhaar' ? 'Aadhaar eKYC Onboarding' :
                             onboardMethod === 'abha' ? 'Link Existing ABHA ID' :
-                            onboardMethod === 'mobile_login' ? 'Mobile OTP Login' : 'Driving License Onboarding'
+                            onboardMethod === 'mobile_login' ? 'Mobile OTP Login' :
+                            onboardMethod === 'abha_number_login' ? 'ABHA Number OTP Login' : 'Driving License Onboarding'
                           )}
                         </h3>
                         <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -2794,10 +2916,11 @@ export default function AbhaPage() {
                       /* Method Selector Grid */
                       <div className="setu-method-grid">
                       {[
-                        { id: 'mobile', label: 'Mobile & Docs', desc: 'Verify mobile & fill details', icon: FileText },
+                        { id: 'mobile', label: 'mobile', desc: 'Verify mobile & fill details', icon: FileText },
                         { id: 'aadhaar', label: 'Aadhaar eKYC', desc: 'Secure direct Aadhaar link', icon: Fingerprint },
                         { id: 'abha', label: 'Existing ABHA ID', desc: 'Search & link existing ID', icon: Search },
-                        { id: 'dl', label: 'Driving License', desc: 'Register via DL mobile & card', icon: CreditCard }
+                        { id: 'dl', label: 'Driving License', desc: 'Register via DL mobile & card', icon: CreditCard },
+                        { id: 'abha_number_login', label: 'Verify ABHA Number', desc: 'Verify via ABHA & Aadhaar OTP', icon: ShieldCheck }
                       ].map(item => {
                         const Icon = item.icon;
                         return (
@@ -2823,8 +2946,30 @@ export default function AbhaPage() {
                               transition: 'all 0.2s ease'
                             }}
                           >
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(20, 184, 166, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
-                              <Icon style={{ width: '16px', height: '16px' }} />
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: '#ffffff',
+                              padding: ['aadhaar', 'abha', 'abha_number_login', 'mobile', 'dl'].includes(item.id) ? '4px' : '0',
+                              border: '1px solid rgba(0,0,0,0.06)',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                              display: 'grid',
+                              placeItems: 'center',
+                              color: 'var(--accent-teal)',
+                              overflow: 'hidden'
+                            }}>
+                              {item.id === 'aadhaar' ? (
+                                <img src="/assets/logos/aadhaar.png" alt="Aadhaar" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              ) : (item.id === 'abha' || item.id === 'abha_number_login') ? (
+                                <img src="/assets/logos/abha.png" alt="ABHA" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              ) : item.id === 'mobile' ? (
+                                <img src="/assets/logos/mobile.png" alt="Mobile" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              ) : item.id === 'dl' ? (
+                                <img src="/assets/logos/dl.png" alt="DL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              ) : (
+                                <Icon style={{ width: '16px', height: '16px' }} />
+                              )}
                             </div>
                             <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{item.label}</span>
                             <span style={{ fontSize: '9px', color: 'var(--text-muted)', lineHeight: '1.3' }}>{item.desc}</span>
@@ -2871,6 +3016,47 @@ export default function AbhaPage() {
                               >
                                 {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Send style={{ width: '16px', height: '16px' }} />}
                                 <span>Send Mobile OTP</span>
+                              </button>
+                            </form>
+                          )}
+
+                          {/* ABHA Number Login */}
+                          {onboardMethod === 'abha_number_login' && (
+                            <form onSubmit={handleRequestAbhaNumberLoginOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>ABHA Number / आभा नंबर</span>
+                                <input 
+                                  type="text" 
+                                  maxLength={17} 
+                                  disabled={loading}
+                                  value={abhaNumberLoginInput}
+                                  onChange={(e) => {
+                                    // Allow digits and hyphens
+                                    const val = e.target.value.replace(/[^\d-]/g, '');
+                                    setAbhaNumberLoginInput(val);
+                                  }}
+                                  placeholder="Enter 14-digit ABHA Number (e.g. 91-7561-4088-8857)" 
+                                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', opacity: loading ? 0.6 : 1 }}
+                                  required
+                                />
+                              </label>
+                              
+                              {onboardError && (
+                                <div style={{ color: 'var(--danger)', fontSize: '11px', background: 'rgba(239, 68, 68, 0.08)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                                  {onboardError}
+                                </div>
+                              )}
+
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                * An OTP will be sent to the Aadhaar-registered mobile number linked to this ABHA.
+                              </span>
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '10px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                              >
+                                {loading ? <RefreshCw className="animate-spin" style={{ width: '16px', height: '16px' }} /> : <Send style={{ width: '16px', height: '16px' }} />}
+                                <span>Send OTP</span>
                               </button>
                             </form>
                           )}
@@ -2996,17 +3182,21 @@ export default function AbhaPage() {
                         </div>
                       )}
 
-                      {/* Step 2: OTP Verification Form */}
                       {onboardStep === 'otp' && (
-                        onboardMethod === 'mobile_login' ? (
+                        (onboardMethod === 'mobile_login' || onboardMethod === 'abha_number_login') ? (
                           <form onSubmit={handleVerifyMobileLoginOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
                             <div style={{ padding: '10px', background: 'color-mix(in srgb, var(--accent-teal) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-teal) 20%, transparent)', borderRadius: '8px', fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                               <AlertCircle style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />
-                              <span>OTP sent to mobile number ending with ******{mobileLoginInput.slice(-4)}. Enter verification code.</span>
+                              {onboardMethod === 'mobile_login' ? (
+                                <span>OTP sent to mobile number ending with ******{mobileLoginInput.slice(-4)}. Enter verification code.</span>
+                              ) : (
+                                <span>OTP sent to Aadhaar registered mobile number ending with ******0903. Enter verification code.</span>
+                              )}
                             </div>
                             <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>6-Digit OTP Code / ओटीपी कोड</span>
                               <input 
+                                ref={otpInputRef}
                                 type="text" 
                                 maxLength={6} 
                                 disabled={loading}
@@ -3489,7 +3679,7 @@ export default function AbhaPage() {
                         </>
                       )}
 
-                      {onboardStep === 'select_accounts' && onboardMethod === 'mobile_login' && (
+                      {onboardStep === 'select_accounts' && (onboardMethod === 'mobile_login' || onboardMethod === 'abha_number_login') && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
                           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                             Found {mobileLoginAccounts.length} linked ABHA profiles. Select one to link and log in:

@@ -132,7 +132,11 @@
       "networkHospitals": 8400,
       "coverageAmount": "10 Lakhs",
       "copay": "No Copay",
-      "features": ["Unlimited Restore Benefit", "Free Health Checkup", "No Room Rent Capping"]
+      "features": [
+        "Unlimited Restore Benefit",
+        "Free Health Checkup",
+        "No Room Rent Capping"
+      ]
     },
     {
       "id": "i2",
@@ -143,7 +147,11 @@
       "networkHospitals": 9200,
       "coverageAmount": "10 Lakhs",
       "copay": "No Copay",
-      "features": ["Opd Consult Cover", "Global Health coverage", "Maternity Cover included"]
+      "features": [
+        "Opd Consult Cover",
+        "Global Health coverage",
+        "Maternity Cover included"
+      ]
     },
     {
       "id": "i3",
@@ -154,7 +162,11 @@
       "networkHospitals": 14000,
       "coverageAmount": "10 Lakhs",
       "copay": "10% Copay",
-      "features": ["Largest Cashless Network", "Auto Renewal Benefits", "Ayurvedic treatments covered"]
+      "features": [
+        "Largest Cashless Network",
+        "Auto Renewal Benefits",
+        "Ayurvedic treatments covered"
+      ]
     },
     {
       "id": "i4",
@@ -165,7 +177,11 @@
       "networkHospitals": 12000,
       "coverageAmount": "10 Lakhs",
       "copay": "No Copay",
-      "features": ["Double Coverage from Day 1", "No Claim Bonus up to 100%", "Zero Deductibles"]
+      "features": [
+        "Double Coverage from Day 1",
+        "No Claim Bonus up to 100%",
+        "Zero Deductibles"
+      ]
     }
   ],
   "labPackages": [
@@ -259,6 +275,48 @@
       "event": "Fidelius Decryption",
       "status": "SUCCESS",
       "details": "Decrypted FHIR DiagnosticReport bundle using ECDH Curve25519 shared keys."
+    },
+    {
+      "timestamp": "2026-06-12T15:16:39.162Z",
+      "event": "Facility Status Updated",
+      "status": "SUCCESS",
+      "details": "Facility ID 8 status updated to: APPROVED"
+    },
+    {
+      "timestamp": "2026-06-12T15:16:41.689Z",
+      "event": "Facility Status Updated",
+      "status": "SUCCESS",
+      "details": "Facility ID 8 status updated to: BLOCKED"
+    },
+    {
+      "timestamp": "2026-06-12T15:16:44.146Z",
+      "event": "Facility Deleted",
+      "status": "SUCCESS",
+      "details": "Deleted facility \"Metro Imaging Center\" (ID: 8)"
+    },
+    {
+      "timestamp": "2026-06-12T15:19:10.976Z",
+      "event": "Facility Status Updated",
+      "status": "SUCCESS",
+      "details": "Facility ID 7 status updated to: BLOCKED"
+    },
+    {
+      "timestamp": "2026-06-12T15:19:12.321Z",
+      "event": "Facility Status Updated",
+      "status": "SUCCESS",
+      "details": "Facility ID 7 status updated to: APPROVED"
+    },
+    {
+      "timestamp": "2026-06-12T15:19:15.520Z",
+      "event": "Facility Status Updated",
+      "status": "SUCCESS",
+      "details": "Facility ID 6 status updated to: REJECTED"
+    },
+    {
+      "timestamp": "2026-06-12T16:52:21.423Z",
+      "event": "Facility Status Updated",
+      "status": "SUCCESS",
+      "details": "Facility ID 9 status updated to: BLOCKED"
     }
   ]
 }

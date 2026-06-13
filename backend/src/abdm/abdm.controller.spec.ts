@@ -843,6 +843,8 @@ describe('AbdmController', () => {
         message: 'OTP verified successfully',
         token: 'mock-session-token',
         expiresIn: 300,
+        refreshToken: 'mock-refresh-token',
+        refreshExpiresIn: 1296000,
         accounts: []
       });
 
@@ -852,8 +854,12 @@ describe('AbdmController', () => {
         req
       );
 
-      expect(res.cookie).toHaveBeenCalledWith('x_token', 'mock-session-token', expect.any(Object));
+      expect(res.cookie).toHaveBeenCalledWith('verify_via_abha_number_token', 'mock-session-token', expect.any(Object));
+      expect(res.cookie).toHaveBeenCalledWith('verify_via_abha_number_session_id', 'mock-session-token', expect.any(Object));
+      expect(res.cookie).toHaveBeenCalledWith('verify_via_abha_number_refresh_token', 'mock-refresh-token', expect.any(Object));
+      expect(res.cookie).toHaveBeenCalledWith('verify_via_abha_number_txn_id', '588453aa-4bb0-44c0-bbdd-62ebd53c37c6', expect.any(Object));
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.json).toHaveBeenCalledWith(expect.any(Object));
     });
 
     it('should return bad request for invalid OTP negative validation', async () => {
@@ -874,3 +880,4 @@ describe('AbdmController', () => {
     });
   });
 });
+

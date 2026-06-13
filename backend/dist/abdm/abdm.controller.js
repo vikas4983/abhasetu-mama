@@ -53,6 +53,9 @@ const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const crypto_service_1 = require("./crypto.service");
 const crypto = __importStar(require("crypto"));
 const express = __importStar(require("express"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const platform_express_1 = require("@nestjs/platform-express");
 function getCookie(cookieHeader, name) {
     if (!cookieHeader)
         return '';
@@ -361,24 +364,42 @@ let AbdmController = class AbdmController {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
         }
         if (result.token) {
-            res.cookie('x_token', result.token, {
+            res.cookie('verify_via_abha_number_token', result.token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
                 maxAge: (result.expiresIn || 300) * 1000
             });
-            res.cookie('session_id', result.token, {
+            res.cookie('verify_via_abha_number_session_id', result.token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
                 maxAge: (result.expiresIn || 300) * 1000
             });
         }
+        if (result.refreshToken) {
+            res.cookie('verify_via_abha_number_refresh_token', result.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: (result.refreshExpiresIn || 1296000) * 1000
+            });
+        }
+        if (result.txnId) {
+            res.cookie('verify_via_abha_number_txn_id', result.txnId, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000
+            });
+        }
         return res.status(common_1.HttpStatus.OK).json(result);
     }
     async downloadAbhaCard(req, res) {
-        const xToken = getCookie(req.headers.cookie, 'x_token');
-        console.log('[downloadAbhaCard] X-Token cookie length:', xToken ? xToken.length : 0);
+        let xToken = getCookie(req.headers.cookie, 'x_token');
+        if (!xToken) {
+            xToken = getCookie(req.headers.cookie, 'verify_via_abha_number_token');
+        }
         if (!xToken) {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json({
                 status: 'error',
@@ -421,7 +442,10 @@ let AbdmController = class AbdmController {
                 message: 'New email address cannot be the same as your current email address.'
             });
         }
-        const xToken = getCookie(req.headers.cookie, 'x_token');
+        let xToken = getCookie(req.headers.cookie, 'x_token');
+        if (!xToken) {
+            xToken = getCookie(req.headers.cookie, 'verify_via_abha_number_token');
+        }
         if (!xToken) {
             return res.status(common_1.HttpStatus.BAD_REQUEST).json({
                 status: 'error',
@@ -823,6 +847,91 @@ let AbdmController = class AbdmController {
         }
         catch (error) {
             return { status: 'error', message: error.message || 'Key pair generation failed.' };
+        }
+    }
+    async registerFacility(body, res) {
+        try {
+            const result = await this.abdmService.registerFacility(body);
+            if (result.status === 'success') {
+                return res.status(common_1.HttpStatus.CREATED).json(result);
+            }
+            else {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async getFacilities(search, status, role, marked, sortBy, sortOrder, res) {
+        try {
+            const result = await this.abdmService.getFacilities({ search, status, role, marked, sortBy, sortOrder });
+            return res.status(common_1.HttpStatus.OK).json({ status: 'success', facilities: result });
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async updateFacilityStatus(id, status, res) {
+        try {
+            const result = await this.abdmService.updateFacilityStatus(Number(id), status);
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async toggleFacilityMark(id, isMarked, res) {
+        try {
+            const result = await this.abdmService.toggleFacilityMark(Number(id), isMarked);
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async deleteFacility(id, res) {
+        try {
+            const result = await this.abdmService.deleteFacility(Number(id));
+            return res.status(common_1.HttpStatus.OK).json(result);
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async adminAddFacility(body, res) {
+        try {
+            const result = await this.abdmService.registerFacility({ ...body, status: 'approved' });
+            if (result.status === 'success') {
+                return res.status(common_1.HttpStatus.CREATED).json(result);
+            }
+            else {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json(result);
+            }
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+        }
+    }
+    async uploadDoc(file, res) {
+        try {
+            if (!file) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'No file uploaded.' });
+            }
+            const uploadDir = path.join(process.cwd(), '../public/uploads');
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            const filename = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+            const filePath = path.join(uploadDir, filename);
+            fs.writeFileSync(filePath, file.buffer);
+            return res.status(common_1.HttpStatus.OK).json({
+                status: 'success',
+                url: `/uploads/${filename}`
+            });
+        }
+        catch (error) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
         }
     }
 };
@@ -1230,6 +1339,75 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AbdmController.prototype, "generateKeyPair", null);
+__decorate([
+    (0, common_1.Post)('admin/register-facility'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "registerFacility", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)('admin/facilities'),
+    __param(0, (0, common_1.Query)('search')),
+    __param(1, (0, common_1.Query)('status')),
+    __param(2, (0, common_1.Query)('role')),
+    __param(3, (0, common_1.Query)('marked')),
+    __param(4, (0, common_1.Query)('sortBy')),
+    __param(5, (0, common_1.Query)('sortOrder')),
+    __param(6, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "getFacilities", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('admin/facilities/status'),
+    __param(0, (0, common_1.Query)('id')),
+    __param(1, (0, common_1.Body)('status')),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "updateFacilityStatus", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('admin/facilities/mark'),
+    __param(0, (0, common_1.Query)('id')),
+    __param(1, (0, common_1.Body)('isMarked')),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Boolean, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "toggleFacilityMark", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Delete)('admin/facilities'),
+    __param(0, (0, common_1.Query)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "deleteFacility", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('admin/facilities/add'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "adminAddFacility", null);
+__decorate([
+    (0, common_1.Post)('admin/upload-doc'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    __param(0, (0, common_1.UploadedFile)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "uploadDoc", null);
 exports.AbdmController = AbdmController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [abdm_service_1.AbdmService,

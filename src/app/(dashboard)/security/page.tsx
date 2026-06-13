@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
-import { Key, FileText, ArrowLeft, Loader2 } from 'lucide-react';
+import { Key, FileText, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { useInfiniteScroll } from '../../../utils/hooks/useInfiniteScroll';
 
 export default function SecurityPage() {
@@ -76,6 +76,23 @@ export default function SecurityPage() {
     );
   }
 
+
+  if (!isLoading && currentUser?.role !== 'admin' && currentUser?.role !== 'master_admin') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '24px' }}>
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '16px', borderRadius: '50%', marginBottom: '16px' }}>
+          <Lock style={{ width: '48px', height: '48px', color: 'var(--danger)' }} />
+        </div>
+        <h2 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>{t('Access Denied')}</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '400px', marginBottom: '24px' }}>
+          {t('This section is restricted to Administrator and Super Admin roles. You do not have permissions to view security logs.')}
+        </p>
+        <button className="prefill-btn active" onClick={() => router.push('/')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '12px' }}>
+          {t('Back to Dashboard')}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>

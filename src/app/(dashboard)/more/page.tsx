@@ -38,7 +38,7 @@ interface OperationalGridItem {
 export default function MoreServicesPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { addRecord, logSecurityEvent, addNotification } = useAuth();
+  const { addRecord, logSecurityEvent, addNotification, currentUser } = useAuth();
   
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [iconStyle, setIconStyle] = useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
@@ -481,7 +481,7 @@ export default function MoreServicesPage() {
 
       {/* Main Grid */}
       <section className="route-grid service-grid" style={{ gap: '16px', marginTop: '20px' }}>
-        {gridItems.map((item) => (
+        {gridItems.filter(item => item.id !== 'security' || (currentUser?.role === 'admin' || currentUser?.role === 'master_admin')).map((item) => (
           <article
             key={item.id}
             className="route-card"

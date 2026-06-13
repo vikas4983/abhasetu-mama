@@ -170,6 +170,40 @@ export default function StaffLoginPage() {
     }
   };
 
+  // Perform JWT sign-in for registered facilities
+  const handleFacilityLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      const res = await fetch('/api/abdm/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      setIsLoading(false);
+
+      if (res.ok && data.status === 'success') {
+        await loginWithJwt(data.token, {
+          email: data.user.email,
+          role: data.user.role,
+          name: data.user.name,
+        });
+        showToast(t('Facility session authorized.'));
+        router.push('/');
+      } else {
+        setErrorMsg(data.message || t('Invalid facility credentials or account pending approval.'));
+        showToast(t('Authentication failed.'));
+      }
+    } catch (err) {
+      setIsLoading(false);
+      setErrorMsg(t('Server connection error. Ensure backend is running.'));
+      showToast(t('Network error.'));
+    }
+  };
+
   return (
     <div className="login-container" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', padding: '20px', background: 'radial-gradient(circle at top, var(--bg-primary) 30%, #050a12 100%)' }}>
       <LogoLoader isLoading={isLoading} type="login" />
@@ -321,99 +355,57 @@ export default function StaffLoginPage() {
               </button>
             </form>
           ) : selectedRole === 'facility' ? (
-            /* Facility OTP form */
-            !otpSent ? (
-              <form onSubmit={handleSendOtp} style={{ display: 'grid', gap: '12px' }}>
-                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Select Facility Type
-                  <select
-                    value={facilityType}
-                    onChange={(e) => setFacilityType(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', height: '38px' }}
-                  >
-                    <option value="clinic">Clinic / क्लिनिक</option>
-                    <option value="hospital">Hospital / अस्पताल</option>
-                    <option value="lab">Diagnostic Lab / लैब</option>
-                    <option value="pharmacy">Pharmacy / फार्मेसी</option>
-                  </select>
-                </label>
-                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Facility Registry ID (HFR ID)
-                  <input
-                    type="text"
-                    required
-                    value={facilityId}
-                    onChange={(e) => setFacilityId(e.target.value)}
-                    placeholder="e.g. HFR-104825"
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
-                  />
-                </label>
-                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Facility Mobile Number
-                  <input
-                    type="tel"
-                    required
-                    maxLength={10}
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
-                    placeholder="e.g. 8888888888"
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace' }}
-                  />
-                </label>
+            /* Facility Credentials Login Form */
+            <form onSubmit={handleFacilityLogin} style={{ display: 'grid', gap: '14px' }}>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Facility Login Email
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="contact@facility.com"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Security Password
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                />
+              </label>
 
-                <button
-                  type="submit"
-                  className="join-btn"
-                  style={{ width: '100%', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              {errorMsg && (
+                <div style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: '600', background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                  {errorMsg}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="join-btn"
+                style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <Building2 style={{ width: '16px', height: '16px' }} />
+                <span>Verify and Access Portal</span>
+              </button>
+
+              <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '12px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>New stakeholder? </span>
+                <a 
+                  href="/register-facility" 
+                  onClick={(e) => { e.preventDefault(); router.push('/register-facility'); }}
+                  style={{ color: 'var(--accent-teal)', fontWeight: 'bold', textDecoration: 'none' }}
                 >
-                  <Phone style={{ width: '14px', height: '14px' }} />
-                  <span>Send Facility OTP</span>
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} style={{ display: 'grid', gap: '12px' }}>
-                <div style={{ background: 'rgba(20, 184, 166, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(20, 184, 166, 0.15)', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  OTP sent. Use simulated code <strong>123456</strong> for testing.
-                </div>
-
-                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Enter 6-Digit OTP Code
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••••"
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', textAlign: 'center', letterSpacing: '8px', fontWeight: 'bold', fontFamily: 'monospace' }}
-                  />
-                </label>
-
-                {errorMsg && (
-                  <div style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: '600', background: 'rgba(239, 68, 68, 0.1)', padding: '6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-                    {errorMsg}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setOtpSent(false)}
-                    style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Edit Info
-                  </button>
-                  <button
-                    type="submit"
-                    className="join-btn"
-                    style={{ flex: 2, minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                  >
-                    <Sparkles style={{ width: '14px', height: '14px' }} />
-                    <span>Verify & Login</span>
-                  </button>
-                </div>
-              </form>
-            )
+                  Register your facility here
+                </a>
+              </div>
+            </form>
           ) : (
             /* Doctor/Operator OTP form */
             !otpSent ? (

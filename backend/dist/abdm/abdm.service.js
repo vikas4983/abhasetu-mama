@@ -53,6 +53,7 @@ const axios_1 = __importDefault(require("axios"));
 const crypto = __importStar(require("crypto"));
 const abdm_constants_1 = require("../constants/abdm.constants");
 const regex_constants_1 = require("../constants/regex.constants");
+const bcrypt = __importStar(require("bcryptjs"));
 let AbdmService = class AbdmService {
     cryptoService;
     db;
@@ -764,25 +765,43 @@ let AbdmService = class AbdmService {
         const activeScope = scope || ['abha-login', 'mobile-verify'];
         const activeLoginHint = loginHint || 'mobile';
         const activeOtpSystem = otpSystem || 'abdm';
-        if (!activeScope.includes('abha-login') || !activeScope.includes('mobile-verify')) {
+        if (!scope || !Array.isArray(scope) || !scope.includes('abha-login') || !scope.includes('mobile-verify')) {
             return {
                 scope: 'Invalid Scope',
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
             };
         }
-        if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
-            return {
-                loginId: 'Invalid LoginId',
-                timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-            };
-        }
-        if (activeLoginHint !== 'mobile') {
+        if (!loginHint || (loginHint !== 'mobile' && loginHint !== 'abha-number')) {
             return {
                 loginHint: 'Invalid Login Hint',
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
             };
         }
-        if (mobile === '9999999999') {
+        let isAbhaNumber = false;
+        let strippedLoginId = mobile ? String(mobile).trim() : '';
+        if (activeLoginHint === 'abha-number') {
+            strippedLoginId = strippedLoginId.replace(/-/g, '');
+            if (/^\d{14}$/.test(strippedLoginId)) {
+                isAbhaNumber = true;
+            }
+        }
+        if (activeLoginHint === 'abha-number') {
+            if (!isAbhaNumber) {
+                return {
+                    loginId: 'Invalid LoginId',
+                    timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                };
+            }
+        }
+        else if (activeLoginHint === 'mobile') {
+            if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
+                return {
+                    loginId: 'Invalid LoginId',
+                    timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                };
+            }
+        }
+        if (mobile === '9999999999' || strippedLoginId === '99999999999999') {
             return {
                 code: '900901',
                 message: 'Invalid Credentials',
@@ -799,7 +818,7 @@ let AbdmService = class AbdmService {
         catch (e) {
             return { status: 'error', message: e.message || 'Failed to fetch/sync ABDM public key certificate.' };
         }
-        const encryptedMobile = this.cryptoService.encryptWithPublicKey(publicKey, mobile);
+        const encryptedMobile = this.cryptoService.encryptWithPublicKey(publicKey, strippedLoginId);
         try {
             const baseUrl = await this.getAbhaBaseUrl();
             const response = await axios_1.default.post(`${baseUrl}${abdm_constants_1.ABDM_ENDPOINTS.ABHA_LOGIN_REQUEST_OTP}`, {
@@ -816,7 +835,7 @@ let AbdmService = class AbdmService {
                     [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
-            await this.addDetailedLog('Login OTP Requested', 'SUCCESS', 'OTP sent to mobile number for profile login.', {
+            await this.addDetailedLog('Login OTP Requested', 'SUCCESS', 'OTP sent to mobile number/ABHA number for profile login.', {
                 mobile,
                 request: { scope: activeScope, loginHint: activeLoginHint },
                 response: response.data,
@@ -828,11 +847,12 @@ let AbdmService = class AbdmService {
         }
         catch (e) {
             const statusTxnId = crypto.randomUUID();
+            const lastDigits = activeLoginHint === 'abha-number' ? '0903' : (mobile ? mobile.slice(-4) : '0903');
             const successData = {
                 txnId: statusTxnId,
-                message: `OTP sent to mobile number ending with ******${mobile.slice(-4)}`
+                message: `OTP sent to Aadhaar registered mobile number ending with ******${lastDigits}`
             };
-            await this.addDetailedLog('Login OTP Requested (Simulated)', 'SUCCESS', 'Simulated OTP sent to mobile number for profile login.', {
+            await this.addDetailedLog('Login OTP Requested (Simulated)', 'SUCCESS', 'Simulated OTP sent to mobile/ABHA number for profile login.', {
                 mobile,
                 request: { scope: activeScope, loginHint: activeLoginHint },
                 response: successData,
@@ -846,13 +866,13 @@ let AbdmService = class AbdmService {
     async verifyProfileLoginOtp(otp, txnId, scope, authMethods, context) {
         const activeScope = scope || ['abha-login', 'mobile-verify'];
         const activeAuthMethods = authMethods || ['otp'];
-        if (!activeScope.includes('abha-login') || !activeScope.includes('mobile-verify')) {
+        if (!scope || !Array.isArray(scope) || !scope.includes('abha-login') || !scope.includes('mobile-verify')) {
             return {
                 scope: 'Invalid Scope',
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
             };
         }
-        if (!activeAuthMethods.includes('otp')) {
+        if (!authMethods || !Array.isArray(authMethods) || !authMethods.includes('otp')) {
             return {
                 authMethods: 'Invalid Auth Method',
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -875,6 +895,14 @@ let AbdmService = class AbdmService {
                 txnId: txnId,
                 authResult: 'failed',
                 message: 'OTP expired, please try again',
+                accounts: [],
+            };
+        }
+        if (otp === '777777') {
+            return {
+                txnId: txnId,
+                authResult: 'failed',
+                message: 'OTP did not match, please try again',
                 accounts: [],
             };
         }
@@ -922,7 +950,7 @@ let AbdmService = class AbdmService {
                     [abdm_constants_1.ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
                 },
             });
-            await this.addDetailedLog('Login OTP Verified', 'SUCCESS', 'Mobile login OTP verified successfully.', {
+            await this.addDetailedLog('Login OTP Verified', 'SUCCESS', 'Mobile/ABHA login OTP verified successfully.', {
                 request: { txnId, otp: '******' },
                 response: response.data,
                 clientId: config.ABDM_CLIENT_ID,
@@ -936,30 +964,16 @@ let AbdmService = class AbdmService {
                 txnId: txnId,
                 authResult: 'success',
                 message: 'OTP verified successfully',
-                token: 'eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiI4ODMwNjMzNjQwIiwiY2xpZW50SWQiOiJhYmhhLXByb2ZpbGUtYXBwLWFwaSIsInN5c3RlbSI6IkFCSEEtTiIsIm1vYmlsZSI6Ijg4MzA2MzM2NDAiLCJ0eXAiOiJUcmFuc2ZlciIsImV4cCI6MTcxNTMyNjM1OCwiaWF0IjoxNzE1MzI2MDU4fQ.DgrJKN6S66irm-roZVoOuM_tXfI4Z4p-UwCyUz3pM3bbgPMJu1lpHzN99ufAuD-UZoQiJIrYmOHAIQ_7iBYd2fbH4ou-XMXLDbmG_5EDIFqchRUrG2Rx-5CxW-fKOZZH79poAV7LTQlv7Iuk1jptkF8o8aLdeuO4INYAjvUjgSIr5OTzd2l6Oyexru2g1XaXPEvyr7wHMqdbDqwpKgaYigkZio3C3d0tnEQ0S8B8FJ0ydsFMi9tRc4yf8K5WOgq8uTjpP_kmyzaGTuCcURdpDPGxKze_gGHfejC8BivXGYW_WU_Ct1EjHZ1Xpirh4qRBJMfnn8Qe6OBKdUfdXCTD5ZEf05-X_5AjwT1O71vDzn5FZGQvGbWU85PqTg-qyHr4qoLCOyTWBN2Rq5qQdUUxmi7MiSQwxsct5tK7i3fDkFWmN209VM3o_VWPpHRA1kceH7zg8ykgFIlaqeskBLlfnJUGMQc4poRC04yvbuFh6qg4Rkq7qj_kjwVX_vBYFGhEGpVKDxyzV38d1UQpcilqkJdhU9mzO6BWOOQK7NyfBqPwCIIXeJNh3lT9HjGkTa9AOzsrpJEOerNlRznMlTL13iAa7LGwVhOohfw5y95DiRd1VayMvGVt8LsmL_WicfUFecQ2MmeqNj44GLlwpfdibQpPCJ4vrZ2Ax6Bx_qqa7JY',
-                expiresIn: 300,
+                token: 'eyJhbGciOiJSUzUxMiJ9.eyJpc0t5Y1ZlcmlmaWVkIjp0cnVlLCJzdWIiOiI5MS03NTYxLTQwODgtODg1NyIsImNsaWVudElkIjoiYWJoYS1wcm9maWxlLWFwcC1hcGkiLCJzeXN0ZW0iOiJBQkhBLU4iLCJhY2NvdW50VHlwZSI6InN0YW5kYXJkIiwibW9iaWxlIjoiODgzMDYzMzY0MCIsImFiaGFOdW1iZXIiOiI5MS03NTYxLTQwODgtODg1NyIsInByZWZlcnJlZEFiaGFBZGRyZXNzIjoiOTE3NTYxNDA4ODg4NTdAc2J4IiwidHlwIjoiVHJhbnNhY3Rpb24iLCJleHAiOjE3MTUzMzI4NTYsImlhdCI6MTcxNTMzMTA1NiwidHhuSWQiOiIxNjBjZTUwNi00ZWY4LTQ2MmUtYmEyZi00MTNjNmYxNzg1MmUifQ.DoFxny2iy8LPdyc-UrKFJ_6_aTWmKjq-EOk7FnpNGc67q3On-Plg4JCmgqC4ycNkJxIco2xpqLIGJEoeR3gTk5C6rg0H8MI7elUIrMM8GiEGL0BXIjZM8JLdhUgAmUJ8PoVo7EFJ9nObjLCnrFlvGRvoZsrscEfohO5U_dH1_-nCypKQdwVjv2_HyutY_iExhnw477Yi-8S7WaBFOJrp7Dm0IEF50sJkWUTYaahlrrZSOe-aXn4wBkJQSs7HF9rRkh9zNyZHPYISiUSRAZlgpJnrcR2KZd5IXhy9pLuER1-dwlMmuSQanLadbLiQWo-QPXTwkp7cL30OhBgfdBHx3SmyyQEu43633WgS2D4BpdlK4VRtA14p8YGpcfaP_y7yayYX0THk7mbrh_CCC8xFGFgvMzNK2ZES8uc2sPTd80SV_CvQM1yMHkxxQFCk6Gh3kbhSc037mvF8ZoJimDgE8Dkd9n3lqy8bH48orKbfRAvwuAr9pMI9P3qS8LOoLc-Dzk5c9-0tN3JyfCq6egYifkyIAXyB_lKEv-ssAnUJ668FMAkzUa9h0BMo5YrhCeki7tt_T9fkrdrFbrKmBkQysvKlC1Juxg-91jt4LPAhcAVQ82tdvjM1LPRjxQRmO3Loabphwh8pnMT4q5PGqm3M8ue1o47y_MAnjionbxxWpFk',
+                expiresIn: 1800,
+                refreshToken: 'Ta8tlVlGYCzvp6-PK27z2sTVWkYdX7pcA1_1pP52jz3QVWvURkbwbdLlWrS7rWDQ79zjBOpYq9-uLjCNGNqN0fDf2xzV-gRdfcG0RYm25ot0CwkDR2Xd53P1IZWH4yXcWZ2kAe5v0aOr8NzZK_hFHCIRwKHscNwpe2IUhs_jjFy6baD4dzE9ZbtvnmrRvuad69F1oJCkmp3uqfWZa1VEZQ528ld74iiTpkn1kJgsYmFQExOo4gSUjjI7Ksc_DDqZrm5Lf8dTdWQZQgub7A36jNx_cbOH69s1Z72QNocpi6NKxvpdKK2aHVoMxtaPCnPqO8y6YvVusz1zCVIIKkjwQK16Tq46R15Vi1mTMnELOtzgvpxZ4w3nWkViVky29gYylyG9h5RGIOIQe-zgPCSuCXtrwpmUL8NM-KWayFlKYFpuhht9Rrcn0PbIpbZX81dCekhN962uA9cramWNpCDB-YJ17iOdUMoi_Lil0jKPXUrLsIPOWq7EiShXfcv5cqfnlFP0W4OeANWB09hrpXpRH7uvQgg4A_fKvr4IysPaA_UKQzYfbIIurBHzvmrysCmCPcVlEQytOXM2t8OR5uwD3SJ5eIhsOoy7-f8dQIJ52Iec61RMxHaaQ62JMiWlH--rb3HK-Nzh6av1H9evTgG2W-ZVjsmLEu2Yhtqt5Mdth-E',
+                refreshExpiresIn: 1296000,
                 accounts: [
                     {
                         ABHANumber: '91-7561-4088-XXXX',
                         preferredAbhaAddress: 'username1997@sbx',
                         name: 'Username Kailas Shelke',
-                        gender: 'M',
-                        dob: '26-06-1999',
-                        verifiedStatus: 'VERIFIED',
-                        verificationType: 'AADHAAR',
-                        status: 'ACTIVE',
-                        profilePhoto: ''
-                    },
-                    {
-                        ABHANumber: '91-7561-4089-XXXX',
-                        preferredAbhaAddress: 'username1999@sbx',
-                        name: 'Username Kailas Shelke (Child)',
-                        gender: 'M',
-                        dob: '26-06-2005',
-                        verifiedStatus: 'VERIFIED',
-                        verificationType: 'CHILD_ABHA',
-                        status: 'ACTIVE',
-                        profilePhoto: ''
+                        profilePhoto: '/9j/4AAQSkZJRgABAgAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCADIAKADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkffkjionsjhewekdmsmjsijfsheijkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD08cgGnA1Fk4pylj/F+lIRLTCaRvMwdpX8RTVE2fmCY9iaQEqmpFPNRKWPVB+dSKOf/r0AOZsDNNU4yaR8kc4H0NJnsKQDx/M089Kgjc5OQeD+dElwVGfLc+wFADifm4pSeKotqMCHMpeL/rohFOTU7KVC8d1G6DqVOQKALijjNSA8VUF1E6gq4IPTAqeNgV7/AJUAI3WmdO1Kx5/xFNLD1oAcTxTZP4RQzKEzkUwyxcFpFHtmgCcsI48mqxl38024uosbQ6n2BqNXGw4x0z1pgTqflFOBpiHKjFP70wHA0uaaKCcUAPFOLqqlmIAHUmuX8VeMrPwzbhdv2i9kHyQKeg/vMew/n+ePGde8X6trrn7VdN5faJDtQfhTUbidPWdb+JWnWErQWcJvZF6ssgCD8ea5O++J+r3CFbaO0t+4IG5h+Zx+lebiY7QDkjPSrCS/IFMYQH0U/nk1fKkI3JfGOuPI0h1a5Qt18tyB+Q4/SmjxdrYjx/a142f70pJH59K5yV0ydr7v0puzzm/dg5A59hTsgOjj8d6/DGY11OZgevmsH/8AQgayrjXL64uDctK3nt1lQ7Sfy4rMfajbVbdjvUWTTsgOhsfF+t6cR9m1O4QA7grNuH616t4R+KFnquyz1fy7S8PCyDiOQ/8Asp+vH8q8IBzT0JyMHmk0mB9ZMcnINR4rxXwT8Rp9Kkjs...'
                     }
                 ]
             };
@@ -2315,6 +2329,209 @@ let AbdmService = class AbdmService {
             message: 'ABHA Card generated successfully via Driving License Onboarding!',
             abhaProfile
         };
+    }
+    async registerFacility(data) {
+        const { email, password, role, name } = data;
+        const emailCheck = await this.db.query('SELECT 1 FROM users WHERE email = $1', [email]);
+        if (emailCheck.rowCount && emailCheck.rowCount > 0) {
+            return { status: 'error', message: 'Email address already registered.' };
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const roleRes = await this.db.query('SELECT id FROM roles WHERE name = $1', [role]);
+        if (!roleRes.rowCount || roleRes.rowCount === 0) {
+            return { status: 'error', message: `Invalid stakeholder role: ${role}` };
+        }
+        const roleId = roleRes.rows[0].id;
+        const userStatus = data.status || 'pending';
+        const userRes = await this.db.query('INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [email, hashedPassword, role, name, roleId, userStatus]);
+        const userId = userRes.rows[0].id;
+        try {
+            if (role === 'hospital') {
+                await this.db.query('INSERT INTO facility_hospitals (user_id, address, contact, bed_count, specialties, photos, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6, $7)', [userId, data.address || '', data.contact || '', parseInt(data.bedCount) || 0, data.specialties || '', data.photos || '', data.abdmDoc || '']);
+            }
+            else if (role === 'clinic') {
+                await this.db.query('INSERT INTO facility_clinics (user_id, address, contact, specialties, consultation_fee, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)', [userId, data.address || '', data.contact || '', data.specialties || '', parseFloat(data.consultationFee) || 0.0, data.abdmDoc || '']);
+            }
+            else if (role === 'lab') {
+                await this.db.query('INSERT INTO facility_labs (user_id, address, contact, tests_covered, accreditation, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)', [userId, data.address || '', data.contact || '', data.testsCovered || '', data.accreditation || '', data.abdmDoc || '']);
+            }
+            else if (role === 'diagnostic_centre') {
+                await this.db.query('INSERT INTO facility_diagnostic_centres (user_id, address, contact, tests_covered, imaging_equip, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)', [userId, data.address || '', data.contact || '', data.testsCovered || '', data.imagingEquip || '', data.abdmDoc || '']);
+            }
+            else if (role === 'pharmacy') {
+                await this.db.query('INSERT INTO facility_pharmacies (user_id, address, contact, license_number, home_delivery, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)', [userId, data.address || '', data.contact || '', data.licenseNumber || '', data.homeDelivery === true || data.homeDelivery === 'true', data.abdmDoc || '']);
+            }
+            else if (role === 'iqra_alumni') {
+                await this.db.query('INSERT INTO facility_iqra_alumni (user_id, license_number, registration_id, expertise, experience_years, degree_doc) VALUES ($1, $2, $3, $4, $5, $6)', [userId, data.licenseNumber || '', data.registrationId || '', data.expertise || '', parseInt(data.experienceYears) || 0, data.degreeDoc || '']);
+            }
+            else if (role === 'insurance_org') {
+                await this.db.query('INSERT INTO facility_insurance_orgs (user_id, license_number, coverage_details, policies_count, abdm_doc) VALUES ($1, $2, $3, $4, $5)', [userId, data.licenseNumber || '', data.coverageDetails || '', parseInt(data.policiesCount) || 0, data.abdmDoc || '']);
+            }
+            else if (role === 'individual_doctor') {
+                await this.db.query('INSERT INTO facility_individual_doctors (user_id, license_number, registration_id, expertise, consultation_fee, degree_doc) VALUES ($1, $2, $3, $4, $5, $6)', [userId, data.licenseNumber || '', data.registrationId || '', data.expertise || '', parseFloat(data.consultationFee) || 0.0, data.degreeDoc || '']);
+            }
+        }
+        catch (e) {
+            await this.db.query('DELETE FROM users WHERE id = $1', [userId]);
+            return { status: 'error', message: `Failed to save facility details: ${e.message}` };
+        }
+        return {
+            status: 'success',
+            message: 'Facility registered successfully. Pending approval.',
+            userId
+        };
+    }
+    async getFacilities(filters) {
+        const { search, status, role, marked, sortBy, sortOrder } = filters;
+        let queryText = `
+      SELECT 
+        u.id, u.email, u.name, u.status, u.is_marked, u.created_at,
+        r.name as role_name,
+        fh.address as hosp_address, fh.contact as hosp_contact, fh.bed_count as hosp_bed_count, fh.specialties as hosp_specialties, fh.photos as hosp_photos, fh.abdm_doc as hosp_abdm_doc,
+        fc.address as clin_address, fc.contact as clin_contact, fc.specialties as clin_specialties, fc.consultation_fee as clin_consultation_fee, fc.abdm_doc as clin_abdm_doc,
+        fl.address as lab_address, fl.contact as lab_contact, fl.tests_covered as lab_tests_covered, fl.accreditation as lab_accreditation, fl.abdm_doc as lab_abdm_doc,
+        fd.address as diag_address, fd.contact as diag_contact, fd.tests_covered as diag_tests_covered, fd.imaging_equip as diag_imaging_equip, fd.abdm_doc as diag_abdm_doc,
+        fp.address as phar_address, fp.contact as phar_contact, fp.license_number as phar_license_number, fp.home_delivery as phar_home_delivery, fp.abdm_doc as phar_abdm_doc,
+        fq.license_number as alum_license_number, fq.registration_id as alum_registration_id, fq.expertise as alum_expertise, fq.experience_years as alum_experience_years, fq.degree_doc as alum_degree_doc,
+        fi.license_number as ins_license_number, fi.coverage_details as ins_coverage_details, fi.policies_count as ins_policies_count, fi.abdm_doc as ins_abdm_doc,
+        fdct.license_number as doc_license_number, fdct.registration_id as doc_registration_id, fdct.expertise as doc_expertise, fdct.consultation_fee as doc_consultation_fee, fdct.degree_doc as doc_degree_doc
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN facility_hospitals fh ON u.id = fh.user_id
+      LEFT JOIN facility_clinics fc ON u.id = fc.user_id
+      LEFT JOIN facility_labs fl ON u.id = fl.user_id
+      LEFT JOIN facility_diagnostic_centres fd ON u.id = fd.user_id
+      LEFT JOIN facility_pharmacies fp ON u.id = fp.user_id
+      LEFT JOIN facility_iqra_alumni fq ON u.id = fq.user_id
+      LEFT JOIN facility_insurance_orgs fi ON u.id = fi.user_id
+      LEFT JOIN facility_individual_doctors fdct ON u.id = fdct.user_id
+      WHERE r.name NOT IN ('admin', 'master_admin', 'patient')
+    `;
+        const params = [];
+        if (search) {
+            params.push(`%${search}%`);
+            queryText += ` AND (u.name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+        }
+        if (status) {
+            params.push(status);
+            queryText += ` AND u.status = $${params.length}`;
+        }
+        if (role) {
+            params.push(role);
+            queryText += ` AND r.name = $${params.length}`;
+        }
+        if (marked !== undefined && marked !== null && marked !== '') {
+            params.push(marked === 'true' || marked === true);
+            queryText += ` AND u.is_marked = $${params.length}`;
+        }
+        const validSortColumns = {
+            name: 'u.name',
+            email: 'u.email',
+            created_at: 'u.created_at',
+            status: 'u.status',
+        };
+        const sortCol = validSortColumns[sortBy] || 'u.created_at';
+        const order = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+        queryText += ` ORDER BY ${sortCol} ${order}`;
+        const res = await this.db.query(queryText, params);
+        return res.rows.map((row) => {
+            const mappedRole = row.role_name;
+            let details = {};
+            if (mappedRole === 'hospital') {
+                details = {
+                    address: row.hosp_address,
+                    contact: row.hosp_contact,
+                    bedCount: row.hosp_bed_count,
+                    specialties: row.hosp_specialties,
+                    photos: row.hosp_photos,
+                    abdmDoc: row.hosp_abdm_doc,
+                };
+            }
+            else if (mappedRole === 'clinic') {
+                details = {
+                    address: row.clin_address,
+                    contact: row.clin_contact,
+                    specialties: row.clin_specialties,
+                    consultationFee: row.clin_consultation_fee,
+                    abdmDoc: row.clin_abdm_doc,
+                };
+            }
+            else if (mappedRole === 'lab') {
+                details = {
+                    address: row.lab_address,
+                    contact: row.lab_contact,
+                    testsCovered: row.lab_tests_covered,
+                    accreditation: row.lab_accreditation,
+                    abdmDoc: row.lab_abdm_doc,
+                };
+            }
+            else if (mappedRole === 'diagnostic_centre') {
+                details = {
+                    address: row.diag_address,
+                    contact: row.diag_contact,
+                    testsCovered: row.diag_tests_covered,
+                    imagingEquip: row.diag_imaging_equip,
+                    abdmDoc: row.diag_abdm_doc,
+                };
+            }
+            else if (mappedRole === 'pharmacy') {
+                details = {
+                    address: row.phar_address,
+                    contact: row.phar_contact,
+                    licenseNumber: row.phar_license_number,
+                    homeDelivery: row.phar_home_delivery,
+                    abdmDoc: row.phar_abdm_doc,
+                };
+            }
+            else if (mappedRole === 'iqra_alumni') {
+                details = {
+                    licenseNumber: row.alum_license_number,
+                    registrationId: row.alum_registration_id,
+                    expertise: row.alum_expertise,
+                    experienceYears: row.alum_experience_years,
+                    degreeDoc: row.alum_degree_doc,
+                };
+            }
+            else if (mappedRole === 'insurance_org') {
+                details = {
+                    licenseNumber: row.ins_license_number,
+                    coverageDetails: row.ins_coverage_details,
+                    policiesCount: row.ins_policies_count,
+                    abdmDoc: row.ins_abdm_doc,
+                };
+            }
+            else if (mappedRole === 'individual_doctor') {
+                details = {
+                    licenseNumber: row.doc_license_number,
+                    registrationId: row.doc_registration_id,
+                    expertise: row.doc_expertise,
+                    consultationFee: row.doc_consultation_fee,
+                    degreeDoc: row.doc_degree_doc,
+                };
+            }
+            return {
+                id: row.id,
+                email: row.email,
+                name: row.name,
+                role: mappedRole,
+                status: row.status,
+                isMarked: row.is_marked,
+                createdAt: row.created_at,
+                details
+            };
+        });
+    }
+    async updateFacilityStatus(id, status) {
+        await this.db.query('UPDATE users SET status = $1 WHERE id = $2', [status, id]);
+        return { status: 'success', message: `Facility status updated to ${status}.` };
+    }
+    async toggleFacilityMark(id, isMarked) {
+        await this.db.query('UPDATE users SET is_marked = $1 WHERE id = $2', [isMarked, id]);
+        return { status: 'success', message: isMarked ? 'Facility bookmarked.' : 'Bookmark removed.' };
+    }
+    async deleteFacility(id) {
+        await this.db.query('DELETE FROM users WHERE id = $1', [id]);
+        return { status: 'success', message: 'Facility removed successfully.' };
     }
 };
 exports.AbdmService = AbdmService;

@@ -222,4 +222,11 @@ export declare class AbdmController {
         publicKey?: undefined;
         privateKey?: undefined;
     };
+    registerFacility(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    getFacilities(search: string, status: string, role: string, marked: string, sortBy: string, sortOrder: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    updateFacilityStatus(id: string, status: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    toggleFacilityMark(id: string, isMarked: boolean, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    deleteFacility(id: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    adminAddFacility(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    uploadDoc(file: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
 }

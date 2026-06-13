@@ -12,6 +12,9 @@ export interface Database {
     ABDM_HIU_ID: string;
     ABDM_HIP_ID: string;
     sandboxMode: boolean;
+    selectedLogo?: string;
+    theme?: string;
+    iconStyle?: string;
   };
   products: any[];
   policies: any[];

@@ -73,6 +73,11 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
 
   private async createTables() {
     const queryText = `
+      CREATE TABLE IF NOT EXISTS roles (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(50) UNIQUE NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -81,6 +86,11 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         name VARCHAR(255) NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Add status and is_marked columns to users if they do not exist
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles(id);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_marked BOOLEAN DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS config (
         key VARCHAR(255) PRIMARY KEY,
@@ -176,25 +186,278 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         payment_method VARCHAR(50) NOT NULL,
         status VARCHAR(50) NOT NULL
       );
+
+      -- Specific facility detail tables
+      CREATE TABLE IF NOT EXISTS facility_hospitals (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        address TEXT NOT NULL,
+        contact VARCHAR(50) NOT NULL,
+        bed_count INTEGER NOT NULL,
+        specialties TEXT NOT NULL,
+        photos TEXT,
+        abdm_doc TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_clinics (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        address TEXT NOT NULL,
+        contact VARCHAR(50) NOT NULL,
+        specialties TEXT NOT NULL,
+        consultation_fee NUMERIC NOT NULL,
+        abdm_doc TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_labs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        address TEXT NOT NULL,
+        contact VARCHAR(50) NOT NULL,
+        tests_covered TEXT NOT NULL,
+        accreditation VARCHAR(100) NOT NULL,
+        abdm_doc TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_diagnostic_centres (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        address TEXT NOT NULL,
+        contact VARCHAR(50) NOT NULL,
+        tests_covered TEXT NOT NULL,
+        imaging_equip TEXT NOT NULL,
+        abdm_doc TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_pharmacies (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        address TEXT NOT NULL,
+        contact VARCHAR(50) NOT NULL,
+        license_number VARCHAR(100) NOT NULL,
+        home_delivery BOOLEAN DEFAULT FALSE,
+        abdm_doc TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_iqra_alumni (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        license_number VARCHAR(100) NOT NULL,
+        registration_id VARCHAR(100) NOT NULL,
+        expertise TEXT NOT NULL,
+        experience_years INTEGER NOT NULL,
+        degree_doc TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_insurance_orgs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        license_number VARCHAR(100) NOT NULL,
+        coverage_details TEXT NOT NULL,
+        policies_count INTEGER DEFAULT 0,
+        abdm_doc TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS facility_individual_doctors (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        license_number VARCHAR(100) NOT NULL,
+        registration_id VARCHAR(100) NOT NULL,
+        expertise TEXT NOT NULL,
+        consultation_fee NUMERIC NOT NULL,
+        degree_doc TEXT NOT NULL
+      );
     `;
     await this.pool.query(queryText);
   }
 
   private async seedData() {
-    // 1. Seed users (admins)
+    // 1. Seed default roles
+    await this.pool.query(`
+      INSERT INTO roles (name) VALUES 
+        ('admin'), ('master_admin'), ('doctor'), ('operator'), ('patient'),
+        ('hospital'), ('clinic'), ('lab'), ('diagnostic_centre'), ('pharmacy'),
+        ('iqra_alumni'), ('insurance_org'), ('individual_doctor')
+      ON CONFLICT (name) DO NOTHING
+    `);
+
+    // 2. Seed users (admins)
     const userCountRes = await this.pool.query('SELECT COUNT(*) FROM users');
+    const hashedPassword = await bcrypt.hash('DreamProject@2026', 10);
+
+    const adminRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'admin'");
+    const adminRoleId = adminRoleRes.rows[0].id;
+
+    const masterRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'master_admin'");
+    const masterRoleId = masterRoleRes.rows[0].id;
+
+    const hospitalRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'hospital'");
+    const hospitalRoleId = hospitalRoleRes.rows[0].id;
+
+    const labRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'lab'");
+    const labRoleId = labRoleRes.rows[0].id;
+
+    const pharmacyRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'pharmacy'");
+    const pharmacyRoleId = pharmacyRoleRes.rows[0].id;
+
+    const alumniRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'iqra_alumni'");
+    const alumniRoleId = alumniRoleRes.rows[0].id;
+
+    const clinicRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'clinic'");
+    const clinicRoleId = clinicRoleRes.rows[0].id;
+
+    const diagRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'diagnostic_centre'");
+    const diagRoleId = diagRoleRes.rows[0].id;
+
+    const insuranceRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'insurance_org'");
+    const insuranceRoleId = insuranceRoleRes.rows[0].id;
+
+    const doctorRoleRes = await this.pool.query("SELECT id FROM roles WHERE name = 'individual_doctor'");
+    const doctorRoleId = doctorRoleRes.rows[0].id;
+
     if (parseInt(userCountRes.rows[0].count) === 0) {
       console.log('Seeding default admins...');
-      const hashedPassword = await bcrypt.hash('DreamProject@2026', 10);
-      
       await this.pool.query(
-        'INSERT INTO users (email, password, role, name) VALUES ($1, $2, $3, $4)',
-        ['admin@abhasetu.com', hashedPassword, 'admin', 'System Administrator']
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6)',
+        ['admin@abhasetu.com', hashedPassword, 'admin', 'System Administrator', adminRoleId, 'approved']
       );
       
       await this.pool.query(
-        'INSERT INTO users (email, password, role, name) VALUES ($1, $2, $3, $4)',
-        ['master@abhasetu.com', hashedPassword, 'master_admin', 'Master Administrator']
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6)',
+        ['master@abhasetu.com', hashedPassword, 'master_admin', 'Master Administrator', masterRoleId, 'approved']
+      );
+    } else {
+      // Backfill role_ids and status for existing users
+      await this.pool.query("UPDATE users SET role_id = $1, status = 'approved' WHERE role = 'admin' AND role_id IS NULL", [adminRoleId]);
+      await this.pool.query("UPDATE users SET role_id = $1, status = 'approved' WHERE role = 'master_admin' AND role_id IS NULL", [masterRoleId]);
+    }
+
+    // 3. Seed default mock facilities
+    const mockHospEmail = 'hospital@abhasetu.com';
+    const hospCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockHospEmail]);
+    if (hospCheck.rowCount === 0) {
+      console.log('Seeding default mock hospital facility...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockHospEmail, facilityPass, 'hospital', 'Apollo Hospital', hospitalRoleId, 'approved']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_hospitals (user_id, address, contact, bed_count, specialties, photos, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [userId, 'Apollo Health City, Jubilee Hills, Hyderabad', '040-23607777', 120, 'Cardiology, Oncology, Orthopedics', '/assets/hospitals/apollo.jpeg', '/uploads/docs/hfr_apollo_cert.pdf']
+      );
+    }
+
+    const mockLabEmail = 'lab@abhasetu.com';
+    const labCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockLabEmail]);
+    if (labCheck.rowCount === 0) {
+      console.log('Seeding default mock lab facility...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockLabEmail, facilityPass, 'lab', 'Citycare Diagnostics Lab', labRoleId, 'pending']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_labs (user_id, address, contact, tests_covered, accreditation, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, '12-2-823/A, Mehdipatnam, Hyderabad', '040-23512222', 'CBC, Thyroid, Lipid Profile, HbA1c', 'NABL Accredited', '/uploads/docs/lab_cert.pdf']
+      );
+    }
+
+    const mockPharmEmail = 'pharmacy@abhasetu.com';
+    const pharmCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockPharmEmail]);
+    if (pharmCheck.rowCount === 0) {
+      console.log('Seeding default mock pharmacy facility...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockPharmEmail, facilityPass, 'pharmacy', 'LifeCare Pharmacy', pharmacyRoleId, 'approved']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_pharmacies (user_id, address, contact, license_number, home_delivery, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'Shop 3, Gachibowli Road, Hyderabad', '040-23001111', 'TS-DRUG-40292', true, '/uploads/docs/pharmacy_lic.pdf']
+      );
+    }
+
+    const mockAlumniEmail = 'alumni@abhasetu.com';
+    const alumniCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockAlumniEmail]);
+    if (alumniCheck.rowCount === 0) {
+      console.log('Seeding default mock alumni helper...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockAlumniEmail, facilityPass, 'iqra_alumni', 'Zeeshan Khan', alumniRoleId, 'pending']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_iqra_alumni (user_id, license_number, registration_id, expertise, experience_years, degree_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'IQRA-AL-9201', 'REG-8829-IQRA', 'Patient Care & ABDM Navigation', 3, '/uploads/docs/iqra_degree.pdf']
+      );
+    }
+
+    const mockClinicEmail = 'clinic@abhasetu.com';
+    const clinicCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockClinicEmail]);
+    if (clinicCheck.rowCount === 0) {
+      console.log('Seeding default mock clinic facility...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockClinicEmail, facilityPass, 'clinic', 'Care & Cure Clinic', clinicRoleId, 'approved']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_clinics (user_id, address, contact, specialties, consultation_fee, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'Plot 45, Jubilee Hills, Hyderabad', '040-23548888', 'Pediatrics, General Medicine', 450, '/uploads/docs/clinic_cert.pdf']
+      );
+    }
+
+    const mockDiagEmail = 'diagnostic@abhasetu.com';
+    const diagCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockDiagEmail]);
+    if (diagCheck.rowCount === 0) {
+      console.log('Seeding default mock diagnostic center...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockDiagEmail, facilityPass, 'diagnostic_centre', 'Metro Imaging Center', diagRoleId, 'pending']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_diagnostic_centres (user_id, address, contact, tests_covered, imaging_equip, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'A-5, Madhapur, Hyderabad', '040-23119999', 'MRI, CT Scan, X-Ray, Ultrasound', '1.5T Siemens MRI, GE CT Scanner', '/uploads/docs/diag_cert.pdf']
+      );
+    }
+
+    const mockInsuranceEmail = 'insurance@abhasetu.com';
+    const insuranceCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockInsuranceEmail]);
+    if (insuranceCheck.rowCount === 0) {
+      console.log('Seeding default mock insurance organization...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockInsuranceEmail, facilityPass, 'insurance_org', 'Universal Health Insurance', insuranceRoleId, 'approved']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_insurance_orgs (user_id, license_number, coverage_details, policies_count, abdm_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'IRDAI-HL-88231', 'Provides 100% cashless medical coverage under PM-JAY and corporate policies.', 15, '/uploads/docs/insurance_lic.pdf']
+      );
+    }
+
+    const mockDoctorEmail = 'doctor@abhasetu.com';
+    const doctorCheck = await this.pool.query('SELECT 1 FROM users WHERE email = $1', [mockDoctorEmail]);
+    if (doctorCheck.rowCount === 0) {
+      console.log('Seeding default mock individual doctor...');
+      const facilityPass = await bcrypt.hash('Password@123', 10);
+      const res = await this.pool.query(
+        'INSERT INTO users (email, password, role, name, role_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [mockDoctorEmail, facilityPass, 'individual_doctor', 'Dr. Vikram Aditya', doctorRoleId, 'pending']
+      );
+      const userId = res.rows[0].id;
+      await this.pool.query(
+        'INSERT INTO facility_individual_doctors (user_id, license_number, registration_id, expertise, consultation_fee, degree_doc) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'MCI-55291', 'REG-DOCTOR-9912', 'Cardiology, Telehealth', 800, '/uploads/docs/doctor_degree.pdf']
       );
     }
 

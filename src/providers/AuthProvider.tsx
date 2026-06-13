@@ -21,6 +21,7 @@ export interface User {
   photo?: string;
   abhaProfile?: any;
   mobile?: string;
+  linkedAccounts?: any[];
 }
 
 export interface Appointment {
@@ -73,8 +74,8 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<boolean>;
   loginWithJwt: (token: string, user: User) => Promise<void>;
   loginWithOtp: (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string) => Promise<boolean>;
-  loginWithDl: (dlNumber: string, name: string) => Promise<boolean>;
-  loginWithAbhaAccount: (role: 'patient' | 'doctor' | 'operator', account: any) => Promise<boolean>;
+  loginWithDl: (dlNumber: string, abhaProfile: any) => Promise<boolean>;
+  loginWithAbhaAccount: (role: 'patient' | 'doctor' | 'operator', account: any, linkedAccounts?: any[]) => Promise<boolean>;
   logout: () => void;
   register: (name: string, email: string, mobile: string) => void;
   logSecurityEvent: (event: string, details: string) => void;
@@ -166,6 +167,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error(e);
     }
   }, []);
+
+  // Synchronize central branding configuration on mount
+  useEffect(() => {
+    const syncBranding = async () => {
+      try {
+        const res = await fetch('/api/abdm/admin/config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'success' && data.config) {
+            const serverConfig = data.config;
+            const current = JSON.parse(localStorage.getItem('setu_state') || '{}');
+            let updated = false;
+
+            if (serverConfig.selectedLogo && serverConfig.selectedLogo !== current.selectedLogo) {
+              current.selectedLogo = serverConfig.selectedLogo;
+              updated = true;
+            }
+            if (serverConfig.theme && serverConfig.theme !== current.theme) {
+              current.theme = serverConfig.theme;
+              updated = true;
+            }
+            if (serverConfig.iconStyle && serverConfig.iconStyle !== current.iconStyle) {
+              current.iconStyle = serverConfig.iconStyle;
+              updated = true;
+            }
+
+            if (updated) {
+              localStorage.setItem('setu_state', JSON.stringify(current));
+              window.dispatchEvent(new Event('setu_state_update'));
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to sync branding configurations:', e);
+      }
+    };
+    syncBranding();
+  }, []);
+
+  // Prevent navigating away / closing tab if a session is active
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!currentUser) return;
+      const sessionExpiry = localStorage.getItem('abha_session_expiry');
+      const isSessionActive = sessionExpiry && Number(sessionExpiry) > Date.now();
+      
+      if (isSessionActive) {
+        e.preventDefault();
+        e.returnValue = 'You have an active secure session. Are you sure you want to navigate away?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentUser]);
 
   // Update helper
   const syncToLocalStorage = (updates: Partial<{
@@ -300,22 +358,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const loginWithDl = async (dlNumber: string, name: string): Promise<boolean> => {
+  const loginWithDl = async (dlNumber: string, abhaProfile: any): Promise<boolean> => {
+    const profile = abhaProfile || {};
     const newUser: User = {
       email: 'patient@abhasetu.com',
       role: 'patient',
-      name: name || 'Aarav Sharma',
-      photo: '/assets/doctors/dr-ayesha-ali.jpeg',
-      abhaId: 'aarav.sharma@sbx'
+      name: profile.name || 'Aarav Sharma',
+      photo: profile.photo || '/assets/doctors/dr-ayesha-ali.jpeg',
+      abhaId: profile.abhaId || profile.abhaNumber || 'aarav.sharma@sbx',
+      abhaProfile: profile,
+      mobile: profile.mobile || ''
     };
     setCurrentUser(newUser);
     syncToLocalStorage({ currentUser: newUser });
-    logSecurityEvent("User DL Login", `Authenticated via Driving License (${dlNumber}) as ${name}`);
+    logSecurityEvent("User DL Login", `Authenticated via Driving License (${dlNumber}) as ${newUser.name}`);
     addNotification("Login Successful", `DL verified and access granted.`, "security");
     return true;
   };
 
-  const loginWithAbhaAccount = async (role: 'patient' | 'doctor' | 'operator', account: any): Promise<boolean> => {
+  const loginWithAbhaAccount = async (role: 'patient' | 'doctor' | 'operator', account: any, linkedAccounts?: any[]): Promise<boolean> => {
     const newUser: User = {
       email: `${role}@abhasetu.com`,
       role,
@@ -323,7 +384,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       photo: account.profilePhoto || "",
       abhaId: account.preferredAbhaAddress || account.ABHANumber,
       abhaProfile: account,
-      mobile: account.mobile || ""
+      mobile: account.mobile || "",
+      linkedAccounts: linkedAccounts || [account]
     };
 
     setCurrentUser(newUser);

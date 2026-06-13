@@ -34,7 +34,15 @@ import { showToast } from '../../../utils/toast';
 export default function CryptoPage(): React.JSX.Element {
   const router = useRouter();
   const { t } = useLanguage();
-  const { logSecurityEvent } = useAuth();
+  const { logSecurityEvent, currentUser } = useAuth();
+  const [isPageLoading, setIsPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPageLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Active public key from session
   const [activePublicKey, setActivePublicKey] = useState('');
@@ -213,6 +221,41 @@ export default function CryptoPage(): React.JSX.Element {
       showToast(t('Loaded generated private key into Decryption form.'));
     }
   };
+
+  if (isPageLoading) {
+    return (
+      <>
+        <section className="route-hero">
+          <div className="setu-skeleton setu-skeleton-text" style={{ width: '80px', height: '14px', marginBottom: '8px' }}></div>
+          <div className="setu-skeleton setu-skeleton-title" style={{ width: '180px', height: '24px', marginBottom: '8px' }}></div>
+          <div className="setu-skeleton setu-skeleton-text" style={{ width: '320px', height: '14px' }}></div>
+        </section>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginTop: '20px' }}>
+          <div className="route-card" style={{ padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+            <div className="setu-skeleton setu-skeleton-title" style={{ width: '150px', height: '18px', marginBottom: '12px' }}></div>
+            <div className="setu-skeleton" style={{ width: '100%', height: '80px', borderRadius: '8px' }}></div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (currentUser?.role !== 'admin' && currentUser?.role !== 'master_admin') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '24px' }}>
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '16px', borderRadius: '50%', marginBottom: '16px' }}>
+          <Lock style={{ width: '48px', height: '48px', color: 'var(--danger)' }} />
+        </div>
+        <h2 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>{t('Access Denied')}</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '400px', marginBottom: '24px' }}>
+          {t('This section is restricted to Administrator and Super Admin roles. You do not have permissions to access RSA cryptography.')}
+        </p>
+        <button className="prefill-btn active" onClick={() => router.push('/')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '12px' }}>
+          {t('Back to Dashboard')}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>

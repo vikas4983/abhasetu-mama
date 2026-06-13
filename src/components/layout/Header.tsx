@@ -100,6 +100,7 @@ export default function Header() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState<string>('default');
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Timer States
   const [sessionTimerStr, setSessionTimerStr] = useState('20:00');
@@ -554,7 +555,8 @@ export default function Header() {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <header className="header">
+    <>
+      <header className="header">
       <div className="header-inner">
         <div className="logo" onClick={() => router.push('/')} style={{ cursor: 'pointer' }}>
           <div 
@@ -811,18 +813,20 @@ export default function Header() {
           )}
 
           {/* Theme Toggle */}
-          <button
-            className="theme-toggle-btn"
-            onClick={cycleTheme}
-            aria-label="Toggle Theme"
-            type="button"
-          >
-            {theme === 'emerald-light' ? (
-              <Moon className="moon-icon" style={{ width: '18px', height: '18px', display: 'block' }} />
-            ) : (
-              <Sun className="sun-icon" style={{ width: '18px', height: '18px', display: 'block' }} />
-            )}
-          </button>
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'master_admin') && (
+            <button
+              className="theme-toggle-btn"
+              onClick={cycleTheme}
+              aria-label="Toggle Theme"
+              type="button"
+            >
+              {theme === 'emerald-light' ? (
+                <Moon className="moon-icon" style={{ width: '18px', height: '18px', display: 'block' }} />
+              ) : (
+                <Sun className="sun-icon" style={{ width: '18px', height: '18px', display: 'block' }} />
+              )}
+            </button>
+          )}
 
           {/* Profile Menu */}
           {currentUser && (
@@ -836,14 +840,28 @@ export default function Header() {
                 aria-expanded={isProfileOpen}
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
               >
-                <img
-                  src={getPhotoSrc(currentUser.abhaProfile?.photo || currentUser.photo || '') || '/assets/doctors/dr-ayesha-ali.jpeg'}
-                  alt={currentUser.name}
-                  id="header-avatar-img"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=100';
-                  }}
-                />
+                {currentUser.abhaProfile?.photo ? (
+                  <img
+                    src={getPhotoSrc(currentUser.abhaProfile.photo)}
+                    alt={currentUser.name}
+                    id="header-avatar-img"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100';
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'var(--bg-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--accent-teal)'
+                  }}>
+                    <User style={{ width: '18px', height: '18px' }} />
+                  </div>
+                )}
                 <span className="avatar-status"></span>
               </div>
 
@@ -886,6 +904,21 @@ export default function Header() {
                     >
                       <User className="small-icon" style={{ width: '14px', height: '14px' }} />
                       <span>{t('View ABHA Profile')}</span>
+                    </button>
+                  )}
+
+                  {currentUser?.role === 'patient' && (
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push('/accounts');
+                      }}
+                      className="dropdown-item"
+                      role="menuitem"
+                      style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--text-primary)' }}
+                    >
+                      <UserRound className="small-icon" style={{ width: '14px', height: '14px' }} />
+                      <span>{t('Linked Accounts')}</span>
                     </button>
                   )}
 
@@ -949,57 +982,61 @@ export default function Header() {
                     <span>{t('Notification Preferences')}</span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/security');
-                    }}
-                    className="dropdown-item"
-                    role="menuitem"
-                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                  >
-                    <ShieldCheck className="small-icon" style={{ width: '14px', height: '14px' }} />
-                    <span>{t('Security Settings')}</span>
-                  </button>
+                  {currentUser && (currentUser.role === 'admin' || currentUser.role === 'master_admin') && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          router.push('/security');
+                        }}
+                        className="dropdown-item"
+                        role="menuitem"
+                        style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                      >
+                        <ShieldCheck className="small-icon" style={{ width: '14px', height: '14px' }} />
+                        <span>{t('Security Settings')}</span>
+                      </button>
 
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/sandbox');
-                    }}
-                    className="dropdown-item"
-                    role="menuitem"
-                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                  >
-                    <Code className="small-icon" style={{ width: '14px', height: '14px' }} />
-                    <span>{t('Sandbox API Docs')}</span>
-                  </button>
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          router.push('/sandbox');
+                        }}
+                        className="dropdown-item"
+                        role="menuitem"
+                        style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                      >
+                        <Code className="small-icon" style={{ width: '14px', height: '14px' }} />
+                        <span>{t('Sandbox API Docs')}</span>
+                      </button>
 
-                  <a
-                    href="/api/abdm/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="dropdown-item"
-                    role="menuitem"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box' }}
-                    onClick={() => setIsProfileOpen(false)}
-                  >
-                    <FileText className="small-icon" style={{ width: '14px', height: '14px' }} />
-                    <span>{t('Swagger API Docs')}</span>
-                  </a>
+                      <a
+                        href="/api/abdm/docs"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="dropdown-item"
+                        role="menuitem"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box' }}
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        <FileText className="small-icon" style={{ width: '14px', height: '14px' }} />
+                        <span>{t('Swagger API Docs')}</span>
+                      </a>
 
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push('/crypto');
-                    }}
-                    className="dropdown-item"
-                    role="menuitem"
-                    style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--text-primary)' }}
-                  >
-                    <Key className="small-icon" style={{ width: '14px', height: '14px' }} />
-                    <span>{t('RSA Cryptography')}</span>
-                  </button>
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          router.push('/crypto');
+                        }}
+                        className="dropdown-item"
+                        role="menuitem"
+                        style={{ border: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', color: 'var(--text-primary)' }}
+                      >
+                        <Key className="small-icon" style={{ width: '14px', height: '14px' }} />
+                        <span>{t('RSA Cryptography')}</span>
+                      </button>
+                    </>
+                  )}
 
                   <hr className="dropdown-divider" />
 
@@ -1007,7 +1044,7 @@ export default function Header() {
                     className="dropdown-item logout-btn"
                     onClick={() => {
                       setIsProfileOpen(false);
-                      logout();
+                      setShowLogoutConfirm(true);
                     }}
                     role="menuitem"
                     style={{
@@ -1028,5 +1065,68 @@ export default function Header() {
         </div>
       </div>
     </header>
+
+    {showLogoutConfirm && (
+      <div className="logout-modal-overlay">
+        <div className="logout-modal-content">
+          {/* Animated Logout Icon / Pulse ring */}
+          <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: '50%',
+              border: '2px dashed var(--accent-teal)',
+              animation: 'spin 12s linear infinite'
+            }} />
+            <div style={{
+              position: 'absolute',
+              top: '8px',
+              left: '8px',
+              right: '8px',
+              bottom: '8px',
+              borderRadius: '50%',
+              border: '2px solid rgba(239, 68, 68, 0.2)',
+              background: 'rgba(239, 68, 68, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <LogOut style={{ width: '32px', height: '32px', color: '#ef4444' }} />
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+            {t('Confirm Sign Out')}
+          </h3>
+          <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '24px' }}>
+            {t('Are you sure you want to terminate your secure session? Unsaved transactions might be lost.')}
+          </p>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              onClick={() => setShowLogoutConfirm(false)}
+              className="prefill-btn" 
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)' }}
+            >
+              {t('Cancel')}
+            </button>
+            <button 
+              onClick={() => {
+                setShowLogoutConfirm(false);
+                logout();
+              }}
+              className="prefill-btn active" 
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'var(--danger)', border: 'none', color: '#fff', fontWeight: 'bold' }}
+            >
+              {t('Sign Out')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }

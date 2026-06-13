@@ -26,6 +26,15 @@ interface OtpInputProps {
 export default function OtpInput({ value, onChange, error, disabled }: OtpInputProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
+  React.useEffect(() => {
+    if (!disabled) {
+      const t = setTimeout(() => {
+        inputsRef.current[0]?.focus();
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [disabled]);
+
   // Split value into an array of 6 characters, padded with empty strings
   const otpArray = value.split('').concat(Array(6).fill('')).slice(0, 6);
 

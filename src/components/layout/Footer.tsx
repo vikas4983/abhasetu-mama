@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../../providers/LanguageProvider';
+import { useAuth } from '../../providers/AuthProvider';
 import { ShieldCheck, Lock, Accessibility, Mail, Phone, MapPin, Plus } from 'lucide-react';
 
 export default function Footer() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { currentUser } = useAuth();
   const year = new Date().getFullYear();
   const [selectedLogo, setSelectedLogo] = useState<string>('default');
 
@@ -91,7 +93,9 @@ export default function Footer() {
           <h3>Operations</h3>
           <a href="#" onClick={(e) => handleLinkClick(e, '/health')}>{t('Health Insights')}</a>
           <a href="#" onClick={(e) => handleLinkClick(e, '/more')}>{t('Compliance')}</a>
-          <a href="#" onClick={(e) => handleLinkClick(e, '/security')}>{t('Security Logs')}</a>
+          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'master_admin') && (
+            <a href="#" onClick={(e) => handleLinkClick(e, '/security')}>{t('Security Logs')}</a>
+          )}
           <a href="#" onClick={(e) => handleLinkClick(e, '/settings')}>{t('Settings')}</a>
         </section>
         <section>

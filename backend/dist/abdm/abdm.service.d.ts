@@ -217,4 +217,9 @@ export declare class AbdmService {
     requestDlOtp(mobile: string, dlToken: string, context?: any): Promise<any>;
     verifyDlOtp(otp: string, txnId: string, context?: any): Promise<any>;
     enrolByDl(dlDetails: any, context?: any): Promise<any>;
+    registerFacility(data: any): Promise<any>;
+    getFacilities(filters: any): Promise<any>;
+    updateFacilityStatus(id: number, status: string): Promise<any>;
+    toggleFacilityMark(id: number, isMarked: boolean): Promise<any>;
+    deleteFacility(id: number): Promise<any>;
 }

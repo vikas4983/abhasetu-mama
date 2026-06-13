@@ -34,14 +34,14 @@ export default function SettingsPage() {
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { settings, updateSettings } = useAccessibility();
-  const { logSecurityEvent } = useAuth();
+  const { logSecurityEvent, currentUser } = useAuth();
   
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedLogo, setSelectedLogo] = React.useState<string>('default');
   const [iconStyle, setIconStyle] = React.useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [previewSelection, setPreviewSelection] = React.useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
-  const [activeCategory, setActiveCategory] = React.useState<Category>('visual');
+  const [activeCategory, setActiveCategory] = React.useState<Category>('language');
 
   // Notification Toggles state
   const [notifPreferences, setNotifPreferences] = React.useState({
@@ -51,6 +51,18 @@ export default function SettingsPage() {
     sound: true,
     toastStyle: 'glassmorphic'
   });
+
+  const saveBrandingToServer = async (updates: Partial<{ selectedLogo: string; theme: string; iconStyle: string }>) => {
+    try {
+      await fetch('/api/abdm/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (e) {
+      console.error('Failed to save branding updates to database:', e);
+    }
+  };
 
   React.useEffect(() => {
     try {
@@ -75,7 +87,13 @@ export default function SettingsPage() {
       const hash = window.location.hash.replace('#', '');
       const validCategories: Category[] = ['visual', 'branding', 'homepage', 'language', 'accessibility', 'notifications'];
       if (hash && validCategories.includes(hash as Category)) {
-        setActiveCategory(hash as Category);
+        const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'master_admin';
+        if (['visual', 'branding', 'homepage'].includes(hash) && !isAdmin) {
+          setActiveCategory('language');
+          window.location.hash = 'language';
+        } else {
+          setActiveCategory(hash as Category);
+        }
       }
     };
 
@@ -84,7 +102,20 @@ export default function SettingsPage() {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []);
+  }, [currentUser]);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      const isAdmin = currentUser.role === 'admin' || currentUser.role === 'master_admin';
+      if (!isAdmin && ['visual', 'branding', 'homepage'].includes(activeCategory)) {
+        setActiveCategory('language');
+        window.location.hash = 'language';
+      } else if (isAdmin && activeCategory === 'language' && !window.location.hash) {
+        // Default admin to visual if no hash
+        setActiveCategory('visual');
+      }
+    }
+  }, [currentUser, activeCategory]);
 
   const handleLogoChange = (logoPath: string) => {
     setSelectedLogo(logoPath);
@@ -95,6 +126,7 @@ export default function SettingsPage() {
       window.dispatchEvent(new Event('setu_state_update'));
       logSecurityEvent('Logo Selection Changed', `Switched app brand logo context to ${logoPath}`);
       showToast(t('Application brand logo updated successfully.'));
+      saveBrandingToServer({ selectedLogo: logoPath });
     } catch (e) {
       console.error(e);
     }
@@ -109,6 +141,7 @@ export default function SettingsPage() {
       window.dispatchEvent(new Event('setu_state_update'));
       logSecurityEvent('Icon Style Changed', `Switched homepage icon style preference to ${style}`);
       showToast(t('Homepage quick-access icon style updated successfully.'));
+      saveBrandingToServer({ iconStyle: style });
     } catch (e) {
       console.error(e);
     }
@@ -125,6 +158,7 @@ export default function SettingsPage() {
     setTheme(newTheme);
     logSecurityEvent('Theme Changed', `Switched visual layout theme to ${newTheme}`);
     showToast(t(`Switched theme to ${newTheme.replace('-', ' ').toUpperCase()}`));
+    saveBrandingToServer({ theme: newTheme });
   };
 
   const handleLanguageChange = (lang: LanguageCode) => {
@@ -191,7 +225,7 @@ export default function SettingsPage() {
     { id: 'language' as Category, name: 'Languages Settings', icon: <Languages style={{ width: '16px', height: '16px' }} /> },
     { id: 'accessibility' as Category, name: 'Accessibility Helpers', icon: <Accessibility style={{ width: '16px', height: '16px' }} /> },
     { id: 'notifications' as Category, name: 'Notifications Channel', icon: <Bell style={{ width: '16px', height: '16px' }} /> }
-  ];
+  ].filter(cat => !['visual', 'branding', 'homepage'].includes(cat.id) || (currentUser?.role === 'admin' || currentUser?.role === 'master_admin'));
 
   return (
     <>
@@ -229,7 +263,7 @@ export default function SettingsPage() {
         <div className="settings-content-panel">
           
           {/* SECTION 1: VISUAL SETTINGS */}
-          {activeCategory === 'visual' && (
+          {activeCategory === 'visual' && (currentUser?.role === 'admin' || currentUser?.role === 'master_admin') && (
             <article className="route-card" style={{ animation: 'setu-fade-in 0.25s ease-in-out' }}>
               <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <Palette style={{ color: 'var(--accent-teal)' }} />
@@ -270,12 +304,6 @@ export default function SettingsPage() {
                     name: 'Saffron Emerald',
                     gradient: 'linear-gradient(135deg, #fa7a19 0%, #019443 100%)',
                     desc: 'Saffron & Emerald'
-                  },
-                  {
-                    id: 'crimson-red' as Theme,
-                    name: 'Crimson Red',
-                    gradient: 'linear-gradient(135deg, #7c0509 0%, #e63946 100%)',
-                    desc: 'Cardinal Red & Crimson'
                   },
                   {
                     id: 'abdm-sandbox' as Theme,
@@ -368,7 +396,7 @@ export default function SettingsPage() {
           )}
 
           {/* SECTION 2: BRANDING SETTINGS */}
-          {activeCategory === 'branding' && (
+          {activeCategory === 'branding' && (currentUser?.role === 'admin' || currentUser?.role === 'master_admin') && (
             <article className="route-card" style={{ animation: 'setu-fade-in 0.25s ease-in-out' }}>
               <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <ImageIcon style={{ color: 'var(--accent-teal)' }} />
@@ -485,7 +513,7 @@ export default function SettingsPage() {
           )}
 
           {/* SECTION 3: HOMEPAGE CUSTOMIZATION */}
-          {activeCategory === 'homepage' && (
+          {activeCategory === 'homepage' && (currentUser?.role === 'admin' || currentUser?.role === 'master_admin') && (
             <article className="route-card" style={{ animation: 'setu-fade-in 0.25s ease-in-out' }}>
               <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

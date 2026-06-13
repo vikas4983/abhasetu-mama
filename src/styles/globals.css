@@ -862,19 +862,13 @@ body.theme-light .theme-toggle-btn .moon-icon {
 /* Quick Access Grid */
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   gap: 8px !important;
-}
-
-@media (min-width: 400px) {
-  .quick-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
 }
 
 @media (min-width: 768px) {
   .quick-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
   }
 }
 
@@ -2181,10 +2175,6 @@ body.theme-light .theme-toggle-btn .moon-icon {
     font-size: 18px;
   }
 
-  .quick-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 10px !important;
-  }
 
   .quick-item {
     min-height: 104px;
@@ -2374,9 +2364,6 @@ body.theme-light .theme-toggle-btn .moon-icon {
     grid-column: span 5;
   }
 
-  .quick-grid {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-  }
 
   .quick-item {
     min-height: 112px;
@@ -7106,6 +7093,45 @@ body.theme-light .medicine-search-input:focus {
     flex-shrink: 0;
   }
 }
+
+/* Custom Logout Modal Overlay & Content to prevent global override issues */
+.logout-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  padding: 16px !important;
+}
+
+.logout-modal-content {
+  position: relative !important;
+  width: 90% !important;
+  max-width: 380px !important;
+  text-align: center !important;
+  padding: 28px !important;
+  background: color-mix(in srgb, var(--bg-card) 95%, transparent) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 40px color-mix(in srgb, var(--accent-teal) 15%, transparent) !important;
+  animation: setu-fade-in 0.25s ease-out forwards !important;
+}
+
+@keyframes setu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 
 
 

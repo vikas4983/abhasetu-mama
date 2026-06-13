@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Theme = 'dark-teal' | 'slate-dark' | 'ocean-blue' | 'emerald-light' | 'saffron-emerald' | 'crimson-red' | 'abdm-sandbox';
+export type Theme = 'dark-teal' | 'slate-dark' | 'ocean-blue' | 'emerald-light' | 'saffron-emerald' | 'abdm-sandbox';
 
 interface ThemeContextType {
   theme: Theme;
@@ -30,6 +30,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    const checkTheme = () => {
+      try {
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.theme && state.theme !== theme) {
+          setThemeState(state.theme);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    window.addEventListener('setu_state_update', checkTheme);
+    window.addEventListener('storage', checkTheme);
+    return () => {
+      window.removeEventListener('setu_state_update', checkTheme);
+      window.removeEventListener('storage', checkTheme);
+    };
+  }, [theme]);
+
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     try {
@@ -42,7 +61,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const cycleTheme = () => {
-    const themes: Theme[] = ['dark-teal', 'slate-dark', 'ocean-blue', 'emerald-light', 'saffron-emerald', 'crimson-red', 'abdm-sandbox'];
+    const themes: Theme[] = ['dark-teal', 'slate-dark', 'ocean-blue', 'emerald-light', 'saffron-emerald', 'abdm-sandbox'];
     const currentIdx = themes.indexOf(theme);
     const nextIdx = (currentIdx + 1) % themes.length;
     setTheme(themes[nextIdx]);

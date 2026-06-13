@@ -26,20 +26,56 @@ import { showToast } from '../../../utils/toast';
 import LogoLoader from '../../../components/common/LogoLoader';
 import { DRIVING_LICENSE_REGEX } from '../../../constants/regex.constants';
 
+/**
+ * Normalizes and returns the base64 source or static path of a profile image.
+ * @param {string} photo - base64 string or image path
+ * @returns {string} parsed image source
+ */
+const getPhotoSrc = (photo: string): string => {
+  if (!photo) return '';
+  if (photo.startsWith('data:') || photo.startsWith('http')) {
+    return photo;
+  }
+  if (photo.startsWith('/9j/')) {
+    return `data:image/jpeg;base64,${photo}`;
+  }
+  if (photo.startsWith('/')) {
+    return photo;
+  }
+  return `data:image/jpeg;base64,${photo}`;
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { loginWithOtp, loginWithDl } = useAuth();
+  const { loginWithOtp, loginWithDl, loginWithAbhaAccount } = useAuth();
 
   const [selectedRole, setSelectedRole] = useState<'patient' | 'doctor' | 'operator'>('patient');
   const [activeTab, setActiveTab] = useState<'mobile' | 'aadhaar' | 'abha' | 'dl'>('mobile');
   const [identifier, setIdentifier] = useState('');
+  const [aadhaarMobile, setAadhaarMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showSelectModal, setShowSelectModal] = useState(true);
+  const otpInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Profile Login States (Mobile/ABHA Number login)
+  const [mobileTxnId, setMobileTxnId] = useState('');
+  const [linkedAccounts, setLinkedAccounts] = useState<any[]>([]);
+  const [showAccountSelectModal, setShowAccountSelectModal] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
+
+  React.useEffect(() => {
+    if (otpSent) {
+      const t = setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [otpSent]);
 
   // DL Specific States
   const [dlNumber, setDlNumber] = useState('');
@@ -53,8 +89,8 @@ export default function LoginPage() {
   const [dlFrontPhoto, setDlFrontPhoto] = useState('');
   const [dlBackPhoto, setDlBackPhoto] = useState('');
 
-  // Simulate OTP sending
-  const handleSendOtp = (e: React.FormEvent) => {
+  // Send OTP
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier) {
       showToast(t('Please enter a valid identifier.'));
@@ -64,11 +100,66 @@ export default function LoginPage() {
     setIsSendingOtp(true);
     setErrorMsg('');
 
-    setTimeout(() => {
-      setIsSendingOtp(false);
-      setOtpSent(true);
-      showToast(t('Simulated OTP sent! Use verification code: 123456'));
-    }, 1200);
+    if (activeTab === 'mobile' || activeTab === 'abha') {
+      try {
+        const cleanedId = identifier.replace(/[-\s]/g, '').trim();
+        const hint = activeTab === 'mobile' ? 'mobile' : 'abha-number';
+        
+        const res = await fetch('/api/abdm/v3/profile/login/request/otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scope: ['abha-login', 'mobile-verify'],
+            loginHint: hint,
+            loginId: cleanedId,
+            otpSystem: 'abdm'
+          })
+        });
+        const data = await res.json();
+        setIsSendingOtp(false);
+
+        if (res.ok && data.txnId) {
+          setMobileTxnId(data.txnId);
+          setOtpSent(true);
+          showToast(t(data.message || 'OTP sent successfully!'));
+        } else {
+          const msg = data.description || data.message || data.loginId || data.scope || data.loginHint || t('Failed to send OTP.');
+          setErrorMsg(msg);
+          showToast(t('Failed to send OTP.'));
+        }
+      } catch (err: any) {
+        setIsSendingOtp(false);
+        setErrorMsg(err.message || t('Gateway connection failed.'));
+        showToast(t('Network error.'));
+      }
+    } else if (activeTab === 'aadhaar') {
+      try {
+        const cleanedId = identifier.replace(/[-\s]/g, '').trim();
+        const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            loginHint: 'aadhaar',
+            loginId: cleanedId
+          })
+        });
+        const data = await res.json();
+        setIsSendingOtp(false);
+
+        if (res.ok && data.txnId) {
+          setMobileTxnId(data.txnId);
+          setOtpSent(true);
+          showToast(t(data.message || 'OTP sent to Aadhaar-linked mobile!'));
+        } else {
+          setErrorMsg(data.message || t('Failed to send Aadhaar OTP.'));
+          showToast(t('Failed to send OTP.'));
+        }
+      } catch (err: any) {
+        setIsSendingOtp(false);
+        setErrorMsg(err.message || t('Gateway connection failed.'));
+        showToast(t('Network error.'));
+      }
+    }
   };
 
   // DL OTP Request Flow
@@ -125,17 +216,130 @@ export default function LoginPage() {
     setIsVerifying(true);
     setErrorMsg('');
 
-    setTimeout(async () => {
-      const success = await loginWithOtp(selectedRole, identifier, otp);
+    if (activeTab === 'mobile' || activeTab === 'abha') {
+      try {
+        const res = await fetch('/api/abdm/v3/profile/login/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scope: ['abha-login', 'mobile-verify'],
+            authData: {
+              authMethods: ['otp'],
+              otp: {
+                txnId: mobileTxnId,
+                otpValue: otp
+              }
+            }
+          })
+        });
+        const data = await res.json();
+        setIsVerifying(false);
+
+        if (res.ok && data.authResult === 'success') {
+          showToast(t('OTP verified successfully!'));
+          if (data.accounts && data.accounts.length > 0) {
+            setLinkedAccounts(data.accounts);
+            setSelectedAccount(data.accounts[0]);
+            if (data.accounts.length === 1) {
+              handleSelectAbhaAccount(data.accounts[0], data.accounts);
+            } else {
+              setShowAccountSelectModal(true);
+            }
+          } else {
+            setErrorMsg(t('No linked accounts found.'));
+          }
+        } else {
+          const msg = data.description || data.message || data.otpValue || data.txnId || data.authMethods || data.scope || t('Verification failed.');
+          setErrorMsg(msg);
+          showToast(t('Verification failed.'));
+        }
+      } catch (err: any) {
+        setIsVerifying(false);
+        setErrorMsg(err.message || t('Gateway connection failed.'));
+        showToast(t('Network error.'));
+      }
+    } else if (activeTab === 'aadhaar') {
+      try {
+        const res = await fetch('/api/abdm/v3/enrollment/enrol/byAadhaar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            txnId: mobileTxnId,
+            authData: {
+              otp: {
+                otpValue: otp,
+                mobile: aadhaarMobile
+              }
+            }
+          })
+        });
+        const data = await res.json();
+        setIsVerifying(false);
+
+        if (res.ok && data.status === 'success') {
+          showToast(t('OTP verified successfully!'));
+          const profile = data.ABHAProfile || data;
+          const finalName = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || 'Aarav Sharma';
+          const normalizedAcc = {
+            name: finalName,
+            preferredAbhaAddress: data.abhaAddress || profile.preferredAddress || profile.abhaId || 'ayesha.ali.9981057765@abdm',
+            ABHANumber: data.abhaNumber || profile.abhaNumber || '91-9981-0577-6582',
+            profilePhoto: profile.photo || '',
+            gender: profile.gender === 'F' ? 'Female' : profile.gender === 'M' ? 'Male' : profile.gender,
+            dob: profile.dob || '',
+            mobile: profile.mobile || ''
+          };
+          const success = await loginWithAbhaAccount(selectedRole, normalizedAcc, [normalizedAcc]);
+          if (success) {
+            const sessionTtl = 1200;
+            const refreshTtl = 1800;
+            localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+            localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
+            localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+            localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
+            window.dispatchEvent(new Event('setu_state_update'));
+
+            showToast(t('Authentication successful! Welcome back.'));
+            router.push('/');
+          } else {
+            showToast(t('Failed to establish local session.'));
+          }
+        } else {
+          setErrorMsg(data.message || t('Verification failed.'));
+          showToast(t('Verification failed.'));
+        }
+      } catch (err: any) {
+        setIsVerifying(false);
+        setErrorMsg(err.message || t('Gateway connection failed.'));
+        showToast(t('Network error.'));
+      }
+    }
+  };
+
+  const handleSelectAbhaAccount = async (acc: any, allAccounts?: any[]) => {
+    setIsVerifying(true);
+    try {
+      const success = await loginWithAbhaAccount(selectedRole, acc, allAccounts || linkedAccounts || [acc]);
       setIsVerifying(false);
       if (success) {
-        showToast(t('Authentication successful! Welcome back.'));
+        const sessionTtl = 1200;
+        const refreshTtl = 1800;
+        localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+        localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
+        localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+        localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
+        window.dispatchEvent(new Event('setu_state_update'));
+
+        setShowAccountSelectModal(false);
+        showToast(t('ABHA account linked and authenticated!'));
         router.push('/');
       } else {
-        setErrorMsg(t('Invalid OTP or credential mismatch. Please try again. (Hint: Use 123456)'));
-        showToast(t('Authorization failed.'));
+        showToast(t('Failed to establish local session.'));
       }
-    }, 1500);
+    } catch (e: any) {
+      setIsVerifying(false);
+      showToast(e.message || t('Authentication failed.'));
+    }
   };
 
   // DL OTP Verify Flow
@@ -209,7 +413,7 @@ export default function LoginPage() {
 
       if (res.ok && data.status === 'success') {
         setShowDlModal(false);
-        await loginWithDl(dlNumber, `${dlFirstName} ${dlLastName}`);
+        await loginWithDl(dlNumber, data.abhaProfile);
         showToast(t('Authentication successful! Welcome back.'));
         router.push('/');
       } else {
@@ -263,7 +467,23 @@ export default function LoginPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '440px' }}>
         
         {/* Login Card */}
-        <div className="login-card" style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '30px 24px', boxShadow: 'var(--surface-shadow)', backdropFilter: 'blur(20px)' }}>
+        <div className="login-card" style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '30px 24px', boxShadow: 'var(--surface-shadow)', backdropFilter: 'blur(20px)', position: 'relative' }}>
+          
+          {/* Shimmer progress bar at top of card when submitting */}
+          {(isSendingOtp || isVerifying) && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: 'linear-gradient(90deg, transparent, var(--accent-teal), transparent)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer-sweep 1.2s infinite linear',
+              borderTopLeftRadius: '16px',
+              borderTopRightRadius: '16px'
+            }} />
+          )}
           
           {/* Brand Logo */}
           <div className="logo" style={{ justifyContent: 'center', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -301,52 +521,6 @@ export default function LoginPage() {
             <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--accent-teal)', textTransform: 'uppercase' }}>Citizen / Patient Portal</span>
           </div>
 
-          {/* Tabbed Auth Mode Selector */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Validation Method</span>
-            <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: '30px', padding: '3px', border: '1px solid var(--border-color)' }}>
-              {[
-                { id: 'mobile', label: 'Mobile OTP', icon: Phone },
-                { id: 'aadhaar', label: 'Aadhaar OTP', icon: CreditCard },
-                { id: 'abha', label: 'ABHA OTP', icon: Heart },
-                { id: 'dl', label: 'DL Validation', icon: CreditCard }
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.id as any);
-                      setOtpSent(false);
-                      setIdentifier('');
-                      setOtp('');
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '6px 4px',
-                      borderRadius: '20px',
-                      border: 'none',
-                      background: isActive ? 'var(--accent-teal)' : 'transparent',
-                      color: isActive ? '#fff' : 'var(--text-secondary)',
-                      fontSize: '10.5px',
-                      fontWeight: isActive ? 'bold' : '500',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Icon style={{ width: '12px', height: '12px' }} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Form Area */}
           {!otpSent ? (
@@ -461,6 +635,7 @@ export default function LoginPage() {
                 <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Enter 6-Digit OTP Code
                   <input
+                    ref={otpInputRef}
                     type="text"
                     required
                     maxLength={6}
@@ -533,9 +708,26 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                {activeTab === 'aadhaar' && (
+                  <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    Aadhaar-Linked Mobile Number
+                    <input
+                      type="tel"
+                      required
+                      maxLength={10}
+                      disabled={isVerifying}
+                      value={aadhaarMobile}
+                      onChange={(e) => setAadhaarMobile(e.target.value.replace(/\D/g, ''))}
+                      placeholder="e.g. 9876543210"
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'monospace', outline: 'none', opacity: isVerifying ? 0.6 : 1 }}
+                    />
+                  </label>
+                )}
+
                 <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Enter 6-Digit OTP Code
                   <input
+                    ref={otpInputRef}
                     type="text"
                     required
                     maxLength={6}
@@ -692,8 +884,30 @@ export default function LoginPage() {
                       transition: 'all 0.2s ease-in-out'
                     }}
                   >
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(20, 184, 166, 0.1)', display: 'grid', placeItems: 'center', color: 'var(--accent-teal)' }}>
-                      <Icon style={{ width: '16px', height: '16px' }} />
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: '#ffffff',
+                      padding: ['aadhaar', 'abha', 'mobile', 'dl'].includes(item.id) ? '4px' : '0',
+                      border: '1px solid rgba(0,0,0,0.06)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--accent-teal)',
+                      overflow: 'hidden'
+                    }}>
+                      {item.id === 'aadhaar' ? (
+                        <img src="/assets/logos/aadhaar.png" alt="Aadhaar" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : item.id === 'abha' ? (
+                        <img src="/assets/logos/abha.png" alt="ABHA" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : item.id === 'mobile' ? (
+                        <img src="/assets/logos/mobile.png" alt="Mobile" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : item.id === 'dl' ? (
+                        <img src="/assets/logos/dl.png" alt="DL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : (
+                        <Icon style={{ width: '16px', height: '16px' }} />
+                      )}
                     </div>
                     <span style={{ fontSize: '11px', fontWeight: 'bold', display: 'block' }}>{item.label}</span>
                     <span style={{ fontSize: '9px', color: 'var(--text-muted)', lineHeight: '1.3' }}>{item.desc}</span>
@@ -883,6 +1097,156 @@ export default function LoginPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Account Selection Modal */}
+      {showAccountSelectModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(10px)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '500px',
+            padding: '30px',
+            boxShadow: 'var(--surface-shadow)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <img src="/assets/logos/logo7.png" alt="Logo" style={{ width: '30px', height: '30px', objectFit: 'contain' }} />
+                <h1 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>ABHA SETU</h1>
+              </div>
+              <h2 style={{ fontSize: '16px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>Select ABHA Profile</h2>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>
+                We found {linkedAccounts.length} profiles linked with this number. Choose one to log in:
+              </p>
+            </div>
+
+            {/* List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+              {linkedAccounts.map((acc, index) => {
+                const isSelected = selectedAccount && (selectedAccount.ABHANumber === acc.ABHANumber || selectedAccount.preferredAbhaAddress === acc.preferredAbhaAddress);
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setSelectedAccount(acc)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                      padding: '14px',
+                      borderRadius: '16px',
+                      border: isSelected ? '1.5px solid var(--accent-teal)' : '1px solid var(--border-color)',
+                      background: isSelected ? 'rgba(20, 184, 166, 0.08)' : 'var(--bg-secondary)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxShadow: isSelected ? '0 0 12px rgba(20, 184, 166, 0.15)' : 'none'
+                    }}
+                  >
+                    <div style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: 'rgba(20, 184, 166, 0.1)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {acc.profilePhoto ? (
+                        <img src={getPhotoSrc(acc.profilePhoto)} alt={acc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <Fingerprint style={{ width: '20px', height: '20px', color: 'var(--accent-teal)' }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{acc.name}</span>
+                        <span style={{ fontSize: '9px', background: 'rgba(20, 184, 166, 0.15)', color: 'var(--accent-teal)', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                          {acc.verificationType || 'VERIFIED'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '2px' }}>
+                        ABHA ID: {acc.preferredAbhaAddress || 'N/A'}
+                      </div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        ABHA No: {acc.ABHANumber} | Gender: {acc.gender === 'M' ? 'Male' : 'Female'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAccountSelectModal(false);
+                  setIsVerifying(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!selectedAccount}
+                onClick={() => handleSelectAbhaAccount(selectedAccount)}
+                className="join-btn"
+                style={{
+                  flex: 2,
+                  padding: '12px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: !selectedAccount ? 'not-allowed' : 'pointer',
+                  opacity: !selectedAccount ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Sparkles style={{ width: '14px', height: '14px' }} />
+                <span>Confirm & Log In</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -8,13 +8,16 @@
  * @modified    2026-06-10
  */
 
-import { Controller, Get, Post, Put, Delete, Body, Query, Res, Req, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query, Res, Req, HttpStatus, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AbdmService } from './abdm.service';
 import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CryptoService } from './crypto.service';
 import * as crypto from 'crypto';
 import * as express from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 function getCookie(cookieHeader: string | undefined, name: string): string {
   if (!cookieHeader) return '';
@@ -411,19 +414,36 @@ export class AbdmController {
     if (result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
-
     if (result.token) {
-      res.cookie('x_token', result.token, {
+      res.cookie('verify_via_abha_number_token', result.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: (result.expiresIn || 300) * 1000
       });
-      res.cookie('session_id', result.token, {
+      res.cookie('verify_via_abha_number_session_id', result.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: (result.expiresIn || 300) * 1000
+      });
+    }
+
+    if (result.refreshToken) {
+      res.cookie('verify_via_abha_number_refresh_token', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: (result.refreshExpiresIn || 1296000) * 1000
+      });
+    }
+
+    if (result.txnId) {
+      res.cookie('verify_via_abha_number_txn_id', result.txnId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
       });
     }
 
@@ -438,9 +458,11 @@ export class AbdmController {
    */
   @Get('v3/profile/account/abha-card')
   async downloadAbhaCard(@Req() req: express.Request, @Res() res: express.Response) {
-    const xToken = getCookie(req.headers.cookie, 'x_token');
+    let xToken = getCookie(req.headers.cookie, 'x_token');
+    if (!xToken) {
+      xToken = getCookie(req.headers.cookie, 'verify_via_abha_number_token');
+    }
 
-    console.log('[downloadAbhaCard] X-Token cookie length:', xToken ? xToken.length : 0);
     if (!xToken) {
       return res.status(HttpStatus.BAD_REQUEST).json({
         status: 'error',
@@ -494,7 +516,10 @@ export class AbdmController {
         message: 'New email address cannot be the same as your current email address.'
       });
     }
-    const xToken = getCookie(req.headers.cookie, 'x_token');
+    let xToken = getCookie(req.headers.cookie, 'x_token');
+    if (!xToken) {
+      xToken = getCookie(req.headers.cookie, 'verify_via_abha_number_token');
+    }
 
     if (!xToken) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -1003,6 +1028,120 @@ export class AbdmController {
       return { status: 'success', publicKey, privateKey };
     } catch (error: any) {
       return { status: 'error', message: error.message || 'Key pair generation failed.' };
+    }
+  }
+
+  // --- MULTI-ROLE FACILITY REGISTRY ENDPOINTS ---
+
+  @Post('admin/register-facility')
+  async registerFacility(@Body() body: any, @Res() res: express.Response) {
+    try {
+      const result = await this.abdmService.registerFacility(body);
+      if (result.status === 'success') {
+        return res.status(HttpStatus.CREATED).json(result);
+      } else {
+        return res.status(HttpStatus.BAD_REQUEST).json(result);
+      }
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/facilities')
+  async getFacilities(
+    @Query('search') search: string,
+    @Query('status') status: string,
+    @Query('role') role: string,
+    @Query('marked') marked: string,
+    @Query('sortBy') sortBy: string,
+    @Query('sortOrder') sortOrder: string,
+    @Res() res: express.Response
+  ) {
+    try {
+      const result = await this.abdmService.getFacilities({ search, status, role, marked, sortBy, sortOrder });
+      return res.status(HttpStatus.OK).json({ status: 'success', facilities: result });
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/facilities/status')
+  async updateFacilityStatus(
+    @Query('id') id: string,
+    @Body('status') status: string,
+    @Res() res: express.Response
+  ) {
+    try {
+      const result = await this.abdmService.updateFacilityStatus(Number(id), status);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/facilities/mark')
+  async toggleFacilityMark(
+    @Query('id') id: string,
+    @Body('isMarked') isMarked: boolean,
+    @Res() res: express.Response
+  ) {
+    try {
+      const result = await this.abdmService.toggleFacilityMark(Number(id), isMarked);
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('admin/facilities')
+  async deleteFacility(@Query('id') id: string, @Res() res: express.Response) {
+    try {
+      const result = await this.abdmService.deleteFacility(Number(id));
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/facilities/add')
+  async adminAddFacility(@Body() body: any, @Res() res: express.Response) {
+    try {
+      const result = await this.abdmService.registerFacility({ ...body, status: 'approved' });
+      if (result.status === 'success') {
+        return res.status(HttpStatus.CREATED).json(result);
+      } else {
+        return res.status(HttpStatus.BAD_REQUEST).json(result);
+      }
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
+    }
+  }
+
+  @Post('admin/upload-doc')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDoc(@UploadedFile() file: any, @Res() res: express.Response) {
+    try {
+      if (!file) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'No file uploaded.' });
+      }
+      const uploadDir = path.join(process.cwd(), '../public/uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      const filename = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const filePath = path.join(uploadDir, filename);
+      fs.writeFileSync(filePath, file.buffer);
+      return res.status(HttpStatus.OK).json({
+        status: 'success',
+        url: `/uploads/${filename}`
+      });
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
     }
   }
 }

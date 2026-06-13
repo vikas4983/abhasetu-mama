@@ -24,7 +24,15 @@ import {
   Key,
   User,
   Star,
-  CreditCard
+  CreditCard,
+  Building2,
+  Search,
+  Grid,
+  List,
+  Download,
+  RefreshCw,
+  Check,
+  Ban
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import OtpInput from '../../../components/common/OtpInput';
@@ -101,7 +109,7 @@ export default function AdminDashboardPage() {
   const { currentUser, logout } = useAuth();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'config' | 'health' | 'products' | 'policies' | 'labPackages' | 'logs' | 'doctors' | 'transactions'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'health' | 'products' | 'policies' | 'labPackages' | 'logs' | 'doctors' | 'transactions' | 'facilities'>('config');
 
   // Authorization token
   const [token, setToken] = useState<string>('');
@@ -119,7 +127,7 @@ export default function AdminDashboardPage() {
     sandboxMode: true
   });
 
-  // Key Sync State
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSyncingKey, setIsSyncingKey] = useState(false);
 
   // Live Gateway API Playground State
@@ -441,6 +449,24 @@ export default function AdminDashboardPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [transactionsSearch, setTransactionsSearch] = useState('');
 
+  // Facilities state
+  const [facilities, setFacilities] = useState<any[]>([]);
+  const [facilitiesSearch, setFacilitiesSearch] = useState('');
+  const [facilitiesStatusFilter, setFacilitiesStatusFilter] = useState('ALL');
+  const [facilitiesRoleFilter, setFacilitiesRoleFilter] = useState('ALL');
+  const [facilitiesMarkedFilter, setFacilitiesMarkedFilter] = useState('ALL');
+  const [facilitiesSortBy, setFacilitiesSortBy] = useState('created_at');
+  const [facilitiesSortOrder, setFacilitiesSortOrder] = useState('DESC');
+  const [facilitiesLayout, setFacilitiesLayout] = useState<'table' | 'grid'>('table');
+  const [isFetchingFacilities, setIsFetchingFacilities] = useState(false);
+  const [actionInProgressId, setActionInProgressId] = useState<number | null>(null);
+
+  // Confirmation Modal state for risky facility actions (Delete, Approve, Block, Reject)
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmFacility, setConfirmFacility] = useState<any | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'block' | 'unblock' | 'delete' | null>(null);
+  const [confirmModalLoading, setConfirmModalLoading] = useState(false);
+
   // Authentication shield and loading on mount
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
@@ -457,7 +483,103 @@ export default function AdminDashboardPage() {
     loadDoctors();
     loadLogs(adminToken);
     loadTransactions(adminToken);
+    loadFacilities(adminToken);
   }, [currentUser]);
+
+  const loadFacilities = (activeToken: string) => {
+    setIsFetchingFacilities(true);
+    fetch('/api/abdm/admin/facilities', {
+      headers: { 'Authorization': `Bearer ${activeToken}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setFacilities(data.facilities || []);
+        }
+      })
+      .catch(err => console.error('Error loading facilities:', err))
+      .finally(() => setIsFetchingFacilities(false));
+  };
+
+  const triggerActionConfirm = (facility: any, action: 'approve' | 'reject' | 'block' | 'unblock' | 'delete') => {
+    setConfirmFacility(facility);
+    setConfirmAction(action);
+    setIsConfirmModalOpen(true);
+  };
+
+  const executeFacilityAction = async () => {
+    if (!confirmFacility || !confirmAction) return;
+
+    const id = confirmFacility.id;
+    const name = confirmFacility.name;
+    let endpoint = `/api/abdm/admin/facilities/status?id=${id}`;
+    let method = 'POST';
+    let body: any = null;
+    let logEvent = 'Facility Status Updated';
+    let logDetails = '';
+    let successMsg = '';
+
+    if (confirmAction === 'delete') {
+      endpoint = `/api/abdm/admin/facilities?id=${id}`;
+      method = 'DELETE';
+      logEvent = 'Facility Deleted';
+      logDetails = `Deleted facility "${name}" (ID: ${id})`;
+      successMsg = t('Facility removed successfully!');
+    } else {
+      let newStatus = '';
+      if (confirmAction === 'approve' || confirmAction === 'unblock') newStatus = 'approved';
+      else if (confirmAction === 'reject') newStatus = 'rejected';
+      else if (confirmAction === 'block') newStatus = 'blocked';
+
+      body = { status: newStatus };
+      logDetails = `Facility ID ${id} status updated to: ${newStatus.toUpperCase()}`;
+      successMsg = t(`Facility status updated to ${newStatus}!`);
+    }
+
+    setConfirmModalLoading(true);
+    setActionInProgressId(id);
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(successMsg);
+
+        // Write security log
+        await fetch('/api/abdm/admin/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            event: logEvent,
+            status: 'SUCCESS',
+            details: logDetails
+          })
+        });
+
+        loadLogs(token);
+        loadFacilities(token);
+        setIsConfirmModalOpen(false);
+        setConfirmFacility(null);
+        setConfirmAction(null);
+      } else {
+        showToast(data.message || t('Action failed.'));
+      }
+    } catch (err: any) {
+      showToast(t('Error executing action.'));
+    } finally {
+      setConfirmModalLoading(false);
+      setActionInProgressId(null);
+    }
+  };
 
   const loadConfig = (activeToken: string) => {
     fetch('/api/abdm/admin/config', {
@@ -1086,8 +1208,7 @@ export default function AdminDashboardPage() {
   };
 
   const triggerLogout = () => {
-    logout();
-    showToast(t('Admin session terminated successfully.'));
+    setShowLogoutConfirm(true);
   };
 
   return (
@@ -1141,6 +1262,7 @@ export default function AdminDashboardPage() {
         {[
           { id: 'config', label: 'ABDM Settings', icon: Settings },
           { id: 'health', label: 'ABDM Health Tests', icon: Activity },
+          { id: 'facilities', label: 'Facilities Registry', icon: Building2 },
           { id: 'doctors', label: 'Doctors Manager', icon: User },
           { id: 'products', label: 'Products Manager', icon: Database },
           { id: 'policies', label: 'Policies Manager', icon: FileText },
@@ -2400,6 +2522,955 @@ export default function AdminDashboardPage() {
           );
         })()}
 
+        {/* ================= FACILITIES REGISTRY TAB ================= */}
+        {activeTab === 'facilities' && (() => {
+          // Client-side search, filter, and sort
+          const filteredFacilities = facilities
+            .filter(fac => {
+              if (facilitiesSearch.trim()) {
+                const query = facilitiesSearch.trim().toLowerCase();
+                const matchesName = fac.name?.toLowerCase().includes(query);
+                const matchesEmail = fac.email?.toLowerCase().includes(query);
+                if (!matchesName && !matchesEmail) return false;
+              }
+              if (facilitiesStatusFilter !== 'ALL') {
+                if (fac.status !== facilitiesStatusFilter) return false;
+              }
+              if (facilitiesRoleFilter !== 'ALL') {
+                if (fac.role_name !== facilitiesRoleFilter) return false;
+              }
+              if (facilitiesMarkedFilter !== 'ALL') {
+                const checkMarked = facilitiesMarkedFilter === 'marked';
+                if (!!fac.is_marked !== checkMarked) return false;
+              }
+              return true;
+            })
+            .sort((a, b) => {
+              let valA: any = a[facilitiesSortBy];
+              let valB: any = b[facilitiesSortBy];
+
+              if (facilitiesSortBy === 'created_at') {
+                valA = new Date(valA || 0).getTime();
+                valB = new Date(valB || 0).getTime();
+              } else {
+                valA = String(valA || '').toLowerCase();
+                valB = String(valB || '').toLowerCase();
+              }
+
+              if (valA < valB) return facilitiesSortOrder === 'ASC' ? -1 : 1;
+              if (valA > valB) return facilitiesSortOrder === 'ASC' ? 1 : -1;
+              return 0;
+            });
+
+          const updateStatus = async (id: number, newStatus: string) => {
+            setActionInProgressId(id);
+            try {
+              const res = await fetch(`/api/abdm/admin/facilities/status?id=${id}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: newStatus })
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                showToast(t(`Facility status updated to ${newStatus}!`));
+                
+                // Write security log
+                await fetch('/api/abdm/admin/logs', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    event: 'Facility Status Updated',
+                    status: 'SUCCESS',
+                    details: `Facility ID ${id} status updated to: ${newStatus.toUpperCase()}`
+                  })
+                });
+                loadLogs(token);
+                loadFacilities(token);
+              } else {
+                showToast(data.message || t('Failed to update status.'));
+              }
+            } catch (err: any) {
+              showToast(t('Error updating status.'));
+            } finally {
+              setActionInProgressId(null);
+            }
+          };
+
+          const toggleMark = async (id: number, currentMarked: boolean) => {
+            try {
+              const res = await fetch(`/api/abdm/admin/facilities/mark?id=${id}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ isMarked: !currentMarked })
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                showToast(currentMarked ? t('Bookmark removed') : t('Facility bookmarked!'));
+                loadFacilities(token);
+              }
+            } catch (err) {
+              showToast(t('Error updating bookmark status.'));
+            }
+          };
+
+          const deleteFacility = async (id: number, name: string) => {
+            if (!confirm(t(`Are you sure you want to permanently remove facility "${name}"? This action cannot be undone.`))) return;
+            setActionInProgressId(id);
+            try {
+              const res = await fetch(`/api/abdm/admin/facilities?id=${id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                showToast(t('Facility removed successfully!'));
+                
+                // Write security log
+                await fetch('/api/abdm/admin/logs', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    event: 'Facility Deleted',
+                    status: 'SUCCESS',
+                    details: `Deleted facility "${name}" (ID: ${id})`
+                  })
+                });
+                loadLogs(token);
+                loadFacilities(token);
+              } else {
+                showToast(data.message || t('Failed to delete facility.'));
+              }
+            } catch (err) {
+              showToast(t('Error deleting facility.'));
+            } finally {
+              setActionInProgressId(null);
+            }
+          };
+
+          const getRoleBadgeColor = (roleName: string) => {
+            switch (roleName) {
+              case 'hospital': return '#0ea5e9';
+              case 'clinic': return '#10b981';
+              case 'lab': return '#8b5cf6';
+              case 'diagnostic_centre': return '#f59e0b';
+              case 'pharmacy': return '#ec4899';
+              case 'iqra_alumni': return '#6366f1';
+              case 'insurance_org': return '#14b8a6';
+              case 'individual_doctor': return '#a855f7';
+              default: return '#6b7280';
+            }
+          };
+
+          const getStatusBadgeColor = (status: string) => {
+            switch (status) {
+              case 'approved': return 'var(--success)';
+              case 'pending': return 'var(--warning)';
+              case 'rejected': return 'var(--danger)';
+              case 'blocked': return '#6b7280';
+              default: return 'var(--text-secondary)';
+            }
+          };
+
+          const renderDetailsSummary = (roleName: string, details: any) => {
+            if (!details) return 'N/A';
+            switch (roleName) {
+              case 'hospital':
+                return `Beds: ${details.bedCount || 0} | ${details.specialties || 'General'}`;
+              case 'clinic':
+                return `Fee: ₹${details.consultationFee || 0} | ${details.specialties || 'General'}`;
+              case 'lab':
+                return `Accreditation: ${details.accreditation || 'None'} | Tests: ${details.testsCovered || 'None'}`;
+              case 'diagnostic_centre':
+                return `Equip: ${details.imagingEquip || 'Basic'} | Tests: ${details.testsCovered || 'None'}`;
+              case 'pharmacy':
+                return `Lic: ${details.licenseNumber || 'N/A'} | Delivery: ${details.homeDelivery ? 'Yes' : 'No'}`;
+              case 'iqra_alumni':
+                return `Reg: ${details.registrationId || 'N/A'} | Expertise: ${details.expertise || 'None'} (${details.experienceYears || 0} yrs)`;
+              case 'insurance_org':
+                return `Lic: ${details.licenseNumber || 'N/A'} | Policies: ${details.policiesCount || 0}`;
+              case 'individual_doctor':
+                return `Reg: ${details.registrationId || 'N/A'} | Expertise: ${details.expertise || 'None'} (₹${details.consultationFee || 0})`;
+              default:
+                return details.address || 'N/A';
+            }
+          };
+
+          const renderDocumentLinks = (roleName: string, details: any) => {
+            if (!details) return <span style={{ color: 'var(--text-muted)' }}>None</span>;
+            const docPath = details.abdmDoc || details.degreeDoc;
+            const photosPath = details.photos;
+            
+            const docs: any[] = [];
+            if (typeof docPath === 'string' && docPath.trim()) {
+              docs.push(...docPath.split(',').map(d => ({ path: d.trim(), type: 'doc' })));
+            }
+            if (typeof photosPath === 'string' && photosPath.trim()) {
+              docs.push(...photosPath.split(',').map(d => ({ path: d.trim(), type: 'photo' })));
+            }
+
+            if (docs.length === 0) return <span style={{ color: 'var(--text-muted)' }}>None</span>;
+
+            return (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {docs.map((doc, idx) => {
+                  const cleanPath = doc.path;
+                  if (!cleanPath) return null;
+                  const fileName = cleanPath.split(/[/\\]/).pop() || `${doc.type === 'photo' ? 'Photo' : 'Doc'} ${idx + 1}`;
+                  return (
+                    <a
+                      key={idx}
+                      href={cleanPath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: doc.type === 'photo' ? 'var(--accent-teal)' : 'var(--accent-cyan)',
+                        textDecoration: 'none',
+                        fontWeight: 'bold'
+                      }}
+                      title={fileName}
+                    >
+                      <Download style={{ width: '12px', height: '12px' }} />
+                      <span style={{ fontSize: '10px' }}>{fileName.length > 12 ? fileName.substring(0, 9) + '...' : fileName}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            );
+          };
+
+          const renderGridDetails = (roleName: string, details: any) => {
+            if (!details) return <div>No details provided</div>;
+            const items = [];
+            if (details.address) items.push({ label: 'Address', value: details.address });
+            if (details.contact) items.push({ label: 'Contact', value: details.contact });
+
+            switch (roleName) {
+              case 'hospital':
+                if (details.bedCount) items.push({ label: 'Bed Count', value: details.bedCount });
+                if (details.specialties) items.push({ label: 'Specialties', value: details.specialties });
+                break;
+              case 'clinic':
+                if (details.specialties) items.push({ label: 'Specialties', value: details.specialties });
+                if (details.consultationFee) items.push({ label: 'Consultation Fee', value: `₹${details.consultationFee}` });
+                break;
+              case 'lab':
+                if (details.testsCovered) items.push({ label: 'Tests Covered', value: details.testsCovered });
+                if (details.accreditation) items.push({ label: 'Accreditation', value: details.accreditation });
+                break;
+              case 'diagnostic_centre':
+                if (details.testsCovered) items.push({ label: 'Tests Covered', value: details.testsCovered });
+                if (details.imagingEquip) items.push({ label: 'Imaging Equip', value: details.imagingEquip });
+                break;
+              case 'pharmacy':
+                if (details.licenseNumber) items.push({ label: 'License Number', value: details.licenseNumber });
+                items.push({ label: 'Home Delivery', value: details.homeDelivery ? 'Yes' : 'No' });
+                break;
+              case 'iqra_alumni':
+                if (details.licenseNumber) items.push({ label: 'License Number', value: details.licenseNumber });
+                if (details.registrationId) items.push({ label: 'Registration ID', value: details.registrationId });
+                if (details.expertise) items.push({ label: 'Expertise', value: details.expertise });
+                if (details.experienceYears) items.push({ label: 'Experience', value: `${details.experienceYears} Years` });
+                break;
+              case 'insurance_org':
+                if (details.licenseNumber) items.push({ label: 'License Number', value: details.licenseNumber });
+                if (details.coverageDetails) items.push({ label: 'Coverage Details', value: details.coverageDetails });
+                if (details.policiesCount) items.push({ label: 'Policies Count', value: details.policiesCount });
+                break;
+              case 'individual_doctor':
+                if (details.licenseNumber) items.push({ label: 'License Number', value: details.licenseNumber });
+                if (details.registrationId) items.push({ label: 'Registration ID', value: details.registrationId });
+                if (details.expertise) items.push({ label: 'Expertise', value: details.expertise });
+                if (details.consultationFee) items.push({ label: 'Consultation Fee', value: `₹${details.consultationFee}` });
+                break;
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {items.map((item, index) => (
+                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed rgba(255,255,255,0.05)', paddingBottom: '2px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{item.label}:</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: '550', textAlign: 'right' }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          };
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Controls Header */}
+              <article className="route-card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Building2 style={{ width: '16px', height: '16px', color: 'var(--accent-teal)' }} />
+                    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t('Facilities Management Registry')}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button 
+                      type="button"
+                      onClick={() => loadFacilities(token)}
+                      disabled={isFetchingFacilities}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        background: 'transparent',
+                        color: 'var(--text-primary)',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        opacity: isFetchingFacilities ? 0.6 : 1
+                      }}
+                    >
+                      <RefreshCw style={{ width: '12px', height: '12px', animation: isFetchingFacilities ? 'spin 1.5s linear infinite' : 'none' }} />
+                      {t('Refresh')}
+                    </button>
+                    
+                    {/* Layout switcher */}
+                    <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                      <button
+                        type="button"
+                        onClick={() => setFacilitiesLayout('table')}
+                        style={{
+                          padding: '6px 10px',
+                          background: facilitiesLayout === 'table' ? 'var(--accent-teal)' : 'transparent',
+                          color: facilitiesLayout === 'table' ? '#fff' : 'var(--text-primary)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title={t('Table View')}
+                      >
+                        <List style={{ width: '13px', height: '13px' }} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFacilitiesLayout('grid')}
+                        style={{
+                          padding: '6px 10px',
+                          background: facilitiesLayout === 'grid' ? 'var(--accent-teal)' : 'transparent',
+                          color: facilitiesLayout === 'grid' ? '#fff' : 'var(--text-primary)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title={t('Grid View')}
+                      >
+                        <Grid style={{ width: '13px', height: '13px' }} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginTop: '16px' }}>
+                  {/* Search */}
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Search style={{ position: 'absolute', left: '10px', width: '12px', height: '12px', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      placeholder={t('Search by name/email...')}
+                      value={facilitiesSearch}
+                      onChange={e => setFacilitiesSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px 6px 28px',
+                        fontSize: '11px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+
+                  {/* Stakeholder Type */}
+                  <label style={{ display: 'grid', gap: '2px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                    {t('Stakeholder Type')}
+                    <select
+                      value={facilitiesRoleFilter}
+                      onChange={e => setFacilitiesRoleFilter(e.target.value)}
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '11px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="ALL">{t('All Types')}</option>
+                      <option value="hospital">{t('Hospital')}</option>
+                      <option value="clinic">{t('Clinic')}</option>
+                      <option value="lab">{t('Lab')}</option>
+                      <option value="diagnostic_centre">{t('Diagnostic Centre')}</option>
+                      <option value="pharmacy">{t('Pharmacy')}</option>
+                      <option value="iqra_alumni">{t('IQRA Alumni')}</option>
+                      <option value="insurance_org">{t('Insurance Org')}</option>
+                      <option value="individual_doctor">{t('Individual Doctor')}</option>
+                    </select>
+                  </label>
+
+                  {/* Status */}
+                  <label style={{ display: 'grid', gap: '2px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                    {t('Approval Status')}
+                    <select
+                      value={facilitiesStatusFilter}
+                      onChange={e => setFacilitiesStatusFilter(e.target.value)}
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '11px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="ALL">{t('All Statuses')}</option>
+                      <option value="pending">{t('Pending')}</option>
+                      <option value="approved">{t('Approved')}</option>
+                      <option value="rejected">{t('Rejected')}</option>
+                      <option value="blocked">{t('Blocked')}</option>
+                    </select>
+                  </label>
+
+                  {/* Bookmarked */}
+                  <label style={{ display: 'grid', gap: '2px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                    {t('Bookmarks')}
+                    <select
+                      value={facilitiesMarkedFilter}
+                      onChange={e => setFacilitiesMarkedFilter(e.target.value)}
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '11px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="ALL">{t('All Facilities')}</option>
+                      <option value="marked">{t('Bookmarked Only')}</option>
+                      <option value="unmarked">{t('Unbookmarked Only')}</option>
+                    </select>
+                  </label>
+
+                  {/* Sort By */}
+                  <label style={{ display: 'grid', gap: '2px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                    {t('Sort By')}
+                    <select
+                      value={facilitiesSortBy}
+                      onChange={e => setFacilitiesSortBy(e.target.value)}
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '11px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="name">{t('Name')}</option>
+                      <option value="email">{t('Email')}</option>
+                      <option value="created_at">{t('Registration Date')}</option>
+                      <option value="status">{t('Status')}</option>
+                    </select>
+                  </label>
+
+                  {/* Sort Order */}
+                  <label style={{ display: 'grid', gap: '2px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                    {t('Sort Order')}
+                    <select
+                      value={facilitiesSortOrder}
+                      onChange={e => setFacilitiesSortOrder(e.target.value)}
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '11px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="DESC">{t('Descending')}</option>
+                      <option value="ASC">{t('Ascending')}</option>
+                    </select>
+                  </label>
+                </div>
+              </article>
+
+              {/* Shimmer state */}
+              {isFetchingFacilities ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[1, 2, 3].map(i => (
+                    <div 
+                      key={i} 
+                      className="shimmer" 
+                      style={{
+                        height: '60px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(90deg, var(--bg-card) 25%, var(--border-color) 50%, var(--bg-card) 75%)',
+                        backgroundSize: '200% 100%',
+                        animation: 'pulse 1.5s infinite'
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : filteredFacilities.length === 0 ? (
+                <article className="route-card" style={{ padding: '40px', textAlign: 'center' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{t('No registered stakeholders found matching filters.')}</span>
+                </article>
+              ) : facilitiesLayout === 'table' ? (
+                /* High Density Table View */
+                <article className="route-card" style={{ padding: '0px', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left', minWidth: '950px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1.5px solid var(--border-color)', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.02)' }}>
+                        <th style={{ padding: '10px 12px', width: '35px', textAlign: 'center' }} />
+                        <th style={{ padding: '10px 12px' }}>{t('Name')}</th>
+                        <th style={{ padding: '10px 12px' }}>{t('Type')}</th>
+                        <th style={{ padding: '10px 12px' }}>{t('Email')}</th>
+                        <th style={{ padding: '10px 12px' }}>{t('Details Summary')}</th>
+                        <th style={{ padding: '10px 12px' }}>{t('Documents')}</th>
+                        <th style={{ padding: '10px 12px' }}>{t('Reg Date')}</th>
+                        <th style={{ padding: '10px 12px' }}>{t('Status')}</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right', paddingRight: '20px' }}>{t('Actions')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredFacilities.map((fac: any) => {
+                        const isActionPending = actionInProgressId === fac.id;
+                        return (
+                          <tr key={fac.id} style={{ borderBottom: '1px solid var(--border-color)', background: fac.is_marked ? 'color-mix(in srgb, var(--accent-teal) 2%, transparent)' : 'transparent', transition: 'background 0.2s' }}>
+                            {/* Bookmark Star */}
+                            <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                              <button 
+                                type="button"
+                                onClick={() => toggleMark(fac.id, !!fac.is_marked)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              >
+                                <Star style={{ width: '14px', height: '14px', fill: fac.is_marked ? 'var(--accent-teal)' : 'none', color: fac.is_marked ? 'var(--accent-teal)' : 'var(--text-muted)' }} />
+                              </button>
+                            </td>
+                            {/* Name */}
+                            <td style={{ padding: '10px 12px', fontWeight: 'bold' }}>
+                              <span style={{ color: 'var(--text-primary)' }}>{fac.name}</span>
+                            </td>
+                            {/* Type Badge */}
+                            <td style={{ padding: '10px 12px' }}>
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                color: '#fff',
+                                backgroundColor: getRoleBadgeColor(fac.role_name),
+                                textTransform: 'capitalize'
+                              }}>
+                                {fac.role_name?.replace('_', ' ')}
+                              </span>
+                            </td>
+                            {/* Email */}
+                            <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{fac.email}</td>
+                            {/* Details Summary */}
+                            <td style={{ padding: '10px 12px', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {renderDetailsSummary(fac.role_name, fac.details)}
+                            </td>
+                            {/* Document downloads */}
+                            <td style={{ padding: '10px 12px' }}>
+                              {renderDocumentLinks(fac.role_name, fac.details)}
+                            </td>
+                            {/* Reg Date */}
+                            <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '11px' }}>
+                              {fac.created_at ? new Date(fac.created_at).toLocaleDateString() : 'N/A'}
+                            </td>
+                            {/* Status */}
+                            <td style={{ padding: '10px 12px' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10.5px',
+                                fontWeight: 'bold',
+                                textTransform: 'uppercase',
+                                color: getStatusBadgeColor(fac.status),
+                                backgroundColor: `color-mix(in srgb, ${getStatusBadgeColor(fac.status)} 12%, transparent)`
+                              }}>
+                                {fac.status}
+                              </span>
+                            </td>
+                            {/* Actions */}
+                            <td style={{ padding: '10px 12px', textAlign: 'right', paddingRight: '20px' }}>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                {fac.status === 'pending' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={isActionPending}
+                                      onClick={() => triggerActionConfirm(fac, 'approve')}
+                                      style={{
+                                        padding: '4px 8px',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        color: '#fff',
+                                        background: 'var(--success)',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '2px'
+                                      }}
+                                    >
+                                      <Check style={{ width: '10px', height: '10px' }} />
+                                      {t('Approve')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isActionPending}
+                                      onClick={() => triggerActionConfirm(fac, 'reject')}
+                                      style={{
+                                        padding: '4px 8px',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        color: '#fff',
+                                        background: 'var(--danger)',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '2px'
+                                      }}
+                                    >
+                                      <X style={{ width: '10px', height: '10px' }} />
+                                      {t('Reject')}
+                                    </button>
+                                  </>
+                                )}
+
+                                {fac.status === 'approved' && (
+                                  <button
+                                    type="button"
+                                    disabled={isActionPending}
+                                    onClick={() => triggerActionConfirm(fac, 'block')}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      color: '#fff',
+                                      background: '#6b7280',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '2px'
+                                    }}
+                                  >
+                                    <Ban style={{ width: '10px', height: '10px' }} />
+                                    {t('Block')}
+                                  </button>
+                                )}
+
+                                {fac.status === 'blocked' && (
+                                  <button
+                                    type="button"
+                                    disabled={isActionPending}
+                                    onClick={() => triggerActionConfirm(fac, 'unblock')}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      color: '#fff',
+                                      background: 'var(--accent-teal)',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '2px'
+                                    }}
+                                  >
+                                    <Check style={{ width: '10px', height: '10px' }} />
+                                    {t('Unblock')}
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  disabled={isActionPending}
+                                  onClick={() => triggerActionConfirm(fac, 'delete')}
+                                  style={{
+                                    padding: '4px 6px',
+                                    fontSize: '10px',
+                                    background: 'transparent',
+                                    border: '1px solid var(--danger)',
+                                    color: 'var(--danger)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title={t('Remove Facility')}
+                                >
+                                  <Trash2 style={{ width: '11px', height: '11px' }} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </article>
+              ) : (
+                /* Grid View (Card layout) */
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                  {filteredFacilities.map((fac: any) => {
+                    const isActionPending = actionInProgressId === fac.id;
+                    return (
+                      <article 
+                        key={fac.id} 
+                        className="route-card" 
+                        style={{
+                          padding: '18px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                          border: fac.is_marked ? '1px solid var(--accent-teal)' : '1px solid var(--border-color)',
+                          background: fac.is_marked ? 'color-mix(in srgb, var(--accent-teal) 2%, var(--bg-card))' : 'var(--bg-card)',
+                          boxShadow: fac.is_marked ? '0 0 10px rgba(13,148,136,0.1)' : 'var(--surface-shadow)'
+                        }}
+                      >
+                        {/* Card Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{
+                              alignSelf: 'flex-start',
+                              padding: '1px 6px',
+                              borderRadius: '10px',
+                              fontSize: '9px',
+                              fontWeight: 'bold',
+                              color: '#fff',
+                              backgroundColor: getRoleBadgeColor(fac.role_name),
+                              textTransform: 'capitalize'
+                            }}>
+                              {fac.role_name?.replace('_', ' ')}
+                            </span>
+                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{fac.name}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <button 
+                              type="button"
+                              onClick={() => toggleMark(fac.id, !!fac.is_marked)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            >
+                              <Star style={{ width: '14px', height: '14px', fill: fac.is_marked ? 'var(--accent-teal)' : 'none', color: fac.is_marked ? 'var(--accent-teal)' : 'var(--text-muted)' }} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Basic Meta */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          <div><strong>Email:</strong> {fac.email}</div>
+                          <div><strong>Registered:</strong> {fac.created_at ? new Date(fac.created_at).toLocaleDateString() : 'N/A'}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                            <strong>Status:</strong>
+                            <span style={{
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              fontSize: '9.5px',
+                              fontWeight: 'bold',
+                              textTransform: 'uppercase',
+                              color: getStatusBadgeColor(fac.status),
+                              backgroundColor: `color-mix(in srgb, ${getStatusBadgeColor(fac.status)} 12%, transparent)`
+                            }}>
+                              {fac.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Detailed Fields */}
+                        <div style={{
+                          background: 'var(--bg-secondary)',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          border: '1px solid var(--border-color)',
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}>
+                          {renderGridDetails(fac.role_name, fac.details)}
+                        </div>
+
+                        {/* Documents */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '10.5px' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Docs:</span>
+                          {renderDocumentLinks(fac.role_name, fac.details)}
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: '4px' }}>
+                          {fac.status === 'pending' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isActionPending}
+                                onClick={() => triggerActionConfirm(fac, 'approve')}
+                                style={{
+                                  flex: 1,
+                                  padding: '5px 10px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 'bold',
+                                  color: '#fff',
+                                  background: 'var(--success)',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Check style={{ width: '11px', height: '11px' }} />
+                                {t('Approve')}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isActionPending}
+                                onClick={() => triggerActionConfirm(fac, 'reject')}
+                                style={{
+                                  flex: 1,
+                                  padding: '5px 10px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 'bold',
+                                  color: '#fff',
+                                  background: 'var(--danger)',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <X style={{ width: '11px', height: '11px' }} />
+                                {t('Reject')}
+                              </button>
+                            </>
+                          )}
+
+                          {fac.status === 'approved' && (
+                            <button
+                              type="button"
+                              disabled={isActionPending}
+                              onClick={() => triggerActionConfirm(fac, 'block')}
+                              style={{
+                                flex: 1,
+                                  padding: '5px 10px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 'bold',
+                                  color: '#fff',
+                                  background: '#6b7280',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                              }}
+                            >
+                              <Ban style={{ width: '11px', height: '11px' }} />
+                              {t('Block Facility')}
+                            </button>
+                          )}
+
+                          {fac.status === 'blocked' && (
+                            <button
+                              type="button"
+                              disabled={isActionPending}
+                              onClick={() => triggerActionConfirm(fac, 'unblock')}
+                              style={{
+                                flex: 1,
+                                  padding: '5px 10px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 'bold',
+                                  color: '#fff',
+                                  background: 'var(--accent-teal)',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                              }}
+                            >
+                              <Check style={{ width: '11px', height: '11px' }} />
+                              {t('Unblock')}
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            disabled={isActionPending}
+                            onClick={() => triggerActionConfirm(fac, 'delete')}
+                            style={{
+                              padding: '5px 8px',
+                              background: 'transparent',
+                              border: '1px solid var(--danger)',
+                              color: 'var(--danger)',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title={t('Delete permanently')}
+                          >
+                            <Trash2 style={{ width: '11.5px', height: '11.5px' }} />
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
       </div>
 
       {/* ==================== PRODUCT CRUD FORM MODAL ================= */}
@@ -2759,6 +3830,331 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ================= CONFIRMATION MODAL FOR RISKY ACTIONS ================= */}
+      {isConfirmModalOpen && confirmFacility && confirmAction && (
+        <div 
+          className="checkout-modal-overlay" 
+          onClick={() => {
+            if (!confirmModalLoading) {
+              setIsConfirmModalOpen(false);
+              setConfirmFacility(null);
+              setConfirmAction(null);
+            }
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(5, 10, 20, 0.75)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            animation: 'confirm-fade-in 0.25s ease-out'
+          }}
+        >
+          {/* Style injection for animations */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes confirm-shimmer {
+              0% { left: -100%; }
+              100% { left: 100%; }
+            }
+            @keyframes confirm-fade-in {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes confirm-scale-up {
+              from { transform: scale(0.95); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+          `}} />
+
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              background: 'var(--bg-card)',
+              border: `1px solid ${confirmAction === 'delete' || confirmAction === 'reject' || confirmAction === 'block' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(20, 184, 166, 0.3)'}`,
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(20, 184, 166, 0.1)',
+              position: 'relative',
+              boxSizing: 'border-box',
+              animation: 'confirm-scale-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header / Warning Alert */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+              <div 
+                style={{ 
+                  width: '40px', 
+                  height: '40px', 
+                  borderRadius: '10px', 
+                  background: confirmAction === 'delete' || confirmAction === 'reject' || confirmAction === 'block' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(20, 184, 166, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: confirmAction === 'delete' || confirmAction === 'reject' || confirmAction === 'block' ? 'var(--danger)' : 'var(--accent-teal)'
+                }}
+              >
+                <AlertTriangle style={{ width: '20px', height: '20px' }} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {confirmAction === 'delete' && t('Confirm Permanent Deletion')}
+                  {confirmAction === 'approve' && t('Approve Facility Access')}
+                  {confirmAction === 'reject' && t('Reject Facility Application')}
+                  {confirmAction === 'block' && t('Block Stakeholder Access')}
+                  {confirmAction === 'unblock' && t('Unblock Facility Access')}
+                </h3>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {t('This administrative action is logged and audited.')}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning Text */}
+            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {confirmAction === 'delete' && t(`Are you sure you want to permanently delete "${confirmFacility.name}"? This will cascade-delete all associated medical services, records, and access tokens. This action is irreversible.`)}
+              {confirmAction === 'approve' && t(`Are you sure you want to approve "${confirmFacility.name}"? They will receive full access to register practitioners, view linked patients, and route ABDM transactions.`)}
+              {confirmAction === 'reject' && t(`Are you sure you want to reject the application from "${confirmFacility.name}"? They will not be allowed to access dashboard resources.`)}
+              {confirmAction === 'block' && t(`Are you sure you want to block "${confirmFacility.name}"? All active JWT sessions will be terminated and logins will be forbidden.`)}
+              {confirmAction === 'unblock' && t(`Are you sure you want to restore access for "${confirmFacility.name}"? They will immediately regain operational status.`)}
+            </p>
+
+            {/* Detailed Facility Information */}
+            <div 
+              style={{ 
+                background: 'rgba(255, 255, 255, 0.02)', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '12px', 
+                padding: '16px', 
+                fontSize: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('Name')}:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{confirmFacility.name}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('Email')}:</span>
+                <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{confirmFacility.email}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('Type')}:</span>
+                <span style={{ 
+                  color: 'var(--text-primary)', 
+                  fontWeight: 'bold', 
+                  textTransform: 'uppercase',
+                  fontSize: '10.5px' 
+                }}>
+                  {confirmFacility.role}
+                </span>
+              </div>
+              {confirmFacility.details && (
+                <>
+                  {confirmFacility.details.address && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('Address')}:</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{confirmFacility.details.address}</span>
+                    </div>
+                  )}
+                  {confirmFacility.details.contact && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('Contact')}:</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{confirmFacility.details.contact}</span>
+                    </div>
+                  )}
+                  {confirmFacility.details.bedCount && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('Beds')}:</span>
+                      <span style={{ color: 'var(--text-primary)' }}>{confirmFacility.details.bedCount}</span>
+                    </div>
+                  )}
+                  {confirmFacility.details.specialties && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('Specialties')}:</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{confirmFacility.details.specialties}</span>
+                    </div>
+                  )}
+                  {confirmFacility.details.testsCovered && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('Tests')}:</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{confirmFacility.details.testsCovered}</span>
+                    </div>
+                  )}
+                  {confirmFacility.details.licenseNumber && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('License')}:</span>
+                      <span style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{confirmFacility.details.licenseNumber}</span>
+                    </div>
+                  )}
+                  {confirmFacility.details.consultationFee && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('Fee')}:</span>
+                      <span style={{ color: 'var(--accent-teal)', fontWeight: 'bold' }}>₹{confirmFacility.details.consultationFee}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Action Buttons with Shimmer & Loader */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button
+                type="button"
+                disabled={confirmModalLoading}
+                onClick={() => {
+                  setIsConfirmModalOpen(false);
+                  setConfirmFacility(null);
+                  setConfirmAction(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {t('Cancel')}
+              </button>
+              
+              <button
+                type="button"
+                disabled={confirmModalLoading}
+                onClick={executeFacilityAction}
+                style={{
+                  flex: 1.5,
+                  padding: '10px',
+                  background: confirmAction === 'delete' || confirmAction === 'reject' || confirmAction === 'block' ? 'var(--danger)' : 'var(--accent-teal)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: confirmAction === 'delete' || confirmAction === 'reject' || confirmAction === 'block' ? '0 4px 14px rgba(239, 68, 68, 0.3)' : '0 4px 14px rgba(20, 184, 166, 0.3)'
+                }}
+              >
+                {confirmModalLoading ? (
+                  <>
+                    <div className="spinner" style={{ width: '12px', height: '12px', border: '2px solid rgba(255, 255, 255, 0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span>{t('Processing...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {confirmAction === 'delete' && t('Permanently Delete')}
+                      {confirmAction === 'approve' && t('Approve & Verify')}
+                      {confirmAction === 'reject' && t('Reject Application')}
+                      {confirmAction === 'block' && t('Confirm Block')}
+                      {confirmAction === 'unblock' && t('Confirm Unblock')}
+                    </span>
+                  </>
+                )}
+                {/* Shimmer effect overlay */}
+                {confirmModalLoading && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: '-100%',
+                      width: '50%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent)',
+                      animation: 'confirm-shimmer 1.2s infinite'
+                    }}
+                  />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showLogoutConfirm && (
+        <div className="logout-modal-overlay">
+          <div className="logout-modal-content">
+            {/* Animated Admin Logout Icon */}
+            <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: '50%',
+                border: '2px dashed var(--accent-teal)',
+                animation: 'spin 12s linear infinite'
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                left: '8px',
+                right: '8px',
+                bottom: '8px',
+                borderRadius: '50%',
+                border: '2px solid rgba(239, 68, 68, 0.2)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <LogOut style={{ width: '32px', height: '32px', color: '#ef4444' }} />
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              {t('Terminate Admin Session')}
+            </h3>
+            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '24px' }}>
+              {t('Are you sure you want to terminate the System Administrator panel session?')}
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setShowLogoutConfirm(false)}
+                className="prefill-btn" 
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)' }}
+              >
+                {t('Cancel')}
+              </button>
+              <button 
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  logout();
+                  showToast(t('Admin session terminated successfully.'));
+                }}
+                className="prefill-btn active" 
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'var(--danger)', border: 'none', color: '#fff', fontWeight: 'bold' }}
+              >
+                {t('Terminate')}
+              </button>
+            </div>
           </div>
         </div>
       )}
