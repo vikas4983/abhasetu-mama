@@ -140,11 +140,11 @@ export declare class AbdmService {
     requestMobileOtp(mobile: string, txnId?: string, context?: {
         ip?: string;
         userAgent?: string;
-    }): Promise<any>;
+    }, xToken?: string): Promise<any>;
     verifyMobileOtp(otp: string, txnId: string, mobile?: string, context?: {
         ip?: string;
         userAgent?: string;
-    }): Promise<any>;
+    }, xToken?: string): Promise<any>;
     requestProfileLoginOtp(mobile: string, scope?: string[], loginHint?: string, otpSystem?: string, context?: {
         ip?: string;
         userAgent?: string;
