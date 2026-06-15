@@ -292,7 +292,8 @@ let AbdmController = class AbdmController {
         return res.status(common_1.HttpStatus.OK).json(result);
     }
     async v3AuthByAbdm(body, res, req) {
-        const { txnId, authData } = body;
+        const { authData } = body;
+        const txnId = body.txnId || authData?.otp?.txnId || body.otp?.txnId || '';
         const otp = authData?.otp?.otpValue || body.otp?.otpValue;
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
         const userAgent = req.headers['user-agent'] || '';
