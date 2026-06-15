@@ -17,6 +17,7 @@
   --content-width: 1180px;
   --page-pad: 16px;
   --nav-height: 72px;
+  --logo-filter: brightness(0) invert(1);
 }
 
 /* Theme Presets */
@@ -55,6 +56,7 @@
   --text-muted: #64748b;
   --border-color: #e2e8f0;
   --surface-shadow: 0 12px 30px rgba(5, 150, 105, 0.05);
+  --logo-filter: none;
 }
 
 .theme-saffron-emerald {
@@ -86,6 +88,7 @@
   --text-muted: #64748b;
   --border-color: #e2e8f0;
   --surface-shadow: 0 12px 36px rgba(38, 68, 136, 0.08);
+  --logo-filter: none;
 }
 
 

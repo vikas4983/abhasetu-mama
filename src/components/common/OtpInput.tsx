@@ -1,36 +1,40 @@
 /**
  * @file        OtpInput.tsx
- * @description Reusable 6-digit segmented OTP input component.
+ * @description Reusable 6-digit segmented OTP input component with auto-focus on mount.
  * @module      components/common
  * @layer       component
  * @author      Platform Team
  * @created     2026-06-11
- * @modified    2026-06-11
+ * @modified    2026-06-14
  */
 
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   error?: boolean;
   disabled?: boolean;
+  shake?: boolean;
+  onEnter?: () => void;
 }
 
 /**
  * @description OtpInput component renders 6 individual numeric inputs for entering verification codes.
- * Supports auto-focusing subsequent inputs, backspacing to delete/focus previous inputs, and clipboard paste events.
+ * Supports auto-focusing on mount, auto-advancing on digit entry, backspace to delete/focus prev,
+ * clipboard paste events, and active border highlighting.
  */
-export default function OtpInput({ value, onChange, error, disabled }: OtpInputProps) {
+export default function OtpInput({ value, onChange, error, disabled, shake, onEnter }: OtpInputProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  React.useEffect(() => {
+  // Auto-focus the first digit box when the component mounts or becomes enabled
+  useEffect(() => {
     if (!disabled) {
       const t = setTimeout(() => {
         inputsRef.current[0]?.focus();
-      }, 50);
+      }, 100);
       return () => clearTimeout(t);
     }
   }, [disabled]);
@@ -81,6 +85,10 @@ export default function OtpInput({ value, onChange, error, disabled }: OtpInputP
       inputsRef.current[index - 1]?.focus();
     } else if (e.key === 'ArrowRight' && index < 5) {
       inputsRef.current[index + 1]?.focus();
+    } else if (e.key === 'Enter') {
+      if (value.length === 6 && onEnter) {
+        onEnter();
+      }
     }
   };
 
@@ -103,6 +111,7 @@ export default function OtpInput({ value, onChange, error, disabled }: OtpInputP
         <input
           key={idx}
           type="text"
+          inputMode="numeric"
           maxLength={1}
           value={digit}
           disabled={disabled}
@@ -112,19 +121,30 @@ export default function OtpInput({ value, onChange, error, disabled }: OtpInputP
           onFocus={(e) => e.target.select()}
           ref={(el) => { inputsRef.current[idx] = el; }}
           style={{
-            width: '42px',
-            height: '46px',
-            borderRadius: '8px',
-            border: error ? '2px solid var(--danger)' : '1px solid var(--border-color)',
-            background: 'var(--bg-primary)',
-            color: 'var(--text-primary)',
-            fontSize: '18px',
+            width: '48px',
+            height: '54px',
+            borderRadius: '10px',
+            border: error
+              ? '2px solid var(--danger)'
+              : digit
+                ? '2px solid var(--accent-teal)'
+                : '2px solid var(--border-color)',
+            background: error
+              ? 'rgba(239,68,68,0.06)'
+              : digit ? 'rgba(20,184,166,0.06)' : 'var(--bg-primary)',
+            color: error ? 'var(--danger)' : 'var(--text-primary)',
+            fontSize: '22px',
             fontWeight: 'bold',
             textAlign: 'center',
             outline: 'none',
-            transition: 'border-color 0.2s ease',
+            transition: 'border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease',
+            boxShadow: error
+              ? '0 0 0 3px rgba(239,68,68,0.15)'
+              : digit ? '0 0 0 3px rgba(20,184,166,0.12)' : 'none',
             opacity: disabled ? 0.6 : 1,
             cursor: disabled ? 'not-allowed' : 'auto',
+            caretColor: 'transparent',
+            animation: (shake && error) ? 'otp-shake 0.4s ease' : 'none',
           }}
           aria-label={`Digit ${idx + 1}`}
         />
@@ -132,3 +152,4 @@ export default function OtpInput({ value, onChange, error, disabled }: OtpInputP
     </div>
   );
 }
+

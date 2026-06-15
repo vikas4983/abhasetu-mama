@@ -7038,6 +7038,16 @@ body.theme-light .medicine-search-input:focus {
   animation: shake 0.5s ease-in-out !important;
 }
 
+/* OTP box error shake: tighter, faster horizontal wiggle */
+@keyframes otp-shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-5px); }
+  40%  { transform: translateX(5px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
 /* ==================== RESPONSIVE ABHA FORM & LAUNCHPAD GRIDS ==================== */
 
 .setu-grid-2col {
@@ -7129,6 +7139,110 @@ body.theme-light .medicine-search-input:focus {
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+/* Premium Method Selector Buttons & Hover Animations */
+.setu-method-btn {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 16px 20px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--bg-secondary) !important;
+  cursor: pointer !important;
+  color: var(--text-primary) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.setu-method-btn:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(20, 184, 166, 0.6) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 90%, var(--accent-teal)) !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 15px rgba(20, 184, 166, 0.15) !important;
+}
+
+.setu-method-btn.recommended {
+  border-color: rgba(217, 119, 6, 0.45) !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.08), inset 0 0 8px rgba(217, 119, 6, 0.03) !important;
+}
+
+.setu-method-btn.recommended:hover {
+  border-color: rgba(217, 119, 6, 0.85) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 90%, #d97706) !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(217, 119, 6, 0.25) !important;
+}
+
+.setu-method-text {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  text-align: left !important;
+  align-items: flex-start !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.setu-icon-container {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+@keyframes recommendedPulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2), 0 0 0 0px rgba(217, 119, 6, 0.3);
+    border-color: rgba(217, 119, 6, 0.35);
+  }
+  50% {
+    box-shadow: 0 6px 18px rgba(217, 119, 6, 0.4), 0 0 0 6px rgba(217, 119, 6, 0);
+    border-color: rgba(217, 119, 6, 0.75);
+  }
+}
+
+@keyframes normalPulse {
+  0%, 100% {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1), 0 0 0 0px rgba(20, 184, 166, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 6px 14px rgba(0,0,0,0.15), 0 0 0 4px rgba(20, 184, 166, 0);
+    border-color: rgba(20, 184, 166, 0.5);
+  }
+}
+
+.setu-method-btn.recommended .setu-icon-container {
+  animation: recommendedPulse 2.5s infinite ease-in-out !important;
+}
+
+.setu-method-btn:not(.recommended) .setu-icon-container {
+  animation: normalPulse 3s infinite ease-in-out !important;
+}
+
+.setu-method-btn:hover .setu-icon-container {
+  transform: scale(1.18) rotate(4deg) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
+  animation: none !important;
+}
+
+.setu-method-btn.recommended:hover .setu-icon-container {
+  border-color: rgba(217, 119, 6, 0.5) !important;
+  animation: none !important;
+}
+
+/* Desktop override style: switch selector buttons back to vertical alignment */
+@media (min-width: 600px) {
+  .setu-method-btn {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 24px 12px 16px 12px !important;
+  }
+  .setu-method-text {
+    text-align: center !important;
+    align-items: center !important;
   }
 }
 

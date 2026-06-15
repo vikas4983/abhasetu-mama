@@ -18,4 +18,5 @@ export * from './db.constants';
 export * from './cache.constants';
 export * from './crypto.constants';
 export * from './regex.constants';
+export * from './error-messages.constants';
 

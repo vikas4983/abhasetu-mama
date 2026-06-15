@@ -10,7 +10,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, demoOtpCredentials } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
@@ -48,7 +48,18 @@ export default function StaffLoginPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [otpError, setOtpError] = useState(false);
+  const [shakeCard, setShakeCard] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Ref for OTP input — focused automatically when OTP step becomes active
+  const staffOtpRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (otpSent) {
+      const t = setTimeout(() => { staffOtpRef.current?.focus(); }, 150);
+      return () => clearTimeout(t);
+    }
+  }, [otpSent]);
 
   // Prefill default credentials for staff accounts
   const handlePrefill = (role: 'doctor' | 'operator' | 'admin' | 'master_admin' | 'facility' | 'patient') => {
@@ -121,6 +132,8 @@ export default function StaffLoginPage() {
       const success = await loginWithOtp(loginRole, mobileNumber, otp);
       setIsLoading(false);
       if (success) {
+        setOtpError(false);
+        setShakeCard(false);
         if (selectedRole === 'facility') {
           updateCurrentUser({
             name: `${facilityType.toUpperCase()} Staff Operator`,
@@ -130,8 +143,11 @@ export default function StaffLoginPage() {
         showToast(t('Staff session authorized successfully.'));
         router.push('/');
       } else {
+        setOtpError(true);
+        setShakeCard(true);
         setErrorMsg(t('Invalid OTP or credential mismatch. Please try again. (Hint: Use 123456)'));
         showToast(t('Verification failed.'));
+        setTimeout(() => setShakeCard(false), 500);
       }
     }, 1200);
   };
@@ -160,13 +176,17 @@ export default function StaffLoginPage() {
         showToast(t('Administrative session authorized.'));
         router.push('/admin');
       } else {
+        setShakeCard(true);
         setErrorMsg(data.message || t('Invalid administrator credentials.'));
         showToast(t('Authentication failed.'));
+        setTimeout(() => setShakeCard(false), 500);
       }
     } catch (err) {
       setIsLoading(false);
+      setShakeCard(true);
       setErrorMsg(t('Server connection error. Ensure backend is running.'));
       showToast(t('Network error.'));
+      setTimeout(() => setShakeCard(false), 500);
     }
   };
 
@@ -194,13 +214,17 @@ export default function StaffLoginPage() {
         showToast(t('Facility session authorized.'));
         router.push('/');
       } else {
+        setShakeCard(true);
         setErrorMsg(data.message || t('Invalid facility credentials or account pending approval.'));
         showToast(t('Authentication failed.'));
+        setTimeout(() => setShakeCard(false), 500);
       }
     } catch (err) {
       setIsLoading(false);
+      setShakeCard(true);
       setErrorMsg(t('Server connection error. Ensure backend is running.'));
       showToast(t('Network error.'));
+      setTimeout(() => setShakeCard(false), 500);
     }
   };
 
@@ -231,7 +255,19 @@ export default function StaffLoginPage() {
         </button>
 
         {/* Login Card */}
-        <div style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '30px 24px', boxShadow: 'var(--surface-shadow)', backdropFilter: 'blur(20px)' }}>
+        <div 
+          className={shakeCard ? 'shake-modal' : ''} 
+          style={{ 
+            width: '100%', 
+            background: 'var(--bg-card)', 
+            border: errorMsg ? '1px solid var(--danger)' : '1px solid var(--border-color)', 
+            borderRadius: '16px', 
+            padding: '30px 24px', 
+            boxShadow: errorMsg ? '0 10px 25px rgba(239, 68, 68, 0.1), var(--surface-shadow)' : 'var(--surface-shadow)', 
+            backdropFilter: 'blur(20px)',
+            transition: 'border-color 0.2s, box-shadow 0.2s'
+          }}
+        >
           
           {/* Brand Logo */}
           <div className="logo" style={{ justifyContent: 'center', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -314,47 +350,66 @@ export default function StaffLoginPage() {
 
           {/* Render forms based on selected role */}
           {selectedRole === 'admin' ? (
-            /* Admin credentials form */
-            <form onSubmit={handleAdminLogin} style={{ display: 'grid', gap: '14px' }}>
-              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Administrator Email
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@abhasetu.com"
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
-                />
-              </label>
-              <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Security Password
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
-                />
-              </label>
+              <form onSubmit={handleAdminLogin} style={{ display: 'grid', gap: '12px' }}>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Email Address
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => { setErrorMsg(''); setOtpError(false); setEmail(e.target.value); }}
+                    placeholder="e.g. admin@abhasetu.com"
+                    style={{ 
+                      width: '100%', 
+                      padding: '10px', 
+                      borderRadius: '8px', 
+                      border: errorMsg ? '1px solid var(--danger)' : '1px solid var(--border-color)', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '13px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s'
+                    }}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Password
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => { setErrorMsg(''); setOtpError(false); setPassword(e.target.value); }}
+                    placeholder="••••••••"
+                    style={{ 
+                      width: '100%', 
+                      padding: '10px', 
+                      borderRadius: '8px', 
+                      border: errorMsg ? '1px solid var(--danger)' : '1px solid var(--border-color)', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '13px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s'
+                    }}
+                  />
+                </label>
 
-              {errorMsg && (
-                <div style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: '600', background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                  {errorMsg}
-                </div>
-              )}
+                {errorMsg && (
+                  <div style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: '600', background: 'rgba(239, 68, 68, 0.1)', padding: '6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                    {errorMsg}
+                  </div>
+                )}
 
-              <button
-                type="submit"
-                className="join-btn"
-                style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <Sparkles style={{ width: '16px', height: '16px' }} />
-                <span>Verify and Access Console</span>
-              </button>
-            </form>
-          ) : selectedRole === 'facility' ? (
+                <button
+                  type="submit"
+                  className="join-btn"
+                  style={{ width: '100%', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}
+                >
+                  <Lock style={{ width: '14px', height: '14px' }} />
+                  <span>Authenticate Admin</span>
+                </button>
+              </form>
+            ) : selectedRole === 'facility' ? (
             /* Facility Credentials Login Form */
             <form onSubmit={handleFacilityLogin} style={{ display: 'grid', gap: '14px' }}>
               <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
@@ -441,13 +496,30 @@ export default function StaffLoginPage() {
                 <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Enter 6-Digit OTP Code
                   <input
+                    ref={staffOtpRef}
                     type="text"
+                    inputMode="numeric"
                     required
                     maxLength={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => { setErrorMsg(''); setOtpError(false); setOtp(e.target.value.replace(/\D/g, '')); }}
                     placeholder="••••••"
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', textAlign: 'center', letterSpacing: '8px', fontWeight: 'bold', fontFamily: 'monospace' }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '12px', 
+                      borderRadius: '8px', 
+                      border: otpError ? '2px solid var(--danger)' : '2px solid var(--border-color)', 
+                      background: 'var(--bg-secondary)', 
+                      color: otpError ? 'var(--danger)' : 'var(--text-primary)', 
+                      fontSize: '22px', 
+                      textAlign: 'center', 
+                      letterSpacing: '10px', 
+                      fontWeight: 'bold', 
+                      fontFamily: 'monospace', 
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxShadow: otpError ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none'
+                    }}
                   />
                 </label>
 

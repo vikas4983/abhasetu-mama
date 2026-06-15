@@ -60,6 +60,8 @@ describe('AbdmController', () => {
     deleteDoctor: jest.fn(),
     requestProfileLoginOtp: jest.fn(),
     verifyProfileLoginOtp: jest.fn(),
+    requestReKycOtp: jest.fn(),
+    verifyReKycOtp: jest.fn(),
   };
 
   const mockAuthService = {
@@ -877,6 +879,105 @@ describe('AbdmController', () => {
       );
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('verifyReKycOtp', () => {
+    it('should verify Re-KYC OTP successfully', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.verifyReKycOtp.mockResolvedValue({
+        status: 'success',
+        data: {
+          txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d',
+          authResult: 'success',
+          message: 'Re-kyc done successfully',
+          accounts: [{ ABHANumber: '91-4173-3253-XXXX' }]
+        }
+      });
+
+      await controller.verifyReKycOtp(
+        { otp: '123456', txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d' },
+        req,
+        res
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d',
+        authResult: 'success'
+      }));
+    });
+
+    it('should return BAD_REQUEST on invalid OTP error', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.verifyReKycOtp.mockResolvedValue({
+        status: 'error',
+        message: 'UIDAI Error code : 400 : Invalid Aadhaar OTP value.',
+        details: {
+          Message: 'UIDAI Error code : 400 : Invalid Aadhaar OTP value.',
+          timestamp: '2023-01-11 00:14:02'
+        }
+      });
+
+      await controller.verifyReKycOtp(
+        { otp: '000000', txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d' },
+        req,
+        res
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        Message: 'UIDAI Error code : 400 : Invalid Aadhaar OTP value.'
+      }));
+    });
+  });
+
+  describe('requestReKycOtp', () => {
+    it('should request Re-KYC OTP successfully', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.requestReKycOtp.mockResolvedValue({
+        status: 'success',
+        txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d',
+        data: { txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d' }
+      });
+
+      await controller.requestReKycOtp(
+        { abhaNumber: '91-4173-3253-XXXX' },
+        req,
+        res
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d'
+      }));
+    });
+
+    it('should return BAD_REQUEST on invalid abhaNumber/loginId error', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.requestReKycOtp.mockResolvedValue({
+        status: 'error',
+        message: 'Invalid LoginId',
+        details: {
+          loginId: 'Invalid LoginId',
+          timestamp: '2024-05-10 11:15:14'
+        }
+      });
+
+      await controller.requestReKycOtp(
+        { abhaNumber: '' },
+        req,
+        res
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        loginId: 'Invalid LoginId'
+      }));
     });
   });
 });

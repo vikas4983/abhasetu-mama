@@ -97,6 +97,12 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         value TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS pincodes (
+        pincode VARCHAR(10) PRIMARY KEY,
+        district VARCHAR(100) NOT NULL,
+        state VARCHAR(100) NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS products (
         id VARCHAR(50) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -804,6 +810,193 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         d
       );
+    }
+
+    await this.seedPincodes();
+  }
+
+  private async seedPincodes() {
+    const pinCountRes = await this.pool.query('SELECT COUNT(*) FROM pincodes');
+    if (parseInt(pinCountRes.rows[0].count) === 0) {
+      console.log('Seeding pincodes database (Madhya Pradesh & major Indian cities)...');
+      const pincodesData = [
+        // Madhya Pradesh
+        // Jabalpur
+        ['482001', 'Jabalpur', 'Madhya Pradesh'],
+        ['482002', 'Jabalpur', 'Madhya Pradesh'],
+        ['482003', 'Jabalpur', 'Madhya Pradesh'],
+        ['482004', 'Jabalpur', 'Madhya Pradesh'],
+        ['482005', 'Jabalpur', 'Madhya Pradesh'],
+        ['482008', 'Jabalpur', 'Madhya Pradesh'],
+        ['482011', 'Jabalpur', 'Madhya Pradesh'],
+        ['482020', 'Jabalpur', 'Madhya Pradesh'],
+        // Bhopal
+        ['462001', 'Bhopal', 'Madhya Pradesh'],
+        ['462002', 'Bhopal', 'Madhya Pradesh'],
+        ['462003', 'Bhopal', 'Madhya Pradesh'],
+        ['462011', 'Bhopal', 'Madhya Pradesh'],
+        ['462016', 'Bhopal', 'Madhya Pradesh'],
+        ['462021', 'Bhopal', 'Madhya Pradesh'],
+        ['462022', 'Bhopal', 'Madhya Pradesh'],
+        ['462023', 'Bhopal', 'Madhya Pradesh'],
+        ['462030', 'Bhopal', 'Madhya Pradesh'],
+        ['462042', 'Bhopal', 'Madhya Pradesh'],
+        // Indore
+        ['452001', 'Indore', 'Madhya Pradesh'],
+        ['452002', 'Indore', 'Madhya Pradesh'],
+        ['452003', 'Indore', 'Madhya Pradesh'],
+        ['452005', 'Indore', 'Madhya Pradesh'],
+        ['452007', 'Indore', 'Madhya Pradesh'],
+        ['452009', 'Indore', 'Madhya Pradesh'],
+        ['452010', 'Indore', 'Madhya Pradesh'],
+        ['452011', 'Indore', 'Madhya Pradesh'],
+        ['452012', 'Indore', 'Madhya Pradesh'],
+        ['452016', 'Indore', 'Madhya Pradesh'],
+        ['452020', 'Indore', 'Madhya Pradesh'],
+        // Gwalior
+        ['474001', 'Gwalior', 'Madhya Pradesh'],
+        ['474002', 'Gwalior', 'Madhya Pradesh'],
+        ['474003', 'Gwalior', 'Madhya Pradesh'],
+        ['474004', 'Gwalior', 'Madhya Pradesh'],
+        ['474005', 'Gwalior', 'Madhya Pradesh'],
+        ['474009', 'Gwalior', 'Madhya Pradesh'],
+        ['474011', 'Gwalior', 'Madhya Pradesh'],
+        ['474020', 'Gwalior', 'Madhya Pradesh'],
+        // Other MP Districts
+        ['456001', 'Ujjain', 'Madhya Pradesh'],
+        ['456006', 'Ujjain', 'Madhya Pradesh'],
+        ['456010', 'Ujjain', 'Madhya Pradesh'],
+        ['470001', 'Sagar', 'Madhya Pradesh'],
+        ['470002', 'Sagar', 'Madhya Pradesh'],
+        ['470003', 'Sagar', 'Madhya Pradesh'],
+        ['470004', 'Sagar', 'Madhya Pradesh'],
+        ['485001', 'Satna', 'Madhya Pradesh'],
+        ['485005', 'Satna', 'Madhya Pradesh'],
+        ['485111', 'Satna', 'Madhya Pradesh'],
+        ['486001', 'Rewa', 'Madhya Pradesh'],
+        ['486005', 'Rewa', 'Madhya Pradesh'],
+        ['486006', 'Rewa', 'Madhya Pradesh'],
+        ['457001', 'Ratlam', 'Madhya Pradesh'],
+        ['455001', 'Dewas', 'Madhya Pradesh'],
+        ['480001', 'Chhindwara', 'Madhya Pradesh'],
+        ['450001', 'Khandwa', 'Madhya Pradesh'],
+        ['451001', 'Khargone', 'Madhya Pradesh'],
+        ['464001', 'Vidisha', 'Madhya Pradesh'],
+        ['461001', 'Hoshangabad', 'Madhya Pradesh'],
+        ['461111', 'Itarsi', 'Madhya Pradesh'],
+        ['460001', 'Betul', 'Madhya Pradesh'],
+        ['466001', 'Sehore', 'Madhya Pradesh'],
+        ['483501', 'Katni', 'Madhya Pradesh'],
+        ['486886', 'Singrauli', 'Madhya Pradesh'],
+        ['486661', 'Sidhi', 'Madhya Pradesh'],
+        ['484001', 'Shahdol', 'Madhya Pradesh'],
+        ['481001', 'Balaghat', 'Madhya Pradesh'],
+        ['470661', 'Damoh', 'Madhya Pradesh'],
+        ['488001', 'Panna', 'Madhya Pradesh'],
+        ['472001', 'Tikamgarh', 'Madhya Pradesh'],
+        ['473551', 'Shivpuri', 'Madhya Pradesh'],
+        ['473001', 'Guna', 'Madhya Pradesh'],
+        ['477001', 'Bhind', 'Madhya Pradesh'],
+        ['476001', 'Morena', 'Madhya Pradesh'],
+        ['476337', 'Sheopur', 'Madhya Pradesh'],
+        ['475661', 'Datia', 'Madhya Pradesh'],
+        ['454001', 'Dhar', 'Madhya Pradesh'],
+        ['457887', 'Alirajpur', 'Madhya Pradesh'],
+        ['457661', 'Jhabua', 'Madhya Pradesh'],
+        ['451551', 'Barwani', 'Madhya Pradesh'],
+        ['450331', 'Burhanpur', 'Madhya Pradesh'],
+        ['484224', 'Anuppur', 'Madhya Pradesh'],
+        ['484661', 'Umaria', 'Madhya Pradesh'],
+        ['481880', 'Dindori', 'Madhya Pradesh'],
+        ['481661', 'Mandla', 'Madhya Pradesh'],
+        ['480661', 'Seoni', 'Madhya Pradesh'],
+        ['487001', 'Narsinghpur', 'Madhya Pradesh'],
+        ['465001', 'Shajapur', 'Madhya Pradesh'],
+        ['465441', 'Agar Malwa', 'Madhya Pradesh'],
+        ['458441', 'Neemuch', 'Madhya Pradesh'],
+        ['458001', 'Mandsaur', 'Madhya Pradesh'],
+        ['461331', 'Harda', 'Madhya Pradesh'],
+        ['464551', 'Raisen', 'Madhya Pradesh'],
+        ['465661', 'Rajgarh', 'Madhya Pradesh'],
+        ['473331', 'Ashoknagar', 'Madhya Pradesh'],
+        ['472246', 'Niwari', 'Madhya Pradesh'],
+
+        // Delhi
+        ['110001', 'New Delhi', 'Delhi'],
+        ['110002', 'Central Delhi', 'Delhi'],
+        ['110011', 'New Delhi', 'Delhi'],
+        ['110020', 'South Delhi', 'Delhi'],
+        ['110045', 'South West Delhi', 'Delhi'],
+        ['110085', 'North West Delhi', 'Delhi'],
+
+        // Maharashtra
+        ['400001', 'Mumbai', 'Maharashtra'],
+        ['400002', 'Mumbai', 'Maharashtra'],
+        ['400011', 'Mumbai', 'Maharashtra'],
+        ['400050', 'Mumbai', 'Maharashtra'],
+        ['400097', 'Mumbai', 'Maharashtra'],
+        ['411001', 'Pune', 'Maharashtra'],
+        ['411002', 'Pune', 'Maharashtra'],
+        ['411014', 'Pune', 'Maharashtra'],
+        ['411038', 'Pune', 'Maharashtra'],
+        ['411045', 'Pune', 'Maharashtra'],
+
+        // Karnataka
+        ['560001', 'Bengaluru', 'Karnataka'],
+        ['560002', 'Bengaluru', 'Karnataka'],
+        ['560011', 'Bengaluru', 'Karnataka'],
+        ['560034', 'Bengaluru', 'Karnataka'],
+        ['560038', 'Bengaluru', 'Karnataka'],
+        ['560068', 'Bengaluru', 'Karnataka'],
+
+        // Tamil Nadu
+        ['600001', 'Chennai', 'Tamil Nadu'],
+        ['600002', 'Chennai', 'Tamil Nadu'],
+        ['600004', 'Chennai', 'Tamil Nadu'],
+        ['600018', 'Chennai', 'Tamil Nadu'],
+        ['600040', 'Chennai', 'Tamil Nadu'],
+
+        // West Bengal
+        ['700001', 'Kolkata', 'West Bengal'],
+        ['700002', 'Kolkata', 'West Bengal'],
+        ['700009', 'Kolkata', 'West Bengal'],
+        ['700020', 'Kolkata', 'West Bengal'],
+        ['700091', 'Kolkata', 'West Bengal'],
+
+        // Telangana
+        ['500001', 'Hyderabad', 'Telangana'],
+        ['500002', 'Hyderabad', 'Telangana'],
+        ['500008', 'Hyderabad', 'Telangana'],
+        ['500032', 'Hyderabad', 'Telangana'],
+        ['500081', 'Hyderabad', 'Telangana'],
+
+        // Gujarat
+        ['380001', 'Ahmedabad', 'Gujarat'],
+        ['380009', 'Ahmedabad', 'Gujarat'],
+        ['380015', 'Ahmedabad', 'Gujarat'],
+
+        // Rajasthan
+        ['302001', 'Jaipur', 'Rajasthan'],
+        ['302002', 'Jaipur', 'Rajasthan'],
+        ['302015', 'Jaipur', 'Rajasthan'],
+
+        // Uttar Pradesh
+        ['226001', 'Lucknow', 'Uttar Pradesh'],
+        ['226010', 'Lucknow', 'Uttar Pradesh'],
+        ['226016', 'Lucknow', 'Uttar Pradesh'],
+
+        // Bihar
+        ['800001', 'Patna', 'Bihar'],
+        ['800003', 'Patna', 'Bihar'],
+        ['800020', 'Patna', 'Bihar']
+      ];
+
+      for (const row of pincodesData) {
+        await this.pool.query(
+          'INSERT INTO pincodes (pincode, district, state) VALUES ($1, $2, $3) ON CONFLICT (pincode) DO NOTHING',
+          row
+        );
+      }
     }
   }
 

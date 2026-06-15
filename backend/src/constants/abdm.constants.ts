@@ -33,6 +33,8 @@ export const ABDM_ENDPOINTS = {
   ABHA_SEND_AADHAAR_OTP: '/api/v3/enrollment/enrol/byAadhaar',
   ABHA_VERIFY_OTP: '/api/v3/enrollment/enrol/byAadhaar',
   ABHA_PROFILE_GET: '/api/v3/profile/account',
+  ABHA_REKYC_REQUEST_OTP: '/api/v3/profile/account/request/otp',
+  ABHA_REKYC_VERIFY: '/api/v3/profile/account/verify',
   ABHA_LOGIN_REQUEST_OTP: '/api/v3/profile/login/request/otp',
   ABHA_LOGIN_VERIFY: '/api/v3/profile/login/verify',
   AUTH_FETCH_MODES: '/v0.5/users/auth/fetch-modes',

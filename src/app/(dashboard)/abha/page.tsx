@@ -58,7 +58,6 @@ import {
   Key,
   RefreshCw,
   FileText,
-  CheckCircle2,
   Lock,
   Unlock,
   AlertCircle,
@@ -1242,7 +1241,9 @@ export default function AbhaPage() {
         };
         setAbhaProfile(simProfile);
         updateCurrentUser({
-          abhaId: acc.preferredAbhaAddress,
+          name: acc.name || 'ABHA User',
+          photo: getPhotoSrc(acc.profilePhoto || acc.photo),
+          abhaId: acc.preferredAbhaAddress || acc.ABHANumber || '',
           abhaProfile: simProfile
         });
 
@@ -1304,6 +1305,8 @@ export default function AbhaPage() {
       };
       setAbhaProfile(simProfile);
       updateCurrentUser({
+        name: simProfile.firstName || 'ABHA User',
+        photo: getPhotoSrc(simProfile.photo),
         abhaId: abhaAddress,
         abhaProfile: simProfile
       });
@@ -1431,6 +1434,8 @@ export default function AbhaPage() {
         };
         setAbhaProfile(simProfile);
         updateCurrentUser({
+          name: simProfile.firstName || 'ABHA User',
+          photo: getPhotoSrc(simProfile.photo),
           abhaId: data.abhaAddress || profile.preferredAddress || profile.abhaId || '',
           abhaProfile: simProfile
         });
@@ -1640,14 +1645,15 @@ export default function AbhaPage() {
               localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
               window.dispatchEvent(new Event('setu_state_update'));
               
-              const fullName = [profile.firstName, profile.middleName, profile.lastName]
+               const fullName = [profile.firstName, profile.middleName, profile.lastName]
                 .filter(Boolean)
                 .join(' ');
+              const preferredAddress = profile.preferredAddress || profile.preferredAbhaAddress || (profile.phrAddress && profile.phrAddress[0]) || profile.abhaAddress || profile.abhaId || '';
               
               setAbhaDetails({
                 name: fullName,
                 mobile: profile.mobile || '',
-                abhaId: profile.preferredAddress || '',
+                abhaId: preferredAddress,
                 abhaNumber: profile.ABHANumber || '',
                 gender: profile.gender === 'M' ? 'Male' : profile.gender === 'F' ? 'Female' : profile.gender,
                 dob: profile.dob || '',
@@ -1658,8 +1664,9 @@ export default function AbhaPage() {
               
               // Update global user session profile and photo
               updateCurrentUser({
+                name: fullName || 'ABHA User',
                 photo: getPhotoSrc(profile.photo),
-                abhaId: profile.preferredAddress,
+                abhaId: preferredAddress,
                 abhaProfile: profile
               });
             } else if (data.profile) {
@@ -1694,13 +1701,15 @@ export default function AbhaPage() {
                 stateName: 'Madhya Pradesh',
                 pinCode: '482001',
                 abhaStatus: 'ACTIVE',
-                abhaType: 'STANDARD'
+                abhaType: 'STANDARD',
+                email: data.profile.email || data.email || ''
               };
               setAbhaProfile(simProfile);
               setVerificationMessage(data.message || 'Aadhaar verified successfully');
               
               // Update global user session profile and photo
               updateCurrentUser({
+                name: data.profile.name || 'ABHA User',
                 photo: getPhotoSrc(data.profile.photo),
                 abhaId: data.abhaAddress,
                 abhaProfile: simProfile
@@ -1720,6 +1729,8 @@ export default function AbhaPage() {
             setOnboardStep('completed');
             showToast(t(data.message || 'Aadhaar OTP verified successfully!'));
             logSecurityEvent('ABHA Generated', `Successfully generated dynamic ABHA: ${data.abhaNumber || data.ABHAProfile?.ABHANumber}`);
+            // Redirect immediately to My ABHA Profile page
+            setTimeout(() => { router.push('/profile'); }, 1500);
           } else {
             setOnboardStep('demographics');
             showToast(t('Mobile OTP verified successfully. Please enter demographics to generate ABHA.'));
@@ -2555,9 +2566,11 @@ export default function AbhaPage() {
             <article className="route-card" style={{ width: '100%', padding: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
               {onboardStep === 'completed' ? (
                 <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
-                    <CheckCircle2 style={{ width: '28px', height: '28px' }} />
-                  </div>
+                  <img 
+                    src="/assets/check_icon.png" 
+                    style={{ width: '48px', height: '48px', display: 'block', margin: '0 auto 12px' }} 
+                    alt="Verified" 
+                  />
                   <h4 style={{ margin: '0 0 6px' }}>ABHA Onboarding Complete</h4>
                   
                   {verificationMessage && (
@@ -2666,7 +2679,7 @@ export default function AbhaPage() {
 
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="prefill-btn" style={{ flex: 1 }} onClick={() => { setOnboardStep('verification'); setShowOnboardMethodModal(true); setShowOnboardWizard(true); }}>Register Another</button>
-                    <button className="join-btn" style={{ flex: 1, margin: 0 }} onClick={() => setActiveTab('card')}>View Smart Card</button>
+                    <button className="join-btn" style={{ flex: 1, margin: 0 }} onClick={() => router.push('/profile')}>View Smart Card</button>
                   </div>
                 </div>
               ) : (
@@ -2947,11 +2960,11 @@ export default function AbhaPage() {
                             }}
                           >
                             <div style={{
-                              width: '32px',
-                              height: '32px',
+                              width: '48px',
+                              height: '48px',
                               borderRadius: '50%',
                               background: '#ffffff',
-                              padding: ['aadhaar', 'abha', 'abha_number_login', 'mobile', 'dl'].includes(item.id) ? '4px' : '0',
+                              padding: ['aadhaar', 'abha', 'abha_number_login', 'mobile', 'dl'].includes(item.id) ? '6px' : '0',
                               border: '1px solid rgba(0,0,0,0.06)',
                               boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
                               display: 'grid',
@@ -4171,9 +4184,11 @@ export default function AbhaPage() {
 
                   {hprStep === 'completed' && (
                     <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 10px' }}>
-                        <CheckCircle2 style={{ width: '22px', height: '22px' }} />
-                      </div>
+                      <img 
+                        src="/assets/check_icon.png" 
+                        style={{ width: '40px', height: '40px', display: 'block', margin: '0 auto 10px' }} 
+                        alt="Verified" 
+                      />
                       <h4 style={{ margin: '0 0 4px' }}>Professional Registered Successfully!</h4>
                       <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 12px' }}>
                         Healthcare Professional ID (HPID) has been successfully verified and issued by NHA registries.
@@ -4349,9 +4364,11 @@ export default function AbhaPage() {
             {/* OPD Token display */}
             {scanShareStep === 'token-generated' && scanShareOpdToken && (
               <article className="route-card" style={{ width: '100%', padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', textAlign: 'center' }}>
-                <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-teal)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
-                  <CheckCircle2 style={{ width: '28px', height: '28px' }} />
-                </div>
+                <img 
+                  src="/assets/check_icon.png" 
+                  style={{ width: '58px', height: '58px', display: 'block', margin: '0 auto 12px' }} 
+                  alt="Verified" 
+                />
                 <h3 style={{ margin: '0 0 4px', fontSize: '16px' }}>Fast-Track OPD Queue Token</h3>
                 <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 16px' }}>Present this token QR code at the specialized counter on arrival.</p>
                 <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'inline-block', minWidth: '220px' }}>
@@ -4399,9 +4416,11 @@ export default function AbhaPage() {
             {/* Paid Result display */}
             {scanShareStep === 'paid' && scanSharePaymentResult && (
               <article className="route-card" style={{ width: '100%', padding: '20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', textAlign: 'center' }}>
-                <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
-                  <CheckCircle2 style={{ width: '24px', height: '24px' }} />
-                </div>
+                <img 
+                  src="/assets/check_icon.png" 
+                  style={{ width: '50px', height: '50px', display: 'block', margin: '0 auto 12px' }} 
+                  alt="Verified" 
+                />
                 <h4 style={{ margin: '0 0 4px', fontSize: '15px' }}>Transaction Receipt Issued</h4>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 16px' }}>Paid via ABDM integrated direct-clearing health wallet.</p>
                 <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', fontSize: '11px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -4539,9 +4558,11 @@ export default function AbhaPage() {
               {/* Booked output receipt */}
               {uhiStep === 'booked' && uhiReceipt && (
                 <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                  <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
-                    <CheckCircle2 style={{ width: '24px', height: '24px' }} />
-                  </div>
+                  <img 
+                    src="/assets/check_icon.png" 
+                    style={{ width: '50px', height: '50px', display: 'block', margin: '0 auto 12px' }} 
+                    alt="Verified" 
+                  />
                   <h4 style={{ margin: '0 0 4px', fontSize: '15px' }}>UHI Telehealth Consult Booked!</h4>
                   <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 16px' }}>Slot successfully secured and cleared by HSPA registries.</p>
                   
@@ -4738,9 +4759,11 @@ export default function AbhaPage() {
               {/* Settled Claim receipt */}
               {nhcxStep === 'settled' && nhcxClaimResponse && (
                 <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                  <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
-                    <CheckCircle2 style={{ width: '24px', height: '24px' }} />
-                  </div>
+                  <img 
+                    src="/assets/check_icon.png" 
+                    style={{ width: '50px', height: '50px', display: 'block', margin: '0 auto 12px' }} 
+                    alt="Verified" 
+                  />
                   <h4 style={{ margin: '0 0 4px', fontSize: '15px' }}>Cashless Claim Settled Successfully!</h4>
                   <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 16px' }}>Direct electronic fund transfer (EFT) processed to provider account.</p>
                   

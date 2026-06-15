@@ -27,6 +27,10 @@ export declare class AbdmController {
     v3ProfileLoginRequestOtp(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     v3ProfileLoginVerify(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     downloadAbhaCard(req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    updateProfileAccount(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    requestReKycOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    verifyReKycOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    private verifyReKycOtpInternal;
     requestEmailVerificationLink(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     v3EnrolByDocument(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     getConfig(): Promise<{
@@ -183,6 +187,7 @@ export declare class AbdmController {
     requestDlOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     verifyDlOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     enrolByDl(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    getPincode(pincode: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     getCryptoPublicKey(req: express.Request): Promise<{
         status: string;
         publicKey: string;
@@ -229,4 +234,8 @@ export declare class AbdmController {
     deleteFacility(id: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     adminAddFacility(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     uploadDoc(file: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    getPincodes(res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    createPincode(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    updatePincode(pincode: string, body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    deletePincode(pincode: string, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
 }

@@ -124,7 +124,7 @@ export declare class AbdmService {
         tokenPreview: any;
         message: string;
     }>;
-    syncPublicKeyFromGateway(): Promise<{
+    syncPublicKeyFromGateway(customToken?: string): Promise<{
         status: string;
         publicKey: any;
     }>;
@@ -212,14 +212,22 @@ export declare class AbdmService {
         status: string;
     }>;
     downloadAbhaCard(xToken: string, token: string): Promise<any>;
+    updateProfileAccount(body: any, xToken: string, gatewayToken: string): Promise<any>;
+    requestReKycOtp(abhaNumber: string, xToken: string, gatewayToken: string): Promise<any>;
+    verifyReKycOtp(otp: string, txnId: string, xToken: string, gatewayToken: string): Promise<any>;
     requestEmailVerificationLink(email: string, xToken: string, gatewayToken: string): Promise<any>;
     getDlGatewaySession(): Promise<any>;
     requestDlOtp(mobile: string, dlToken: string, context?: any): Promise<any>;
-    verifyDlOtp(otp: string, txnId: string, context?: any): Promise<any>;
-    enrolByDl(dlDetails: any, context?: any): Promise<any>;
+    verifyDlOtp(otp: string, txnId: string, dlToken: string, context?: any): Promise<any>;
+    enrolByDl(dlDetails: any, dlToken: string, dlTxnId: string, context?: any): Promise<any>;
+    getPincodeDetails(pincode: string): Promise<any>;
     registerFacility(data: any): Promise<any>;
     getFacilities(filters: any): Promise<any>;
     updateFacilityStatus(id: number, status: string): Promise<any>;
     toggleFacilityMark(id: number, isMarked: boolean): Promise<any>;
     deleteFacility(id: number): Promise<any>;
+    getPincodes(): Promise<any[]>;
+    createPincode(pincode: string, district: string, state: string): Promise<any>;
+    updatePincode(pincode: string, district: string, state: string): Promise<any>;
+    deletePincode(pincode: string): Promise<any>;
 }

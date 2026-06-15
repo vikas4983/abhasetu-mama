@@ -32,7 +32,8 @@ import {
   Download,
   RefreshCw,
   Check,
-  Ban
+  Ban,
+  MapPin
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
 import OtpInput from '../../../components/common/OtpInput';
@@ -109,7 +110,18 @@ export default function AdminDashboardPage() {
   const { currentUser, logout } = useAuth();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'config' | 'health' | 'products' | 'policies' | 'labPackages' | 'logs' | 'doctors' | 'transactions' | 'facilities'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'health' | 'products' | 'policies' | 'labPackages' | 'logs' | 'doctors' | 'transactions' | 'facilities' | 'locations'>('config');
+
+  // State, City, Pincode CRUD States
+  const [pincodes, setPincodes] = useState<{ pincode: string; district: string; state: string }[]>([]);
+  const [isFetchingPincodes, setIsFetchingPincodes] = useState(false);
+  const [searchPincode, setSearchPincode] = useState('');
+  const [filterState, setFilterState] = useState('');
+  const [sortField, setSortField] = useState<'pincode' | 'district' | 'state' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [editingPincode, setEditingPincode] = useState<{ pincode: string; district: string; state: string } | null>(null);
+  const [isAddingPincode, setIsAddingPincode] = useState(false);
+  const [newPincodeForm, setNewPincodeForm] = useState({ pincode: '', district: '', state: '' });
 
   // Authorization token
   const [token, setToken] = useState<string>('');
@@ -484,7 +496,110 @@ export default function AdminDashboardPage() {
     loadLogs(adminToken);
     loadTransactions(adminToken);
     loadFacilities(adminToken);
+    loadPincodes(adminToken);
   }, [currentUser]);
+
+  const loadPincodes = (activeToken: string) => {
+    setIsFetchingPincodes(true);
+    fetch('/api/abdm/admin/pincodes', {
+      headers: { 'Authorization': `Bearer ${activeToken}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setPincodes(data.pincodes || []);
+        }
+      })
+      .catch(err => console.error('Error loading pincodes:', err))
+      .finally(() => setIsFetchingPincodes(false));
+  };
+
+  const handleAddPincodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPincodeForm.pincode || !newPincodeForm.district || !newPincodeForm.state) {
+      showToast(t('All fields are required'));
+      return;
+    }
+
+    try {
+      const activeToken = token || localStorage.getItem('adminToken') || '';
+      const res = await fetch('/api/abdm/admin/pincodes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify(newPincodeForm)
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(t('Pincode entry added successfully'));
+        setNewPincodeForm({ pincode: '', district: '', state: '' });
+        setIsAddingPincode(false);
+        loadPincodes(activeToken);
+      } else {
+        showToast(data.message || t('Failed to add pincode'));
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(t('Error adding pincode entry'));
+    }
+  };
+
+  const handleUpdatePincodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPincode) return;
+
+    try {
+      const activeToken = token || localStorage.getItem('adminToken') || '';
+      const res = await fetch(`/api/abdm/admin/pincodes/${editingPincode.pincode}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({
+          district: editingPincode.district,
+          state: editingPincode.state
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(t('Pincode entry updated successfully'));
+        setEditingPincode(null);
+        loadPincodes(activeToken);
+      } else {
+        showToast(data.message || t('Failed to update pincode'));
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(t('Error updating pincode entry'));
+    }
+  };
+
+  const handleDeletePincode = async (pincodeVal: string) => {
+    if (!confirm(`Are you sure you want to delete pincode entry ${pincodeVal}?`)) return;
+
+    try {
+      const activeToken = token || localStorage.getItem('adminToken') || '';
+      const res = await fetch(`/api/abdm/admin/pincodes/${pincodeVal}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${activeToken}`
+        }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(t('Pincode entry deleted successfully'));
+        loadPincodes(activeToken);
+      } else {
+        showToast(data.message || t('Failed to delete pincode'));
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(t('Error deleting pincode entry'));
+    }
+  };
 
   const loadFacilities = (activeToken: string) => {
     setIsFetchingFacilities(true);
@@ -1263,6 +1378,7 @@ export default function AdminDashboardPage() {
           { id: 'config', label: 'ABDM Settings', icon: Settings },
           { id: 'health', label: 'ABDM Health Tests', icon: Activity },
           { id: 'facilities', label: 'Facilities Registry', icon: Building2 },
+          { id: 'locations', label: 'Pincodes / Locations', icon: MapPin },
           { id: 'doctors', label: 'Doctors Manager', icon: User },
           { id: 'products', label: 'Products Manager', icon: Database },
           { id: 'policies', label: 'Policies Manager', icon: FileText },
@@ -3465,6 +3581,396 @@ export default function AdminDashboardPage() {
                       </article>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ================= LOCATION MANAGER (PINCODE CRUD) TAB ================= */}
+        {activeTab === 'locations' && (() => {
+          // Client-side search, filter, and sort
+          const filteredPincodes = pincodes
+            .filter(item => {
+              if (searchPincode.trim()) {
+                const query = searchPincode.trim().toLowerCase();
+                const matchesPincode = item.pincode?.toLowerCase().includes(query);
+                const matchesDistrict = item.district?.toLowerCase().includes(query);
+                const matchesState = item.state?.toLowerCase().includes(query);
+                if (!matchesPincode && !matchesDistrict && !matchesState) return false;
+              }
+              if (filterState) {
+                if (item.state !== filterState) return false;
+              }
+              return true;
+            })
+            .sort((a, b) => {
+              if (!sortField) return 0;
+              const valA = String(a[sortField] || '').toLowerCase();
+              const valB = String(b[sortField] || '').toLowerCase();
+              if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+              if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+              return 0;
+            });
+
+          // Unique list of states for filter dropdown
+          const statesList = Array.from(new Set(pincodes.map(item => item.state).filter(Boolean)));
+
+          const handleSort = (field: 'pincode' | 'district' | 'state') => {
+            if (sortField === field) {
+              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+            } else {
+              setSortField(field);
+              setSortDirection('asc');
+            }
+          };
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>
+                    {t('Pincodes & Locations Directory')}
+                  </h2>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                    {t('Configure and manage mappings of states, districts, and pincodes.')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setNewPincodeForm({ pincode: '', district: '', state: '' });
+                    setIsAddingPincode(true);
+                  }}
+                  className="prefill-btn"
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    background: 'var(--accent-teal)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Plus style={{ width: '14px', height: '14px' }} />
+                  {t('Add Pincode Mapping')}
+                </button>
+              </div>
+
+              {/* Filters Panel */}
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '12px', 
+                  alignItems: 'center', 
+                  padding: '12px 16px', 
+                  background: 'var(--bg-secondary)', 
+                  borderRadius: '10px', 
+                  border: '1px solid var(--border-color)' 
+                }}
+              >
+                {/* Search */}
+                <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                  <Search style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', width: '13px', height: '13px', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder={t('Search by pincode, district, or state...')}
+                    value={searchPincode}
+                    onChange={e => setSearchPincode(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px 6px 28px',
+                      fontSize: '11px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                </div>
+
+                {/* Filter by State */}
+                <label style={{ display: 'grid', gap: '2px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                  {t('Filter State')}
+                  <select
+                    value={filterState}
+                    onChange={e => setFilterState(e.target.value)}
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '11px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      minWidth: '130px'
+                    }}
+                  >
+                    <option value="">{t('All States')}</option>
+                    {statesList.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {/* Data Table */}
+              <article 
+                className="route-card" 
+                style={{ 
+                  padding: 0, 
+                  overflow: 'hidden', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '10px',
+                  background: 'var(--bg-card)',
+                  boxShadow: 'var(--surface-shadow)'
+                }}
+              >
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                        <th 
+                          onClick={() => handleSort('pincode')}
+                          style={{ padding: '10px 12px', fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {t('Pincode')}
+                            {sortField === 'pincode' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          </span>
+                        </th>
+                        <th 
+                          onClick={() => handleSort('district')}
+                          style={{ padding: '10px 12px', fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {t('District')}
+                            {sortField === 'district' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          </span>
+                        </th>
+                        <th 
+                          onClick={() => handleSort('state')}
+                          style={{ padding: '10px 12px', fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {t('State')}
+                            {sortField === 'state' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                          </span>
+                        </th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right', paddingRight: '20px', fontWeight: 700 }}>
+                          {t('Actions')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isFetchingPincodes ? (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                              <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+                              {t('Fetching pincodes...')}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : filteredPincodes.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            {t('No pincode mappings found.')}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPincodes.map((item, index) => (
+                          <tr 
+                            key={`${item.pincode}_${index}`} 
+                            style={{ 
+                              borderBottom: '1px solid var(--border-color)',
+                              background: index % 2 === 1 ? 'rgba(0,0,0,0.01)' : 'transparent'
+                            }}
+                          >
+                            <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--accent-blue)', fontFamily: 'monospace' }}>
+                              {item.pincode}
+                            </td>
+                            <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {item.district}
+                            </td>
+                            <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
+                              {item.state}
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', paddingRight: '20px' }}>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPincode(item)}
+                                  style={{
+                                    padding: '4px 8px',
+                                    fontSize: '10px',
+                                    fontWeight: 'bold',
+                                    color: 'var(--accent-teal)',
+                                    background: 'transparent',
+                                    border: '1px solid var(--accent-teal)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '2px'
+                                  }}
+                                >
+                                  <Edit style={{ width: '10px', height: '10px' }} />
+                                  {t('Edit')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePincode(item.pincode)}
+                                  style={{
+                                    padding: '4px 6px',
+                                    fontSize: '10px',
+                                    background: 'transparent',
+                                    border: '1px solid var(--danger)',
+                                    color: 'var(--danger)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title={t('Delete Entry')}
+                                >
+                                  <Trash2 style={{ width: '11px', height: '11px' }} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+
+              {/* Add Modal */}
+              {isAddingPincode && (
+                <div className="checkout-modal-overlay" onClick={() => setIsAddingPincode(false)}>
+                  <div className="checkout-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                    <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--accent-teal)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Plus style={{ width: '15px', height: '15px' }} />
+                        {t('Add Pincode Mapping')}
+                      </span>
+                      <button className="modal-close" onClick={() => setIsAddingPincode(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <X style={{ width: '18px', height: '18px' }} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAddPincodeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px' }}>
+                      <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {t('Pincode')}
+                        <input
+                          type="text"
+                          required
+                          pattern="[0-9]{6}"
+                          placeholder="e.g. 110001"
+                          value={newPincodeForm.pincode}
+                          onChange={e => setNewPincodeForm({ ...newPincodeForm, pincode: e.target.value })}
+                          style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                        />
+                      </label>
+                      <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {t('District')}
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. New Delhi"
+                          value={newPincodeForm.district}
+                          onChange={e => setNewPincodeForm({ ...newPincodeForm, district: e.target.value })}
+                          style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                        />
+                      </label>
+                      <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {t('State')}
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Delhi"
+                          value={newPincodeForm.state}
+                          onChange={e => setNewPincodeForm({ ...newPincodeForm, state: e.target.value })}
+                          style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                        />
+                      </label>
+
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                        <button type="button" onClick={() => setIsAddingPincode(false)} style={{ padding: '8px 12px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px' }}>
+                          {t('Cancel')}
+                        </button>
+                        <button type="submit" style={{ padding: '8px 14px', background: 'var(--accent-teal)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', fontWeight: 'bold' }}>
+                          {t('Save Mapping')}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit Modal */}
+              {editingPincode && (
+                <div className="checkout-modal-overlay" onClick={() => setEditingPincode(null)}>
+                  <div className="checkout-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                    <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--accent-teal)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Edit style={{ width: '15px', height: '15px' }} />
+                        {t('Edit Pincode Mapping')}: {editingPincode.pincode}
+                      </span>
+                      <button className="modal-close" onClick={() => setEditingPincode(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <X style={{ width: '18px', height: '18px' }} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleUpdatePincodeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px' }}>
+                      <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)', opacity: 0.7 }}>
+                        {t('Pincode (Immutable)')}
+                        <input
+                          type="text"
+                          disabled
+                          value={editingPincode.pincode}
+                          style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
+                        />
+                      </label>
+                      <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {t('District')}
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. New Delhi"
+                          value={editingPincode.district}
+                          onChange={e => setEditingPincode({ ...editingPincode, district: e.target.value })}
+                          style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                        />
+                      </label>
+                      <label style={{ display: 'grid', gap: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {t('State')}
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Delhi"
+                          value={editingPincode.state}
+                          onChange={e => setEditingPincode({ ...editingPincode, state: e.target.value })}
+                          style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                        />
+                      </label>
+
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                        <button type="button" onClick={() => setEditingPincode(null)} style={{ padding: '8px 12px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-primary)', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px' }}>
+                          {t('Cancel')}
+                        </button>
+                        <button type="submit" style={{ padding: '8px 14px', background: 'var(--accent-teal)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', fontWeight: 'bold' }}>
+                          {t('Update Mapping')}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
             </div>
