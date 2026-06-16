@@ -17,6 +17,7 @@ import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { showToast } from '../../../utils/toast';
 import OtpInput from '../../../components/common/OtpInput';
+import { ImageCropper } from '../../../components/common/ImageCropper';
 
 import {
   User,
@@ -42,7 +43,9 @@ import {
   EyeOff,
   Menu,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
 /**
@@ -91,6 +94,14 @@ export default function ProfilePage() {
   const [emailCoolingTimer, setEmailCoolingTimer] = useState(0);
   const [isDemographicsExpanded, setIsDemographicsExpanded] = useState(false);
   const [editProfileSubTab, setEditProfileSubTab] = useState<'mobile' | 'email' | 'picture'>('mobile');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const triggerPhotoSelect = () => {
+    setActiveTab('edit_profile');
+    setEditProfileSubTab('picture');
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 150);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -129,11 +140,20 @@ export default function ProfilePage() {
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [confirmPhotoModal, setConfirmPhotoModal] = useState(false);
+  const [photoResponseData, setPhotoResponseData] = useState<any>(null);
+  const [photoCompressing, setPhotoCompressing] = useState(false);
+  const [rawImageToCrop, setRawImageToCrop] = useState('');
+  const hasCustomPhoto = !!(abhaProfile.photo && 
+    !abhaProfile.photo.includes('unsplash.com') && 
+    !abhaProfile.photo.includes('placeholder'));
 
   // 4. Set Password States
   const [passAuthMethod, setPassAuthMethod] = useState<'aadhaar' | 'abha'>('aadhaar');
+  const [passFormStep, setPassFormStep] = useState<1 | 2>(1);
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passOtp, setPassOtp] = useState('');
@@ -200,6 +220,7 @@ export default function ProfilePage() {
     setPhotoFile(null);
     setPhotoError('');
 
+    setOldPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setPassOtp('');
@@ -237,9 +258,9 @@ export default function ProfilePage() {
     defaultValues: { newEmail: '' }
   });
 
-  const passwordForm = useForm<{ newPassword: string; confirmPassword: string }>({
+  const passwordForm = useForm<{ oldPassword: string; newPassword: string; confirmPassword: string }>({
     mode: 'onChange',
-    defaultValues: { newPassword: '', confirmPassword: '' }
+    defaultValues: { oldPassword: '', newPassword: '', confirmPassword: '' }
   });
 
   // Actions for Card Downloader
@@ -675,8 +696,63 @@ export default function ProfilePage() {
     }, 1200);
   };
 
-  // 3. Photo upload submit (Max 100 KB constraint)
-  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Helper for compressing image
+  const compressImage = (file: File): Promise<{ compressedBase64: string; compressedSizeKb: number }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          const maxDimension = 600;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context is null'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let quality = 0.8;
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          let size = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3 / 4);
+
+          while (size > 100 * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+            size = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3 / 4);
+          }
+
+          const base64 = dataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
+          resolve({
+            compressedBase64: base64,
+            compressedSizeKb: parseFloat((size / 1024).toFixed(1))
+          });
+        };
+        img.onerror = () => reject(new Error('Failed to load image.'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file.'));
+    });
+  };
+
+  // 3. Photo upload file change with auto-compression
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhotoError('');
     const file = e.target.files?.[0];
     if (!file) return;
@@ -689,19 +765,28 @@ export default function ProfilePage() {
       return;
     }
 
-    // Validate file size (100 KB max limit)
-    if (file.size > 100 * 1024) {
-      setPhotoError(t('File size exceeds 100 KB. Please upload a smaller image.'));
-      triggerModalShake();
-      return;
-    }
-
     setPhotoFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setPhotoCompressing(true);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setRawImageToCrop(event.target?.result as string);
+        setPhotoCompressing(false);
+        setActiveModal('photo_crop_custom');
+      };
+      reader.onerror = () => {
+        setPhotoError(t('Failed to read selected file.'));
+        setPhotoCompressing(false);
+        triggerModalShake();
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Error reading image:', err);
+      setPhotoError(t('Failed to process/compress selected photo.'));
+      setPhotoCompressing(false);
+      triggerModalShake();
+    }
   };
 
   const handlePhotoUploadSubmit = async (e?: React.FormEvent) => {
@@ -717,7 +802,7 @@ export default function ProfilePage() {
     try {
       const cleanedBase64 = photoPreview.replace(/^data:image\/[a-z]+;base64,/, '');
       const res = await fetch('/api/abdm/v3/profile/account', {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -727,42 +812,112 @@ export default function ProfilePage() {
       });
 
       const data = await res.json();
+      setPhotoResponseData(data); // Store raw response data for the Response Details modal
+
       if (res.ok) {
+        const returnedPhoto = data.profilePhoto || data.kycPhoto || cleanedBase64;
         const updatedProfile = { 
           ...abhaProfile, 
-          photo: cleanedBase64,
-          profilePhoto: cleanedBase64
+          photo: returnedPhoto,
+          profilePhoto: returnedPhoto,
+          name: data.name || abhaProfile.name,
+          firstName: data.firstName || abhaProfile.firstName,
+          middleName: data.middleName || abhaProfile.middleName,
+          lastName: data.lastName || abhaProfile.lastName,
+          mobile: data.mobile || abhaProfile.mobile,
+          gender: data.gender || abhaProfile.gender,
+          preferredAbhaAddress: data.preferredAbhaAddress || abhaProfile.preferredAbhaAddress
         };
         const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
         if (state.currentUser) {
-          state.currentUser.photo = photoPreview;
+          state.currentUser.photo = `data:image/jpeg;base64,${returnedPhoto}`;
           state.currentUser.abhaProfile = updatedProfile;
           localStorage.setItem('setu_state', JSON.stringify(state));
         }
         updateCurrentUser({
-          photo: photoPreview,
+          photo: `data:image/jpeg;base64,${returnedPhoto}`,
           abhaProfile: updatedProfile
         });
-        showToast(t('ABHA card profile photo updated successfully!'));
+        showToast(t('Profile photo updated successfully!'));
         setPhotoLoading(false);
         setActiveModal(null);
         setConfirmPhotoModal(false);
+        setPhotoFile(null);
+        setPhotoPreview('');
+        setPhotoError('');
         resetAllForms();
       } else {
-        const errorMsg = data.ProfilePhoto || data.message || t('Failed to upload picture.');
+        const errorMsg = data.message || data.description || data.error || t('Failed to upload picture.');
         setPhotoError(errorMsg);
         setPhotoLoading(false);
+        showToast(errorMsg, true);
         triggerModalShake();
       }
     } catch (err: any) {
-      setPhotoError(err.message || t('Failed to upload picture.'));
+      const errorMsg = err.message || t('Failed to upload picture.');
+      setPhotoError(errorMsg);
       setPhotoLoading(false);
+      showToast(errorMsg, true);
       triggerModalShake();
     }
   };
 
+  const handleRemovePhoto = async () => {
+    if (!confirm(t('Are you sure you want to remove your profile photo?'))) {
+      return;
+    }
+    setPhotoLoading(true);
+    setPhotoError('');
+    try {
+      const res = await fetch('/api/abdm/v3/profile/account', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          profilePhoto: '' // empty string to indicate removal
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const updatedProfile = { 
+          ...abhaProfile, 
+          photo: '',
+          profilePhoto: '',
+        };
+        const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
+        if (state.currentUser) {
+          state.currentUser.photo = '';
+          state.currentUser.abhaProfile = updatedProfile;
+          localStorage.setItem('setu_state', JSON.stringify(state));
+        }
+        updateCurrentUser({
+          photo: '',
+          abhaProfile: updatedProfile
+        });
+        showToast(t('Profile photo removed successfully!'));
+        setPhotoFile(null);
+        setPhotoPreview('');
+        setPhotoError('');
+        setActiveModal(null);
+      } else {
+        const errorMsg = data.message || data.description || data.error || t('Failed to remove picture.');
+        setPhotoError(errorMsg);
+        showToast(errorMsg, true);
+      }
+    } catch (err: any) {
+      const errorMsg = err.message || t('Failed to remove picture.');
+      setPhotoError(errorMsg);
+      showToast(errorMsg, true);
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
   // 4. Set Password Actions (receives validated data from RHF handleSubmit)
-  const handleSetPasswordSubmit = async (formData: { newPassword: string; confirmPassword: string }) => {
+  const handleSetPasswordSubmit = async (formData: { oldPassword?: string; newPassword: string; confirmPassword: string }) => {
+    setOldPassword(formData.oldPassword || '');
     setNewPassword(formData.newPassword);
     setConfirmPassword(formData.confirmPassword);
     setPassError('');
@@ -1451,6 +1606,25 @@ export default function ProfilePage() {
                   </button>
 
                   <button
+                    onClick={triggerPhotoSelect}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '4px 6px',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <Camera style={{ width: '15px', height: '15px', color: 'var(--accent-teal)' }} />
+                    <span>Update Photo</span>
+                  </button>
+
+                  <button
                     onClick={() => handleSaveToLocker(`ABHA_Smart_Card_${abhaProfile.ABHANumber || abhaProfile.abhaNumber}.pdf`)}
                     style={{
                       background: 'none',
@@ -1863,104 +2037,216 @@ export default function ProfilePage() {
                     <Camera style={{ color: 'var(--accent-teal)', width: '16px', height: '16px' }} />
                     <span>Update Profile Photo</span>
                   </h4>
-                  <form onSubmit={(e) => { e.preventDefault(); setConfirmPhotoModal(true); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-primary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <img src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Current Profile Photo</span>
-                        <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)' }}>File size constraint: <strong>Max 100 KB</strong>. Aspect ratio matching ABHA standard card.</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Drag & Drop Upload Zone */}
-                      <label 
-                        htmlFor="custom-file-upload-input" 
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '10px',
-                          padding: '30px 20px',
-                          borderRadius: '12px',
-                          border: photoError ? '2px dashed var(--danger)' : '2px dashed var(--accent-teal)',
-                          background: 'rgba(20, 184, 166, 0.03)',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.2s ease',
-                          boxShadow: photoError ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none',
-                          animation: photoError ? 'otp-shake 0.4s ease' : 'none'
-                        }}
-                      >
-                        <Camera style={{ width: '28px', height: '28px', color: 'var(--accent-teal)' }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {photoFile ? t('Change Selected Photo') : t('Choose Profile Photo')}
-                          </span>
-                          <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)' }}>
-                            JPEG, JPG or PNG (Max 100 KB)
-                          </span>
+                  
+                  <form onSubmit={handlePhotoUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Old and New Image Side-by-Side */}
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {/* Old Image (Current Profile Photo) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Current Photo</span>
+                        <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+                          <img src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
-                      </label>
-                      <input 
-                        id="custom-file-upload-input"
-                        type="file" 
-                        accept="image/jpeg, image/png, image/jpg"
-                        onChange={handlePhotoFileChange} 
-                        style={{ display: 'none' }}
-                      />
-                    </div>
+                      </div>
 
-                    {photoPreview && (
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                        padding: '16px',
-                        background: 'var(--bg-primary)',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border-color)',
-                        animation: 'fadeIn 0.2s ease'
-                      }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                          {t('Preview New Photo:')}
-                        </span>
-                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                          <div style={{
-                            width: '100px',
-                            height: '125px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-color)',
-                            overflow: 'hidden',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                            flexShrink: 0
-                          }}>
+                      {/* Arrow indicator if preview exists */}
+                      {photoPreview && (
+                        <div style={{ fontSize: '20px', color: 'var(--accent-teal)', fontWeight: 'bold', alignSelf: 'center', margin: '0 4px' }}>→</div>
+                      )}
+
+                      {/* New Image (Preview) */}
+                      {photoPreview ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', animation: 'fadeIn 0.2s ease' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--accent-teal)' }}>New Preview</span>
+                          <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '2px solid var(--accent-teal)', overflow: 'hidden', background: 'var(--bg-primary)' }}>
                             <img src={photoPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                              {photoFile?.name}
-                            </span>
-                            <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)' }}>
-                              {photoFile ? (photoFile.size / 1024).toFixed(1) : 0} KB
-                            </span>
-                            <span style={{ fontSize: '9.5px', color: 'var(--accent-teal)', fontWeight: 700 }}>
-                              ✓ Ready to upload
-                            </span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)' }}>New Preview</span>
+                          <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '1px dashed var(--border-color)', display: 'grid', placeItems: 'center', background: 'var(--bg-primary)' }}>
+                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'center', padding: '4px' }}>No image chosen</span>
                           </div>
                         </div>
+                      )}
+
+                      {/* Action Area */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '160px' }}>
+                        <input 
+                          ref={fileInputRef}
+                          id="custom-file-upload-input"
+                          type="file" 
+                          accept="image/jpeg, image/png, image/jpg"
+                          onChange={handlePhotoFileChange} 
+                          style={{ display: 'none' }}
+                        />
+
+                        {!photoPreview ? (
+                          <label 
+                            htmlFor="custom-file-upload-input" 
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              padding: '10px 16px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--accent-teal)',
+                              background: 'rgba(20, 184, 166, 0.05)',
+                              color: 'var(--accent-teal)',
+                              cursor: 'pointer',
+                              fontWeight: 800,
+                              fontSize: '12px',
+                              textAlign: 'center',
+                              transition: 'all 0.2s ease',
+                              width: 'fit-content'
+                            }}
+                          >
+                            <Camera style={{ width: '16px', height: '16px' }} />
+                            <span>Select Photo from Device</span>
+                          </label>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {photoFile && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--text-primary)', fontWeight: 'bold', wordBreak: 'break-all' }}>
+                                  {photoFile.name}
+                                </span>
+                                <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>
+                                  Original: {(photoFile.size / 1024).toFixed(1)} KB
+                                </span>
+                              </div>
+                            )}
+                            <label 
+                              htmlFor="custom-file-upload-input" 
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-primary)',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                fontSize: '11px',
+                                width: 'fit-content',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              Choose Another Photo
+                            </label>
+                          </div>
+                        )}
                       </div>
+                    </div>
+
+                    {photoError && <div style={{ color: 'var(--danger)', fontSize: '11px', animation: 'fadeIn 0.2s' }}>{photoError}</div>}
+
+                    {/* Submit Button (Hidden unless user has chosen/cropped a photo) */}
+                    {photoPreview && (
+                      <button 
+                        type="submit" 
+                        disabled={photoLoading} 
+                        style={{ 
+                          width: 'fit-content', 
+                          padding: '10px 24px', 
+                          border: 'none', 
+                          borderRadius: '8px', 
+                          background: 'var(--accent-teal)', 
+                          color: '#ffffff', 
+                          fontWeight: 800, 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 12px rgba(20, 184, 166, 0.2)'
+                        }}
+                      >
+                        {photoLoading ? (
+                          <>
+                            <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                            <span>Saving...</span>
+                          </>
+                        ) : 'Save Picture'}
+                      </button>
                     )}
-
-                    {photoError && <div style={{ color: 'var(--danger)', fontSize: '11px' }}>{photoError}</div>}
-
-                    <button type="submit" disabled={photoLoading || !photoFile} style={{ width: 'fit-content', padding: '10px 20px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>
-                      {photoLoading ? 'Uploading...' : 'Save Picture'}
-                    </button>
                   </form>
+
+                  {/* Photo Guidelines wrapped inside a styled card container (always open) */}
+                  <div style={{ 
+                    marginTop: '24px', 
+                    background: 'var(--bg-primary)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '16px', 
+                    padding: '20px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '16px' 
+                  }}>
+                    <h5 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Check style={{ color: 'var(--success)', width: '16px', height: '16px' }} />
+                      <span>Official ABHA Photo Guidelines</span>
+                    </h5>
+
+                    {/* Side-by-side Valid/Invalid examples using actual generated images */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      {/* Valid Example */}
+                      <div style={{
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        background: 'rgba(16, 185, 129, 0.03)',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', border: '2px solid var(--success)', overflow: 'hidden', position: 'relative' }}>
+                          <img src="/assets/valid_photo.png" alt="Valid" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'var(--success)', borderRadius: '50%', width: '16px', height: '16px', display: 'grid', placeItems: 'center' }}>
+                            <Check style={{ width: '10px', height: '10px', color: '#fff' }} />
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: 'var(--success)' }}>Valid Photo</span>
+                        <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Plain background, clear front view face, eyes visible.</span>
+                      </div>
+
+                      {/* Invalid Example */}
+                      <div style={{
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        background: 'rgba(239, 68, 68, 0.03)',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', border: '2px solid var(--danger)', overflow: 'hidden', position: 'relative' }}>
+                          <img src="/assets/invalid_photo.png" alt="Invalid" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'var(--danger)', borderRadius: '50%', width: '16px', height: '16px', display: 'grid', placeItems: 'center' }}>
+                            <X style={{ width: '10px', height: '10px', color: '#fff' }} />
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: 'var(--danger)' }}>Invalid Photo</span>
+                        <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Dark sunglasses, tilted head, busy background, shadows.</span>
+                      </div>
+                    </div>
+
+                    <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                      <li>Recent passport-size photo.</li>
+                      <li>Face should be clearly visible & centered.</li>
+                      <li>No sunglasses, masks, or heavy filters.</li>
+                      <li>Good lighting and plain/neutral background preferred.</li>
+                      <li>Supported formats: JPG, JPEG, PNG (automatic compression to &lt; 100 KB).</li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
@@ -3166,65 +3452,126 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* 10. Photo Upload Confirmation Modal */}
-      {confirmPhotoModal && (
+      {/* Photo Crop Modal */}
+      {activeModal === 'photo_crop_custom' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)',
+          zIndex: 9999, display: 'grid', placeItems: 'center', padding: '20px'
+        }}>
+          <ImageCropper 
+            imageSrc={rawImageToCrop}
+            onCropComplete={(croppedBase64, sizeKb) => {
+              setPhotoPreview(`data:image/jpeg;base64,${croppedBase64}`);
+              setPhotoError('');
+              setActiveModal(null);
+            }}
+            onCancel={() => {
+              setRawImageToCrop('');
+              setActiveModal(null);
+            }}
+          />
+        </div>
+      )}
+
+      {/* 13. Response Details Modal */}
+      {activeModal === 'photo_response_custom' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)',
           zIndex: 9999, display: 'grid', placeItems: 'center', padding: '20px'
         }}>
           <div 
+            className="custom-bottom-sheet"
             style={{
               background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '24px',
-              width: '100%', maxWidth: '400px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
+              width: '100%', maxWidth: '460px', padding: '24px', boxShadow: 'var(--surface-shadow)',
               display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left',
-              animation: shakeModal ? 'otp-shake 0.4s ease' : 'fadeIn 0.25s ease'
+              position: 'relative', overflowY: 'auto', maxHeight: '85vh'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                <Camera style={{ color: 'var(--accent-teal)', width: '18px', height: '18px' }} />
-                <span>Confirm Photo Update</span>
+                <Check style={{ color: photoResponseData && !photoResponseData.code ? 'var(--success)' : 'var(--danger)', width: '18px', height: '18px' }} />
+                <span>Response Details</span>
               </h3>
-              <button onClick={() => setConfirmPhotoModal(false)} style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)' }} disabled={photoLoading}>
+              <button onClick={() => { setActiveModal(null); setPhotoResponseData(null); }} style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X style={{ width: '18px', height: '18px' }} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{
-                width: '120px',
-                height: '150px',
-                borderRadius: '12px',
-                border: '2px solid var(--accent-teal)',
-                overflow: 'hidden',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
-              }}>
-                <img src={photoPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Success / Failure Banner */}
+              {photoResponseData && !photoResponseData.code ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px 16px', borderRadius: '12px' }}>
+                  <Check style={{ color: 'var(--success)', width: '16px', height: '16px' }} />
+                  <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    Profile updated successfully on ABHA card
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 16px', borderRadius: '12px' }}>
+                  <AlertCircle style={{ color: 'var(--danger)', width: '16px', height: '16px' }} />
+                  <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    Gateway submission failed
+                  </div>
+                </div>
+              )}
+
+              {/* Data Table */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--bg-primary)', padding: '10px 14px', borderBottom: '1px solid var(--border-color)', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                  API RESPONSE DATA
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '300px', overflowY: 'auto' }}>
+                  {photoResponseData ? (
+                    Object.entries(photoResponseData).map(([key, val]) => {
+                      if (key === 'profilePhoto' || key === 'kycPhoto' || key === 'photo') {
+                        return (
+                          <div key={key} style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', fontSize: '11px', padding: '10px 14px', background: 'var(--bg-secondary)' }}>
+                            <span style={{ width: '140px', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>{key}</span>
+                            <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'monospace', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              [base64 image data - {(typeof val === 'string' ? val.length / 1024 : 0).toFixed(1)} KB]
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={key} style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', fontSize: '11px', padding: '10px 14px', background: 'var(--bg-secondary)' }}>
+                          <span style={{ width: '140px', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>{key}</span>
+                          <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'monospace', flex: 1 }}>
+                            {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ padding: '14px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                      No data received.
+                    </div>
+                  )}
+                </div>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                Are you sure you want to update your official ABHA Card profile photo to this new image?
-              </p>
             </div>
 
-            {photoError && <div style={{ color: 'var(--danger)', fontSize: '11px', textAlign: 'center' }}>{photoError}</div>}
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+            {/* Sticky Actions Container at Bottom */}
+            <div 
+              className="sticky-actions-container"
+              style={{ 
+                display: 'flex', 
+                gap: '10px', 
+                marginTop: '12px', 
+                borderTop: '1px solid var(--border-color)', 
+                paddingTop: '16px' 
+              }}
+            >
               <button 
                 type="button" 
-                onClick={() => setConfirmPhotoModal(false)} 
-                style={{ flex: 1, padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer' }}
-                disabled={photoLoading}
+                onClick={() => { setActiveModal(null); setPhotoResponseData(null); }} 
+                style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', textAlign: 'center' }}
               >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                onClick={() => handlePhotoUploadSubmit()} 
-                style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                disabled={photoLoading}
-              >
-                {photoLoading ? 'Uploading...' : 'Confirm & Save'}
+                Close & Done
               </button>
             </div>
           </div>

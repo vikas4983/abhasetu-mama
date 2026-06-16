@@ -62,6 +62,7 @@ describe('AbdmController', () => {
     verifyProfileLoginOtp: jest.fn(),
     requestReKycOtp: jest.fn(),
     verifyReKycOtp: jest.fn(),
+    updateProfileAccount: jest.fn(),
   };
 
   const mockAuthService = {
@@ -977,6 +978,63 @@ describe('AbdmController', () => {
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         loginId: 'Invalid LoginId'
+      }));
+    });
+  });
+
+  describe('updateProfileAccount', () => {
+    it('should update profile photo successfully', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.updateProfileAccount.mockResolvedValue({
+        status: 'success',
+        data: {
+          ABHANumber: '91-7561-4088-XXXX',
+          preferredAbhaAddress: 'Username1997@sbx',
+          mobile: '******9093',
+          firstName: 'Username',
+          middleName: 'Kailas',
+          lastName: 'Shelke',
+          name: 'Username Kailas Shelke',
+          profilePhoto: 'valid_mock_photo_base64',
+          kycVerified: true,
+          verificationStatus: 'VERIFIED'
+        }
+      });
+
+      await controller.updateProfileAccount(
+        { profilePhoto: 'valid_mock_photo_base64' },
+        req,
+        res
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        ABHANumber: '91-7561-4088-XXXX'
+      }));
+    });
+
+    it('should return BAD_REQUEST on update error', async () => {
+      const res = createMockResponse();
+      const req = createMockRequest();
+      mockAbdmService.updateProfileAccount.mockResolvedValue({
+        status: 'error',
+        message: 'Invalid photo. Please upload a file with a human face.',
+        details: {
+          ProfilePhoto: 'Invalid photo. Please upload a file with a human face.',
+          timestamp: '2024-05-10 15:05:58'
+        }
+      });
+
+      await controller.updateProfileAccount(
+        { profilePhoto: 'invalid_mock_photo_base64' },
+        req,
+        res
+      );
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        ProfilePhoto: 'Invalid photo. Please upload a file with a human face.'
       }));
     });
   });

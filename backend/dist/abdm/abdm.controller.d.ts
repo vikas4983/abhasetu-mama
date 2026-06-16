@@ -28,6 +28,8 @@ export declare class AbdmController {
     v3ProfileLoginVerify(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     downloadAbhaCard(req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     updateProfileAccount(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    updateProfileAccountPatch(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    private updateProfileAccountHandler;
     requestReKycOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     verifyReKycOtp(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     private verifyReKycOtpInternal;

@@ -8,7 +8,7 @@
  * @modified    2026-06-10
  */
 
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, Res, Req, HttpStatus, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Query, Param, Res, Req, HttpStatus, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AbdmService } from './abdm.service';
 import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -542,6 +542,15 @@ export class AbdmController {
    */
   @Post('v3/profile/account')
   async updateProfileAccount(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+    return this.updateProfileAccountHandler(body, req, res);
+  }
+
+  @Patch('v3/profile/account')
+  async updateProfileAccountPatch(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+    return this.updateProfileAccountHandler(body, req, res);
+  }
+
+  private async updateProfileAccountHandler(body: any, req: express.Request, res: express.Response) {
     let xToken = getCookie(req.headers.cookie, 'x_token') || 
                  getCookie(req.headers.cookie, 'verify_via_abha_number_token') ||
                  getCookie(req.headers.cookie, 'session_id') ||

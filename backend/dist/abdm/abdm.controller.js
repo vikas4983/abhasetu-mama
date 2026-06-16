@@ -465,6 +465,12 @@ let AbdmController = class AbdmController {
         return res.send(Buffer.from(result.data));
     }
     async updateProfileAccount(body, req, res) {
+        return this.updateProfileAccountHandler(body, req, res);
+    }
+    async updateProfileAccountPatch(body, req, res) {
+        return this.updateProfileAccountHandler(body, req, res);
+    }
+    async updateProfileAccountHandler(body, req, res) {
         let xToken = getCookie(req.headers.cookie, 'x_token') ||
             getCookie(req.headers.cookie, 'verify_via_abha_number_token') ||
             getCookie(req.headers.cookie, 'session_id') ||
@@ -1205,6 +1211,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "updateProfileAccount", null);
+__decorate([
+    (0, common_1.Patch)('v3/profile/account'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "updateProfileAccountPatch", null);
 __decorate([
     (0, common_1.Post)('v3/profile/account/request/otp'),
     __param(0, (0, common_1.Body)()),
