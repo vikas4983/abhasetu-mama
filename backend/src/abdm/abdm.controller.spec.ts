@@ -1,23 +1,40 @@
 /**
  * @file        abdm.controller.spec.ts
- * @description Unit tests for AbdmController validation checks, transaction ledger, and all proxy endpoints.
+ * @description Unit tests for segregated controllers (Admin, Sessions, Enrollment, Profile, Catalog, Doctor, Gateway, Crypto, Utility) compliance.
  * @module      abdm
  * @layer       controller
  * @author      Platform Team
- * @created     2026-06-11
- * @modified    2026-06-11
+ * @created     2026-06-19
+ * @modified    2026-06-19
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { AbdmController } from './abdm.controller';
+import { AbdmAdminController } from './controllers/admin.controller';
+import { AbdmSessionController } from './controllers/sessions.controller';
+import { AbdmEnrollmentController } from './controllers/enrollment.controller';
+import { AbdmProfileController } from './controllers/profile.controller';
+import { AbdmCatalogController } from './controllers/catalog.controller';
+import { AbdmDoctorController } from './controllers/doctor.controller';
+import { AbdmGatewayController } from './controllers/gateway.controller';
+import { AbdmCryptoController } from './controllers/crypto.controller';
+import { AbdmUtilityController } from './controllers/utility.controller';
 import { AbdmService } from './abdm.service';
 import { AuthService } from '../auth/auth.service';
 import { CryptoService } from './crypto.service';
 import { HttpStatus } from '@nestjs/common';
 import * as express from 'express';
 
-describe('AbdmController', () => {
-  let controller: AbdmController;
+describe('ABDM Segregated Controllers', () => {
+  let adminController: AbdmAdminController;
+  let sessionController: AbdmSessionController;
+  let enrollmentController: AbdmEnrollmentController;
+  let profileController: AbdmProfileController;
+  let catalogController: AbdmCatalogController;
+  let doctorController: AbdmDoctorController;
+  let gatewayController: AbdmGatewayController;
+  let cryptoController: AbdmCryptoController;
+  let utilityController: AbdmUtilityController;
+  
   let abdmService: AbdmService;
   let authService: AuthService;
 
@@ -63,6 +80,11 @@ describe('AbdmController', () => {
     requestReKycOtp: jest.fn(),
     verifyReKycOtp: jest.fn(),
     updateProfileAccount: jest.fn(),
+    getDlGatewaySession: jest.fn(),
+    requestDlOtp: jest.fn(),
+    verifyDlOtp: jest.fn(),
+    enrolByDl: jest.fn(),
+    getPincodeDetails: jest.fn(),
   };
 
   const mockAuthService = {
@@ -98,7 +120,17 @@ describe('AbdmController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [AbdmController],
+      controllers: [
+        AbdmAdminController,
+        AbdmSessionController,
+        AbdmEnrollmentController,
+        AbdmProfileController,
+        AbdmCatalogController,
+        AbdmDoctorController,
+        AbdmGatewayController,
+        AbdmCryptoController,
+        AbdmUtilityController,
+      ],
       providers: [
         { provide: AbdmService, useValue: mockAbdmService },
         { provide: AuthService, useValue: mockAuthService },
@@ -106,7 +138,16 @@ describe('AbdmController', () => {
       ],
     }).compile();
 
-    controller = module.get<AbdmController>(AbdmController);
+    adminController = module.get<AbdmAdminController>(AbdmAdminController);
+    sessionController = module.get<AbdmSessionController>(AbdmSessionController);
+    enrollmentController = module.get<AbdmEnrollmentController>(AbdmEnrollmentController);
+    profileController = module.get<AbdmProfileController>(AbdmProfileController);
+    catalogController = module.get<AbdmCatalogController>(AbdmCatalogController);
+    doctorController = module.get<AbdmDoctorController>(AbdmDoctorController);
+    gatewayController = module.get<AbdmGatewayController>(AbdmGatewayController);
+    cryptoController = module.get<AbdmCryptoController>(AbdmCryptoController);
+    utilityController = module.get<AbdmUtilityController>(AbdmUtilityController);
+
     abdmService = module.get<AbdmService>(AbdmService);
     authService = module.get<AuthService>(AuthService);
   });
@@ -118,7 +159,7 @@ describe('AbdmController', () => {
   describe('adminLogin', () => {
     it('should call validateAndLogin with credentials', async () => {
       mockAuthService.validateAndLogin.mockResolvedValue({ status: 'success', token: 'jwt' });
-      const result = await controller.adminLogin({ email: 'admin@test.com', password: 'password' });
+      const result = await adminController.adminLogin({ email: 'admin@test.com', password: 'password' });
       expect(authService.validateAndLogin).toHaveBeenCalledWith('admin@test.com', 'password');
       expect(result).toEqual({ status: 'success', token: 'jwt' });
     });
@@ -133,7 +174,7 @@ describe('AbdmController', () => {
         publicKey: 'pub-key-data',
       });
 
-      await controller.getSessions(res);
+      await sessionController.getSessions(res);
 
       expect(res.cookie).toHaveBeenCalledWith('session_id', 'sess-preview', expect.any(Object));
       expect(res.cookie).toHaveBeenCalledWith('public_key', 'pub-key-data', expect.any(Object));
@@ -144,7 +185,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.getGatewaySession.mockRejectedValue(new Error('Gateway Offline'));
 
-      await controller.getSessions(res);
+      await sessionController.getSessions(res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(res.json).toHaveBeenCalledWith({
@@ -165,7 +206,7 @@ describe('AbdmController', () => {
         ABDM_PUBLIC_KEY: 'config-pub-key',
       });
 
-      await controller.generateSession(res);
+      await sessionController.generateSession(res);
 
       expect(res.cookie).toHaveBeenCalledWith('session_id', 'new-sess-preview', expect.any(Object));
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
@@ -175,7 +216,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.generateSessionToken.mockRejectedValue(new Error('Auth Fail'));
 
-      await controller.generateSession(res);
+      await sessionController.generateSession(res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(res.json).toHaveBeenCalledWith({
@@ -193,7 +234,7 @@ describe('AbdmController', () => {
         publicKey: 'synced-pub-key',
       });
 
-      await controller.fetchPublicKey(res);
+      await sessionController.fetchPublicKey(res);
 
       expect(res.cookie).toHaveBeenCalledWith('public_key', 'synced-pub-key', expect.any(Object));
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
@@ -203,7 +244,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.syncPublicKeyFromGateway.mockRejectedValue(new Error('Net Error'));
 
-      await controller.fetchPublicKey(res);
+      await sessionController.fetchPublicKey(res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -215,7 +256,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestAadhaarOtp.mockResolvedValue({ status: 'success', txnId: 'txn-123' });
 
-      await controller.enroll({ action: 'request-otp', aadhaar: '123456789012' }, res, req);
+      await enrollmentController.enroll({ action: 'request-otp', aadhaar: '123456789012' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(res.json).toHaveBeenCalledWith({ status: 'success', txnId: 'txn-123' });
@@ -226,7 +267,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestAadhaarOtp.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.enroll({ action: 'request-otp', aadhaar: '123456789012' }, res, req);
+      await enrollmentController.enroll({ action: 'request-otp', aadhaar: '123456789012' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -236,7 +277,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.verifyAadhaarOtp.mockResolvedValue({ status: 'success', preferredAddress: 'test@sbx' });
 
-      await controller.enroll({ action: 'verify-otp', otp: '123456', txnId: 'txn-123', mobile: '9988998899' }, res, req);
+      await enrollmentController.enroll({ action: 'verify-otp', otp: '123456', txnId: 'txn-123', mobile: '9988998899' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -246,7 +287,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.verifyAadhaarOtp.mockResolvedValue({ status: 'error', message: 'Invalid OTP' });
 
-      await controller.enroll({ action: 'verify-otp', otp: '111111', txnId: 'txn-123' }, res, req);
+      await enrollmentController.enroll({ action: 'verify-otp', otp: '111111', txnId: 'txn-123' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -256,7 +297,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestMobileOtp.mockResolvedValue({ status: 'success', txnId: 'mobile-txn' });
 
-      await controller.enroll({ action: 'request-mobile-otp', mobile: '9988998899' }, res, req);
+      await enrollmentController.enroll({ action: 'request-mobile-otp', mobile: '9988998899' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -266,7 +307,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestMobileOtp.mockResolvedValue({ status: 'error', message: 'Blocked' });
 
-      await controller.enroll({ action: 'request-mobile-otp', mobile: '9988998899' }, res, req);
+      await enrollmentController.enroll({ action: 'request-mobile-otp', mobile: '9988998899' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -276,7 +317,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.verifyMobileOtp.mockResolvedValue({ status: 'success' });
 
-      await controller.enroll({ action: 'verify-mobile-otp', otp: '123456', txnId: 'txn-123', mobile: '9988998899' }, res, req);
+      await enrollmentController.enroll({ action: 'verify-mobile-otp', otp: '123456', txnId: 'txn-123', mobile: '9988998899' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -286,7 +327,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.verifyMobileOtp.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.enroll({ action: 'verify-mobile-otp', otp: '123456', txnId: 'txn-123' }, res, req);
+      await enrollmentController.enroll({ action: 'verify-mobile-otp', otp: '123456', txnId: 'txn-123' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -296,7 +337,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.enrolByDocument.mockResolvedValue({ status: 'success' });
 
-      await controller.enroll({ action: 'enrol-by-document', firstName: 'Aarav' }, res, req);
+      await enrollmentController.enroll({ action: 'enrol-by-document', firstName: 'Aarav' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -306,7 +347,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.enrolByDocument.mockResolvedValue({ status: 'error', message: 'Invalid doc' });
 
-      await controller.enroll({ action: 'enrol-by-document', firstName: 'Aarav' }, res, req);
+      await enrollmentController.enroll({ action: 'enrol-by-document', firstName: 'Aarav' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -315,7 +356,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       const req = createMockRequest();
 
-      await controller.enroll({ action: 'invalid-action' }, res, req);
+      await enrollmentController.enroll({ action: 'invalid-action' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -327,7 +368,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestAadhaarOtp.mockResolvedValue({ status: 'success', txnId: 'v3-aadhaar-txn' });
 
-      await controller.v3RequestOtp({ loginHint: 'aadhaar', loginId: '123456789012' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'aadhaar', loginId: '123456789012' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ txnId: 'v3-aadhaar-txn' }));
@@ -338,7 +379,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestAadhaarOtp.mockResolvedValue({ status: 'error', message: 'Invalid Aadhaar' });
 
-      await controller.v3RequestOtp({ loginHint: 'aadhaar', loginId: '123456789012' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'aadhaar', loginId: '123456789012' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -347,7 +388,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       const req = createMockRequest();
 
-      await controller.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '9876543210' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '9876543210' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -357,7 +398,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestMobileOtp.mockResolvedValue({ status: 'success', txnId: 'v3-mobile-txn' });
 
-      await controller.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -367,7 +408,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.requestMobileOtp.mockResolvedValue({ status: 'error', message: 'Service fail' });
 
-      await controller.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -377,7 +418,7 @@ describe('AbdmController', () => {
       const req = createMockRequest({ cookie: 'txn_id=cookie-txn-123' });
       mockAbdmService.requestMobileOtp.mockResolvedValue({ status: 'success', txnId: 'v3-mobile-txn' });
 
-      await controller.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
 
       expect(mockAbdmService.requestMobileOtp).toHaveBeenCalledWith('9876543210', 'cookie-txn-123', expect.any(Object));
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
@@ -388,7 +429,7 @@ describe('AbdmController', () => {
       const req = createMockRequest({ cookie: 'something_else=123' });
       mockAbdmService.requestMobileOtp.mockResolvedValue({ status: 'success', txnId: 'v3-mobile-txn' });
 
-      await controller.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'mobile', loginId: '9876543210', currentMobile: '8888888888' }, res, req);
 
       expect(mockAbdmService.requestMobileOtp).toHaveBeenCalledWith('9876543210', '', expect.any(Object));
     });
@@ -397,7 +438,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       const req = createMockRequest();
 
-      await controller.v3RequestOtp({ loginHint: 'invalid-hint' }, res, req);
+      await enrollmentController.v3RequestOtp({ loginHint: 'invalid-hint' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -414,7 +455,7 @@ describe('AbdmController', () => {
       });
       mockAbdmService.getConfig.mockResolvedValue({ ABDM_PUBLIC_KEY: 'key-data' });
 
-      await controller.v3EnrolByAadhaar({ txnId: 'txn-123', authData: { otp: { otpValue: '123456', mobile: '9988998899' } } }, res, req);
+      await enrollmentController.v3EnrolByAadhaar({ txnId: 'txn-123', authData: { otp: { otpValue: '123456', mobile: '9988998899' } } }, res, req);
 
       expect(res.cookie).toHaveBeenCalledWith('session_id', 'sessionToken', expect.any(Object));
       expect(res.cookie).toHaveBeenCalledWith('x_token', 'sessionToken', expect.any(Object));
@@ -428,7 +469,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.verifyAadhaarOtp.mockResolvedValue({ status: 'error', message: 'Wrong OTP' });
 
-      await controller.v3EnrolByAadhaar({ txnId: 'txn-123', authData: { otp: { otpValue: '111111' } } }, res, req);
+      await enrollmentController.v3EnrolByAadhaar({ txnId: 'txn-123', authData: { otp: { otpValue: '111111' } } }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -443,7 +484,7 @@ describe('AbdmController', () => {
         tokens: { token: 'sessionToken', refreshToken: 'refresh', expiresIn: 3600, refreshExpiresIn: 7200 },
       });
 
-      await controller.v3AuthByAbdm({ txnId: 'txn-123', authData: { otp: { otpValue: '123456' } } }, res, req);
+      await enrollmentController.v3AuthByAbdm({ txnId: 'txn-123', authData: { otp: { otpValue: '123456' } } }, res, req);
 
       expect(res.cookie).toHaveBeenCalledWith('session_id', 'sessionToken', expect.any(Object));
       expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'refresh', expect.any(Object));
@@ -455,7 +496,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.verifyMobileOtp.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.v3AuthByAbdm({ txnId: 'txn-123', authData: { otp: { otpValue: '123456' } } }, res, req);
+      await enrollmentController.v3AuthByAbdm({ txnId: 'txn-123', authData: { otp: { otpValue: '123456' } } }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -466,7 +507,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       const req = createMockRequest(); // no cookies
 
-      await controller.downloadAbhaCard(req, res);
+      await profileController.downloadAbhaCard(req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('X-token') }));
@@ -482,7 +523,7 @@ describe('AbdmController', () => {
         data: Buffer.from('mock-png-bytes'),
       });
 
-      await controller.downloadAbhaCard(req, res);
+      await profileController.downloadAbhaCard(req, res);
 
       expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
       expect(res.send).toHaveBeenCalled();
@@ -493,7 +534,7 @@ describe('AbdmController', () => {
       const req = createMockRequest({ cookie: 'x_token=test-x-token' });
       mockAbdmService.getGatewaySession.mockRejectedValue(new Error('Gateway Offline'));
 
-      await controller.downloadAbhaCard(req, res);
+      await profileController.downloadAbhaCard(req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(res.json).toHaveBeenCalledWith({
@@ -512,7 +553,7 @@ describe('AbdmController', () => {
         details: { code: '900901', description: 'Invalid signature description' },
       });
 
-      await controller.downloadAbhaCard(req, res);
+      await profileController.downloadAbhaCard(req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: '900901' }));
@@ -524,7 +565,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       const req = createMockRequest();
 
-      await controller.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'user@test.com' }, req, res);
+      await profileController.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'user@test.com' }, req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -533,7 +574,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       const req = createMockRequest(); // no cookies
 
-      await controller.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'old@test.com' }, req, res);
+      await profileController.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'old@test.com' }, req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -543,7 +584,7 @@ describe('AbdmController', () => {
       const req = createMockRequest({ cookie: 'x_token=test-token' });
       mockAbdmService.getGatewaySession.mockRejectedValue(new Error('Auth Service Down'));
 
-      await controller.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'old@test.com' }, req, res);
+      await profileController.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'old@test.com' }, req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -554,7 +595,7 @@ describe('AbdmController', () => {
       mockAbdmService.getGatewaySession.mockResolvedValue({ tokenPreview: 'jwt' });
       mockAbdmService.requestEmailVerificationLink.mockResolvedValue({ status: 'error', message: 'Invalid payload' });
 
-      await controller.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'old@test.com' }, req, res);
+      await profileController.requestEmailVerificationLink({ email: 'user@test.com', currentEmail: 'old@test.com' }, req, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -566,7 +607,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.enrolByDocument.mockResolvedValue({ status: 'success', txnId: 'doc-txn' });
 
-      await controller.v3EnrolByDocument({ txnId: 'txn-123', authData: { document: { firstName: 'Aarav' } } }, res, req);
+      await enrollmentController.v3EnrolByDocument({ txnId: 'txn-123', authData: { document: { firstName: 'Aarav' } } }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -576,7 +617,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.enrolByDocument.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.v3EnrolByDocument({ txnId: 'txn-123', authData: { document: { firstName: 'Aarav' } } }, res, req);
+      await enrollmentController.v3EnrolByDocument({ txnId: 'txn-123', authData: { document: { firstName: 'Aarav' } } }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -585,25 +626,25 @@ describe('AbdmController', () => {
   describe('Admin Configuration Config & Logs', () => {
     it('should get config data', async () => {
       mockAbdmService.getConfig.mockResolvedValue({ env: 'sandbox' });
-      const result = await controller.getConfig();
+      const result = await adminController.getConfig();
       expect(result).toEqual({ status: 'success', config: { env: 'sandbox' } });
     });
 
     it('should save config data', async () => {
       mockAbdmService.saveConfig.mockResolvedValue({ status: 'success' });
-      const result = await controller.saveConfig({ env: 'prod' });
+      const result = await adminController.saveConfig({ env: 'prod' });
       expect(result).toEqual({ status: 'success' });
     });
 
     it('should get log files', async () => {
       mockAbdmService.getLogs.mockResolvedValue([{ event: 'login' }]);
-      const result = await controller.getLogs();
+      const result = await adminController.getLogs();
       expect(result).toEqual({ status: 'success', logs: [{ event: 'login' }] });
     });
 
     it('should add a log entry', async () => {
       mockAbdmService.addLog.mockResolvedValue(undefined);
-      const result = await controller.addLog({ event: 'test', status: 'ok', details: {} });
+      const result = await adminController.addLog({ event: 'test', status: 'ok', details: {} });
       expect(result).toEqual({ status: 'success' });
     });
   });
@@ -614,10 +655,10 @@ describe('AbdmController', () => {
       mockAbdmService.saveProduct.mockResolvedValue({ status: 'success' });
       mockAbdmService.deleteProduct.mockResolvedValue({ status: 'success' });
 
-      expect(await controller.getProducts()).toEqual({ status: 'success', products: [] });
-      expect(await controller.addProduct({ name: 'aspirin' })).toEqual({ status: 'success' });
-      expect(await controller.updateProduct({ name: 'aspirin' })).toEqual({ status: 'success' });
-      expect(await controller.deleteProduct('1')).toEqual({ status: 'success' });
+      expect(await catalogController.getProducts()).toEqual({ status: 'success', products: [] });
+      expect(await catalogController.addProduct({ name: 'aspirin' })).toEqual({ status: 'success' });
+      expect(await catalogController.updateProduct({ name: 'aspirin' })).toEqual({ status: 'success' });
+      expect(await catalogController.deleteProduct('1')).toEqual({ status: 'success' });
     });
 
     it('should manage insurance policies catalog', async () => {
@@ -625,10 +666,10 @@ describe('AbdmController', () => {
       mockAbdmService.savePolicy.mockResolvedValue({ status: 'success' });
       mockAbdmService.deletePolicy.mockResolvedValue({ status: 'success' });
 
-      expect(await controller.getPolicies()).toEqual({ status: 'success', policies: [] });
-      expect(await controller.addPolicy({ title: 'basic' })).toEqual({ status: 'success' });
-      expect(await controller.updatePolicy({ title: 'basic' })).toEqual({ status: 'success' });
-      expect(await controller.deletePolicy('1')).toEqual({ status: 'success' });
+      expect(await catalogController.getPolicies()).toEqual({ status: 'success', policies: [] });
+      expect(await catalogController.addPolicy({ title: 'basic' })).toEqual({ status: 'success' });
+      expect(await catalogController.updatePolicy({ title: 'basic' })).toEqual({ status: 'success' });
+      expect(await catalogController.deletePolicy('1')).toEqual({ status: 'success' });
     });
 
     it('should manage lab packages catalog', async () => {
@@ -636,10 +677,10 @@ describe('AbdmController', () => {
       mockAbdmService.saveLabPackage.mockResolvedValue({ status: 'success' });
       mockAbdmService.deleteLabPackage.mockResolvedValue({ status: 'success' });
 
-      expect(await controller.getLabPackages()).toEqual({ status: 'success', labPackages: [] });
-      expect(await controller.addLabPackage({ title: 'cbc' })).toEqual({ status: 'success' });
-      expect(await controller.updateLabPackage({ title: 'cbc' })).toEqual({ status: 'success' });
-      expect(await controller.deleteLabPackage('1')).toEqual({ status: 'success' });
+      expect(await catalogController.getLabPackages()).toEqual({ status: 'success', labPackages: [] });
+      expect(await catalogController.addLabPackage({ title: 'cbc' })).toEqual({ status: 'success' });
+      expect(await catalogController.updateLabPackage({ title: 'cbc' })).toEqual({ status: 'success' });
+      expect(await catalogController.deleteLabPackage('1')).toEqual({ status: 'success' });
     });
   });
 
@@ -651,9 +692,9 @@ describe('AbdmController', () => {
       mockAbdmService.handleConsent.mockResolvedValue({ status: 'success' });
       mockAbdmService.handleScanShare.mockResolvedValue({ status: 'success' });
 
-      await controller.hip({ action: 'discover' }, res, req);
-      await controller.consent({ action: 'approve' }, res, req);
-      await controller.scanShare({ action: 'share' }, res, req);
+      await gatewayController.hip({ action: 'discover' }, res, req);
+      await gatewayController.consent({ action: 'approve' }, res, req);
+      await gatewayController.scanShare({ action: 'share' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -665,9 +706,9 @@ describe('AbdmController', () => {
       mockAbdmService.handleConsent.mockResolvedValue({ status: 'error', message: 'Fail' });
       mockAbdmService.handleScanShare.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.hip({ action: 'discover' }, res, req);
-      await controller.consent({ action: 'approve' }, res, req);
-      await controller.scanShare({ action: 'share' }, res, req);
+      await gatewayController.hip({ action: 'discover' }, res, req);
+      await gatewayController.consent({ action: 'approve' }, res, req);
+      await gatewayController.scanShare({ action: 'share' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -679,9 +720,9 @@ describe('AbdmController', () => {
       mockAbdmService.handleNhcx.mockResolvedValue({ status: 'success' });
       mockAbdmService.handleHpr.mockResolvedValue({ status: 'success' });
 
-      await controller.uhi({ action: 'search' }, res, req);
-      await controller.nhcx({ action: 'check' }, res, req);
-      await controller.hpr({ action: 'verify' }, res, req);
+      await gatewayController.uhi({ action: 'search' }, res, req);
+      await gatewayController.nhcx({ action: 'check' }, res, req);
+      await gatewayController.hpr({ action: 'verify' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -693,9 +734,9 @@ describe('AbdmController', () => {
       mockAbdmService.handleNhcx.mockResolvedValue({ status: 'error', message: 'Fail' });
       mockAbdmService.handleHpr.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.uhi({ action: 'search' }, res, req);
-      await controller.nhcx({ action: 'check' }, res, req);
-      await controller.hpr({ action: 'verify' }, res, req);
+      await gatewayController.uhi({ action: 'search' }, res, req);
+      await gatewayController.nhcx({ action: 'check' }, res, req);
+      await gatewayController.hpr({ action: 'verify' }, res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -705,7 +746,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.runTests.mockResolvedValue({ status: 'success' });
 
-      await controller.tests(res, req);
+      await gatewayController.tests(res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -715,7 +756,7 @@ describe('AbdmController', () => {
       const req = createMockRequest();
       mockAbdmService.runTests.mockResolvedValue({ status: 'error', message: 'Fail' });
 
-      await controller.tests(res, req);
+      await gatewayController.tests(res, req);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -726,7 +767,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.getSpecialtiesMatrix.mockResolvedValue([]);
 
-      await controller.getSpecialtiesMatrix(res);
+      await doctorController.getSpecialtiesMatrix(res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(res.json).toHaveBeenCalledWith({ status: 'success', specialties: [] });
@@ -736,7 +777,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.getSpecialtiesMatrix.mockRejectedValue(new Error('Fail'));
 
-      await controller.getSpecialtiesMatrix(res);
+      await doctorController.getSpecialtiesMatrix(res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -745,7 +786,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.getDoctors.mockResolvedValue([]);
 
-      await controller.getDoctors('Allopathy', 'Cardiology', 'Cardiologist', 'Ali', res);
+      await doctorController.getDoctors('Allopathy', 'Cardiology', 'Cardiologist', 'Ali', res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -754,7 +795,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.getDoctors.mockRejectedValue(new Error('Fail'));
 
-      await controller.getDoctors('Allopathy', 'Cardiology', 'Cardiologist', 'Ali', res);
+      await doctorController.getDoctors('Allopathy', 'Cardiology', 'Cardiologist', 'Ali', res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -763,7 +804,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.saveDoctor.mockResolvedValue({ status: 'success' });
 
-      await controller.saveDoctor({ name: 'Ayesha' }, res);
+      await doctorController.saveDoctor({ name: 'Ayesha' }, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -772,7 +813,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.saveDoctor.mockRejectedValue(new Error('Fail'));
 
-      await controller.saveDoctor({ name: 'Ayesha' }, res);
+      await doctorController.saveDoctor({ name: 'Ayesha' }, res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -781,7 +822,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.deleteDoctor.mockResolvedValue({ status: 'success' });
 
-      await controller.deleteDoctor('1', res);
+      await doctorController.deleteDoctor('1', res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
     });
@@ -790,7 +831,7 @@ describe('AbdmController', () => {
       const res = createMockResponse();
       mockAbdmService.deleteDoctor.mockRejectedValue(new Error('Fail'));
 
-      await controller.deleteDoctor('1', res);
+      await doctorController.deleteDoctor('1', res);
 
       expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     });
@@ -805,7 +846,7 @@ describe('AbdmController', () => {
         message: 'OTP sent successfully'
       });
 
-      await controller.v3ProfileLoginRequestOtp(
+      await profileController.v3ProfileLoginRequestOtp(
         { loginId: '9876543210', scope: ['abha-login', 'mobile-verify'], loginHint: 'mobile', otpSystem: 'abdm' },
         res,
         req
@@ -826,7 +867,7 @@ describe('AbdmController', () => {
         timestamp: '2024-05-10 11:13:04'
       });
 
-      await controller.v3ProfileLoginRequestOtp(
+      await profileController.v3ProfileLoginRequestOtp(
         { loginId: '9876543210', scope: ['invalid'], loginHint: 'mobile', otpSystem: 'abdm' },
         res,
         req
@@ -851,7 +892,7 @@ describe('AbdmController', () => {
         accounts: []
       });
 
-      await controller.v3ProfileLoginVerify(
+      await profileController.v3ProfileLoginVerify(
         { scope: ['abha-login', 'mobile-verify'], authData: { authMethods: ['otp'], otp: { txnId: 'txn-id', otpValue: 'encrypted-otp' } } },
         res,
         req
@@ -873,7 +914,7 @@ describe('AbdmController', () => {
         timestamp: '2024-05-10 12:51:40'
       });
 
-      await controller.v3ProfileLoginVerify(
+      await profileController.v3ProfileLoginVerify(
         { scope: ['abha-login', 'mobile-verify'], authData: { authMethods: ['otp'], otp: { txnId: 'txn-id', otpValue: 'invalid-otp' } } },
         res,
         req
@@ -897,7 +938,7 @@ describe('AbdmController', () => {
         }
       });
 
-      await controller.verifyReKycOtp(
+      await profileController.verifyReKycOtp(
         { otp: '123456', txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d' },
         req,
         res
@@ -922,7 +963,7 @@ describe('AbdmController', () => {
         }
       });
 
-      await controller.verifyReKycOtp(
+      await profileController.verifyReKycOtp(
         { otp: '000000', txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d' },
         req,
         res
@@ -945,7 +986,7 @@ describe('AbdmController', () => {
         data: { txnId: 'bb548986-e96d-4b48-be1b-1e36741e867d' }
       });
 
-      await controller.requestReKycOtp(
+      await profileController.requestReKycOtp(
         { abhaNumber: '91-4173-3253-XXXX' },
         req,
         res
@@ -969,7 +1010,7 @@ describe('AbdmController', () => {
         }
       });
 
-      await controller.requestReKycOtp(
+      await profileController.requestReKycOtp(
         { abhaNumber: '' },
         req,
         res
@@ -1002,7 +1043,7 @@ describe('AbdmController', () => {
         }
       });
 
-      await controller.updateProfileAccount(
+      await profileController.updateProfileAccount(
         { profilePhoto: 'valid_mock_photo_base64' },
         req,
         res
@@ -1026,7 +1067,7 @@ describe('AbdmController', () => {
         }
       });
 
-      await controller.updateProfileAccount(
+      await profileController.updateProfileAccount(
         { profilePhoto: 'invalid_mock_photo_base64' },
         req,
         res
@@ -1039,4 +1080,3 @@ describe('AbdmController', () => {
     });
   });
 });
-

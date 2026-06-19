@@ -1,11 +1,11 @@
 /**
  * @file        abdm.constants.ts
  * @description ABDM gateway path and configuration constants
- * @module      constants
+ * @module      integrations/abdm
  * @layer       constants
  * @author      Platform Team
- * @created     2026-06-10
- * @modified    2026-06-10
+ * @created     2026-06-19
+ * @modified    2026-06-19
  */
 
 export const ABDM_HEADERS = {
@@ -33,7 +33,6 @@ export const ABDM_ENDPOINTS = {
   ABHA_SEND_AADHAAR_OTP: '/api/v3/enrollment/enrol/byAadhaar',
   ABHA_VERIFY_OTP: '/api/v3/enrollment/enrol/byAadhaar',
   ABHA_PROFILE_GET: '/api/v3/profile/account',
-  ABHA_PROFILE_ACCOUNT: '/api/v3/profile/account',
   ABHA_REKYC_REQUEST_OTP: '/api/v3/profile/account/request/otp',
   ABHA_REKYC_VERIFY: '/api/v3/profile/account/verify',
   ABHA_LOGIN_REQUEST_OTP: '/api/v3/profile/login/request/otp',
