@@ -1178,7 +1178,7 @@ body.theme-light .theme-toggle-btn .moon-icon {
   padding: 8px 18px;
   border: 0;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+  background: var(--accent-blue);
   color: #ffffff;
   cursor: pointer;
   font-size: 12px;
@@ -5173,8 +5173,8 @@ html {
 .setu-abha-card {
   position: relative;
   width: 100%;
-  max-width: 440px;
-  min-height: 195px !important;
+  max-width: 580px;
+  min-height: 270px !important;
   margin: 0 auto;
   border-radius: 16px;
   overflow: hidden;
@@ -5187,6 +5187,12 @@ html {
   flex-direction: column !important;
 }
 
+@media (min-width: 481px) and (max-width: 900px) {
+  .setu-abha-card {
+    min-height: 240px !important;
+  }
+}
+
 .setu-abha-card::after {
   content: "" !important;
   position: absolute !important;
@@ -5197,14 +5203,15 @@ html {
 }
 
 .setu-abha-card-header {
-  background: #273890 !important;
-  padding: 10px 14px !important;
+  background: #264488 !important;
+  padding: 16px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   border-bottom: 2px solid var(--accent-teal) !important;
   position: relative !important;
   z-index: 2 !important;
+  height: 68px !important;
 }
 
 .setu-abha-card-header::before {
@@ -5221,8 +5228,8 @@ html {
 .setu-abha-card-body {
   padding: 14px !important;
   display: grid !important;
-  grid-template-columns: 90px 1fr 84px !important;
-  gap: 12px !important;
+  grid-template-columns: 110px 1fr 96px !important;
+  gap: 16px !important;
   align-items: center !important;
   position: relative !important;
   z-index: 1 !important;
@@ -5233,22 +5240,75 @@ html {
   flex-direction: column !important;
   align-items: center !important;
   gap: 6px !important;
+  position: relative !important;
 }
 
 .setu-abha-card-avatar {
-  width: 90px !important;
-  height: 106px !important;
+  width: 110px !important;
+  height: 140px !important;
   border-radius: 8px !important;
   overflow: hidden !important;
   border: 1.5px solid #cbd5e1 !important;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
   background: #f8fafc !important;
+  position: relative !important;
+  cursor: pointer !important;
 }
 
 .setu-abha-card-avatar img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+}
+
+/* Pencil edit photo overlays */
+.avatar-pencil-overlay {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+  pointer-events: none !important;
+}
+
+.setu-abha-card-avatar:hover .avatar-pencil-overlay {
+  opacity: 1 !important;
+}
+
+.avatar-pencil-overlay-mobile {
+  position: absolute !important;
+  bottom: 4px !important;
+  right: 4px !important;
+  width: 22px !important;
+  height: 22px !important;
+  background: #10b981 !important;
+  border: 1px solid #ffffff !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  z-index: 10 !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+}
+
+@media (min-width: 481px) {
+  .avatar-pencil-overlay-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .avatar-pencil-overlay {
+    display: none !important;
+  }
 }
 
 .setu-abha-card-details {
@@ -5271,27 +5331,34 @@ html {
   text-transform: uppercase !important;
   letter-spacing: 0.3px !important;
   margin: 0 !important;
+  white-space: nowrap !important;
 }
 
 .setu-abha-card-value {
-  font-size: 11.5px !important;
+  font-size: 13.5px !important;
   font-weight: 800 !important;
   color: #0f172a !important;
+  white-space: nowrap !important;
 }
 
 .setu-abha-card-value.token-num {
   font-family: monospace !important;
   color: #1f3a60 !important;
-  font-size: 12px !important;
+  font-size: 14px !important;
   letter-spacing: 0.3px !important;
+  white-space: nowrap !important;
 }
 
 .setu-abha-card-row {
   display: flex !important;
-  gap: 10px !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
   border-top: 1px solid #e2e8f0 !important;
-  padding-top: 5px !important;
-  margin-top: 2px !important;
+  padding-top: 6px !important;
+  margin-top: 4px !important;
+  width: 100% !important;
 }
 
 .setu-abha-card-qr-wrapper {
@@ -5306,8 +5373,8 @@ html {
   border-radius: 8px !important;
   padding: 4px !important;
   background: #ffffff !important;
-  width: 84px !important;
-  height: 84px !important;
+  width: 96px !important;
+  height: 96px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
 }
 
@@ -5693,16 +5760,16 @@ body.theme-light .site-footer {
   border-color: color-mix(in srgb, var(--accent-teal) 12%, var(--border-color)) !important;
 }
 
-.join-btn, .prefill-btn.active, .selected-card {
+.prefill-btn.active, .selected-card {
   border-color: var(--accent-teal) !important;
 }
 .join-btn {
-  background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)) !important;
-  border: none !important;
+  background: var(--accent-blue) !important;
+  border: 1px solid var(--accent-blue) !important;
   color: #fff !important;
 }
 .join-btn:hover {
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-teal) 40%, transparent) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-blue) 40%, transparent) !important;
 }
 .live-badge {
   background: color-mix(in srgb, var(--accent-teal) 15%, transparent) !important;
@@ -6391,6 +6458,21 @@ body.theme-light .chart-tab-btn.active {
 
 /* Mobile ABHA Card responsive design stack */
 @media (max-width: 480px) {
+  .setu-abha-card {
+    min-height: auto !important;
+    height: auto !important;
+  }
+  .setu-abha-card-header {
+    height: 56px !important;
+    padding: 12px 16px !important;
+  }
+  .setu-abha-card-nha-img {
+    height: 28px !important;
+  }
+  .setu-abha-card-abdm-wrapper {
+    height: 44px !important;
+    width: 44px !important;
+  }
   .setu-abha-card-body {
     grid-template-columns: 70px 1fr 60px !important;
     gap: 6px !important;

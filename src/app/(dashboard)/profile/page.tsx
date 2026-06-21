@@ -35,6 +35,9 @@ import {
   Printer,
   CreditCard,
   Camera,
+  Pencil,
+  Copy,
+  Share2,
   RefreshCw,
   UserMinus,
   ShieldAlert,
@@ -90,11 +93,23 @@ export default function ProfilePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shakeModal, setShakeModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'my_profile' | 'edit_profile' | 'set_password' | 're_kyc' | 'deactivate_delete' | 'delink'>('my_profile');
+  const [pvcTab, setPvcTab] = useState<'front' | 'back'>('front');
   const [mobileCoolingTimer, setMobileCoolingTimer] = useState(0);
   const [emailCoolingTimer, setEmailCoolingTimer] = useState(0);
   const [isDemographicsExpanded, setIsDemographicsExpanded] = useState(false);
   const [editProfileSubTab, setEditProfileSubTab] = useState<'mobile' | 'email' | 'picture'>('mobile');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    showToast(t(`${fieldName} copied to clipboard!`));
+  };
+
+  const triggerMobileEdit = () => {
+    setActiveTab('edit_profile');
+    setEditProfileSubTab('mobile');
+  };
+
   const triggerPhotoSelect = () => {
     setActiveTab('edit_profile');
     setEditProfileSubTab('picture');
@@ -276,6 +291,30 @@ export default function ProfilePage() {
     showToast(t('ABHA ID Card successfully synced and saved inside secure Health Locker.'));
   };
 
+  const handleShareCard = async () => {
+    const abhaNo = abhaProfile.ABHANumber || abhaProfile.abhaNumber || '';
+    const shareText = `ABHA Card details:\nName: ${abhaProfile.name || currentUser?.name || ''}\nABHA Number: ${abhaNo}\nABHA Address: ${abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.preferredAbhaAddress}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'ABHA Smart Card',
+          text: shareText,
+          url: window.location.href
+        });
+        showToast(t('Shared successfully!'));
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        showToast(t('ABHA card details copied to clipboard!'));
+      } catch (err) {
+        showToast(t('Failed to share card details.'));
+      }
+    }
+  };
+
   const handleDownloadCard = async () => {
     try {
       showToast(t('Downloading official ABHA Card image...'));
@@ -339,7 +378,7 @@ export default function ProfilePage() {
               justify-content: space-between;
               align-items: center;
               padding: 10px 14px;
-              background: #273890;
+              background: #264488;
               border-bottom: 2px solid #10b981;
             }
             .setu-abha-card-body {
@@ -448,10 +487,31 @@ export default function ProfilePage() {
               display: flex;
               justify-content: space-between;
               align-items: center;
-              padding: 2mm 3mm;
-              background: #273890 !important;
+              padding: 2.5mm 3mm;
+              background: #264488 !important;
               border-bottom: 0.5mm solid #10b981;
               color: #ffffff;
+              height: 13.6mm;
+              box-sizing: border-box;
+            }
+            .setu-abha-card-nha-img {
+              height: 9.6mm !important;
+            }
+            .setu-abha-card-abdm-wrapper {
+              width: 11.2mm !important;
+              height: 11.2mm !important;
+              border-radius: 50%;
+              border: 0.2mm solid #cbd5e1;
+              background: #ffffff;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            }
+            .setu-abha-card-abdm-wrapper img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
             }
             .setu-abha-card-body {
               display: flex;
@@ -459,7 +519,7 @@ export default function ProfilePage() {
               gap: 2.5mm;
               padding: 3mm;
               background: radial-gradient(circle, #ffffff 0%, #f1f5f9 100%) !important;
-              height: calc(54mm - 11mm);
+              height: calc(54mm - 13.6mm);
               box-sizing: border-box;
             }
             .setu-abha-card-avatar {
@@ -507,43 +567,29 @@ export default function ProfilePage() {
               flex-direction: column;
               color: #0f172a;
             }
-            .pvc-back-header {
-              background: #273890;
-              color: #ffffff;
-              padding: 2mm;
-              font-size: 6px;
-              font-weight: 800;
-              text-align: center;
-              border-bottom: 0.5mm solid #10b981;
-              text-transform: uppercase;
-              letter-spacing: 0.2mm;
-            }
             .pvc-back-body {
-              padding: 3mm;
+              padding: 2.5mm 3mm;
               display: flex;
-              flex-direction: row;
-              gap: 3mm;
-              align-items: center;
-              height: calc(54mm - 10mm);
+              flex-direction: column;
+              height: calc(54mm - 13.6mm);
               box-sizing: border-box;
+              justify-content: space-between;
             }
             .pvc-instructions {
-              flex: 1;
-              font-size: 5px;
-              line-height: 1.3;
+              list-style-type: disc;
+              margin: 0;
+              padding-left: 3.5mm;
+              font-size: 3.6px;
+              line-height: 1.25;
               color: #334155;
               text-align: left;
-              margin: 0;
-              padding-left: 2mm;
             }
             .pvc-instructions li {
-              margin-bottom: 0.5mm;
+              margin-bottom: 0.4mm;
             }
-            .pvc-back-qr {
-              border: 0.2mm solid #cbd5e1;
-              padding: 0.5mm;
-              background: #ffffff;
-              border-radius: 1mm;
+            .pvc-instructions li div {
+              font-size: 3.2px;
+              color: #64748b;
             }
           </style>
         </head>
@@ -758,9 +804,9 @@ export default function ProfilePage() {
     if (!file) return;
 
     // Validate format
-    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
-    if (!validFormats.includes(file.type)) {
-      setPhotoError(t('Invalid format. Please upload JPEG, JPG or PNG.'));
+    const isJpeg = file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg');
+    if (!isJpeg) {
+      setPhotoError(t('Invalid format. Please upload JPEG or JPG file.'));
       triggerModalShake();
       return;
     }
@@ -1390,43 +1436,171 @@ export default function ProfilePage() {
               <style dangerouslySetInnerHTML={{ __html: `
                 .profile-layout-container {
                   display: flex;
-                  flex-direction: row;
+                  flex-direction: column;
                   align-items: center;
                   justify-content: center;
-                  gap: 28px;
+                  gap: 16px;
                   width: 100%;
                   max-width: 680px;
                   margin-bottom: 8px;
                 }
                 .profile-actions-stack {
                   display: flex;
-                  flex-direction: column;
-                  align-items: flex-start;
-                  gap: 16px;
+                  flex-direction: row;
+                  flex-wrap: wrap;
+                  justify-content: center;
+                  align-items: center;
+                  gap: 12px 24px;
+                  width: 100%;
+                  margin-top: 12px;
                 }
-                @media (max-width: 680px) {
-                  .profile-layout-container {
-                    flex-direction: column;
-                    gap: 16px;
+                .profile-welcome-links {
+                  display: flex !important;
+                  gap: 16px !important;
+                  flex-wrap: nowrap !important;
+                  align-items: center !important;
+                }
+                .profile-welcome-links button {
+                  display: inline-flex !important;
+                  align-items: center !important;
+                  gap: 6px !important;
+                  background: none !important;
+                  border: none !important;
+                  padding: 4px 0 !important;
+                  color: #c2410c !important;
+                  font-weight: 600 !important;
+                  font-size: 13px !important;
+                  cursor: pointer !important;
+                  white-space: nowrap !important;
+                }
+                @media (max-width: 480px) {
+                  .profile-welcome-row {
+                    flex-direction: row !important;
+                    flex-wrap: nowrap !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    gap: 8px !important;
                   }
-                  .profile-actions-stack {
-                    flex-direction: row;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 10px 18px;
-                    margin-top: 8px;
+                  .profile-welcome-row h1 {
+                    font-size: 14px !important;
+                  }
+                  .profile-welcome-links {
+                    gap: 8px !important;
+                  }
+                  .profile-welcome-links button span {
+                    display: none !important;
+                  }
+                  .profile-welcome-links button {
+                    padding: 8px !important;
+                    background: rgba(194, 65, 12, 0.08) !important;
+                    border-radius: 50% !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
                   }
                 }
               `}} />
 
               <div className="profile-layout-container">
+                {/* Welcome Header & Actions Row */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%',
+                  maxWidth: '580px',
+                  marginBottom: '4px',
+                  padding: '0 4px',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }} className="profile-welcome-row">
+                  <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                    Welcome, {abhaProfile.name || [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') || currentUser?.name || "Ashish Patel"}
+                  </h1>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }} className="profile-welcome-links">
+                    <button
+                      onClick={handleDownloadCard}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: '4px 0',
+                        color: '#c2410c',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Download style={{ width: '15px', height: '15px', color: '#c2410c' }} />
+                      <span>Download</span>
+                    </button>
+                    <button
+                      onClick={handlePrintCard}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: '4px 0',
+                        color: '#c2410c',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Printer style={{ width: '15px', height: '15px', color: '#c2410c' }} />
+                      <span>Print</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveModal('print_pvc')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: '4px 0',
+                        color: '#c2410c',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <CreditCard style={{ width: '15px', height: '15px', color: '#c2410c' }} />
+                      <span>Print PVC</span>
+                    </button>
+                    <button
+                      onClick={handleShareCard}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: '4px 0',
+                        color: '#c2410c',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Share2 style={{ width: '15px', height: '15px', color: '#c2410c' }} />
+                      <span>Share</span>
+                    </button>
+                  </div>
+                </div>
                 <article 
                   id="abha-card-capture-profile"
                   className="setu-abha-card" 
                   style={{ 
                     width: '100%',
-                    maxWidth: '440px',
                     borderRadius: '16px',
                     overflow: 'hidden',
                     border: '1px solid #cbd5e1',
@@ -1441,27 +1615,27 @@ export default function ProfilePage() {
                       display: 'flex', 
                       justifyContent: 'space-between', 
                       alignItems: 'center', 
-                      padding: '10px 14px', 
-                      background: '#273890', 
+                      background: '#264488', 
                       borderBottom: '2px solid #10b981' 
                     }}
                   >
-                    <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <img
-                        src="/nha.png"
+                        src="/assets/svg/nha.svg"
                         alt="NHA Logo"
-                        style={{ height: '100%', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+                        className="setu-abha-card-nha-img"
+                        style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
                       />
                     </div>
                     <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
-                      <span style={{ fontSize: '9px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+                      <span className="setu-abha-card-header-title" style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+                      <span className="setu-abha-card-header-subtitle" style={{ fontSize: '11px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
                     </div>
-                    <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ height: '56px', width: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }} className="setu-abha-card-abdm-wrapper">
                       <img
-                        src="/abdm_new.png"
+                        src="/assets/svg/abdm1.svg"
                         alt="ABDM Logo"
-                        style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
+                        style={{ height: '100%', width: '100%', objectFit: 'contain' }}
                       />
                     </div>
                   </div>
@@ -1474,29 +1648,58 @@ export default function ProfilePage() {
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'stretch',
-                      gap: '12px', 
-                      padding: '14px', 
                       background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', 
                       color: '#0f172a' 
                     }}
                   >
-                    <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                      <div className="setu-abha-card-avatar" style={{ width: '75px', height: '95px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', position: 'relative' }}>
+                      <div 
+                        className="setu-abha-card-avatar" 
+                        style={{ 
+                          borderRadius: '6px', 
+                          overflow: 'visible', 
+                          border: '1px solid #94a3b8', 
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                          position: 'relative',
+                          cursor: 'pointer'
+                        }}
+                        onClick={triggerPhotoSelect}
+                      >
                         <img
                           src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)}
                           alt={abhaProfile.name || abhaProfile.firstName || 'ABHA User'}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          style={{ width: '100%', height: '100%', borderRadius: '6px', objectFit: 'cover' }}
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=150';
                           }}
                         />
+                        {/* Always visible small edit badge */}
+                        <div 
+                          style={{ 
+                            position: 'absolute', 
+                            bottom: '-4px', 
+                            right: '-4px', 
+                            background: '#10b981', 
+                            borderRadius: '50%', 
+                            width: '20px', 
+                            height: '20px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            border: '1.5px solid #ffffff',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                            zIndex: 10
+                          }}
+                        >
+                          <Pencil style={{ width: '10px', height: '10px', color: '#ffffff' }} />
+                        </div>
                       </div>
                     </div>
                     
                     <div className="setu-abha-card-details" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left', minWidth: 0 }}>
                       <div className="setu-abha-card-field">
-                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
-                        <strong className="setu-abha-card-value" style={{ fontSize: '11px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
+                        <strong className="setu-abha-card-value" style={{ color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {abhaProfile.name ||
                             [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') ||
                             currentUser.name}
@@ -1504,33 +1707,80 @@ export default function ProfilePage() {
                       </div>
                       
                       <div className="setu-abha-card-field">
-                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
-                        <strong className="setu-abha-card-value token-num" style={{ fontSize: '11px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>
-                          {abhaProfile.ABHANumber || abhaProfile.abhaNumber}
+                        <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
+                        <strong className="setu-abha-card-value token-num" style={{ color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{abhaProfile.ABHANumber || abhaProfile.abhaNumber}</span>
+                          <button 
+                            onClick={() => copyToClipboard(abhaProfile.ABHANumber || abhaProfile.abhaNumber || '', 'ABHA Number')}
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              padding: '2px', 
+                              cursor: 'pointer', 
+                              display: 'inline-flex', 
+                              alignItems: 'center',
+                              color: 'var(--text-muted)'
+                            }}
+                            title="Copy ABHA Number"
+                          >
+                            <Copy style={{ width: '12px', height: '12px' }} />
+                          </button>
                         </strong>
                       </div>
                       
                       <div className="setu-abha-card-field">
-                        <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
-                        <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>
-                          {abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId || (abhaProfile.phrAddress && abhaProfile.phrAddress.join(", "))}
+                        <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
+                        <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId || (abhaProfile.phrAddress && abhaProfile.phrAddress.join(", "))}</span>
+                          <button 
+                            onClick={() => copyToClipboard(abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId || '', 'ABHA Address')}
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              padding: '2px', 
+                              cursor: 'pointer', 
+                              display: 'inline-flex', 
+                              alignItems: 'center',
+                              color: 'var(--text-muted)'
+                            }}
+                            title="Copy ABHA Address"
+                          >
+                            <Copy style={{ width: '12px', height: '12px' }} />
+                          </button>
                         </strong>
                       </div>
                       
-                      <div className="setu-abha-card-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginTop: '2px' }}>
-                        <div className="setu-abha-card-field">
-                          <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
-                          <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>
+                      <div className="setu-abha-card-row" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', width: '100%' }}>
+                        <div className="setu-abha-card-field" style={{ flex: 1, minWidth: 0 }}>
+                          <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
+                          <span className="setu-abha-card-value setu-abha-card-row-value" style={{ fontWeight: 600 }}>
                             {getGenderDisplay(abhaProfile.gender)}
                           </span>
                         </div>
-                        <div className="setu-abha-card-field">
-                          <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
-                          <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{abhaProfile.dob}</span>
+                        <div className="setu-abha-card-field" style={{ flex: 1, minWidth: 0 }}>
+                          <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
+                          <span className="setu-abha-card-value setu-abha-card-row-value" style={{ fontWeight: 600 }}>{abhaProfile.dob}</span>
                         </div>
-                        <div className="setu-abha-card-field" style={{ gridColumn: 'span 2' }}>
-                          <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
-                          <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{abhaProfile.mobile}</span>
+                        <div className="setu-abha-card-field" style={{ flex: 1, minWidth: 0 }}>
+                          <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
+                          <span className="setu-abha-card-value setu-abha-card-row-value" style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span>{abhaProfile.mobile}</span>
+                            <button 
+                              onClick={triggerMobileEdit}
+                              style={{ 
+                                background: 'none', 
+                                border: 'none', 
+                                padding: '2px', 
+                                cursor: 'pointer', 
+                                display: 'inline-flex', 
+                                alignItems: 'center',
+                                color: '#10b981'
+                              }}
+                              title="Edit Mobile Number"
+                            >
+                              <Pencil style={{ width: '10px', height: '10px' }} />
+                            </button>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1538,111 +1788,27 @@ export default function ProfilePage() {
                     <div className="setu-abha-card-qr-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div className="setu-abha-card-qr" style={{ padding: '4px', background: '#ffffff', borderRadius: '6px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                         <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${abhaProfile.ABHANumber || abhaProfile.abhaNumber};${abhaProfile.preferredAddress || abhaProfile.abhaAddress}`}
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+                            district_name: (abhaProfile.districtName || "JABALPUR").toUpperCase(),
+                            hid: abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId || "medibuddy.9981435702@abdm",
+                            address: abhaProfile.address || "1787, Nagpur Road, In Front Of Sai Niwas, Medical, Jabalpur, Jabalpur, Madhya Pradesh",
+                            gender: abhaProfile.gender ? (['male', 'm'].includes(abhaProfile.gender.toLowerCase()) ? 'M' : ['female', 'f'].includes(abhaProfile.gender.toLowerCase()) ? 'F' : abhaProfile.gender) : 'M',
+                            distlgd: abhaProfile.distLgd || abhaProfile.distlgd || "411",
+                            dob: abhaProfile.dob || "24-09-1992",
+                            name: abhaProfile.name || [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') || currentUser?.name || "Ashish Patel",
+                            mobile: abhaProfile.mobile || "9981435702",
+                            statelgd: abhaProfile.stateLgd || abhaProfile.statelgd || "23",
+                            hidn: abhaProfile.ABHANumber || abhaProfile.abhaNumber || "91-6005-4602-2077",
+                            "state name": (abhaProfile.stateName || "MADHYA PRADESH").toUpperCase()
+                          }))}`}
                           alt="ABHA QR"
-                          style={{ width: '68px', height: '68px', display: 'block' }}
+                          className="setu-abha-card-qr-img"
+                          style={{ display: 'block' }}
                         />
                       </div>
                     </div>
                   </div>
                 </article>
-
-                <div className="profile-actions-stack">
-                  <button
-                    onClick={handleDownloadCard}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: '4px 6px',
-                      color: 'var(--accent-teal)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <Download style={{ width: '15px', height: '15px' }} />
-                    <span>Download ABHA</span>
-                  </button>
-
-                  <button
-                    onClick={handlePrintCard}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: '4px 6px',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <Printer style={{ width: '15px', height: '15px', color: 'var(--accent-teal)' }} />
-                    <span>Print ABHA</span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveModal('print_pvc')}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: '4px 6px',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <CreditCard style={{ width: '15px', height: '15px', color: 'var(--accent-teal)' }} />
-                    <span>Print PVC</span>
-                  </button>
-
-                  <button
-                    onClick={triggerPhotoSelect}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: '4px 6px',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <Camera style={{ width: '15px', height: '15px', color: 'var(--accent-teal)' }} />
-                    <span>Update Photo</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleSaveToLocker(`ABHA_Smart_Card_${abhaProfile.ABHANumber || abhaProfile.abhaNumber}.pdf`)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: '4px 6px',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <Database style={{ width: '15px', height: '15px', color: 'var(--accent-teal)' }} />
-                    <span>Save to Locker</span>
-                  </button>
-                </div>
               </div>
 
               {/* Collapsible Demographics Card */}
@@ -2038,215 +2204,119 @@ export default function ProfilePage() {
                     <span>Update Profile Photo</span>
                   </h4>
                   
-                  <form onSubmit={handlePhotoUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* Old and New Image Side-by-Side */}
-                    <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      {/* Old Image (Current Profile Photo) */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Current Photo</span>
-                        <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-primary)' }}>
-                          <img src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-                      </div>
-
-                      {/* Arrow indicator if preview exists */}
-                      {photoPreview && (
-                        <div style={{ fontSize: '20px', color: 'var(--accent-teal)', fontWeight: 'bold', alignSelf: 'center', margin: '0 4px' }}>→</div>
-                      )}
-
-                      {/* New Image (Preview) */}
-                      {photoPreview ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', animation: 'fadeIn 0.2s ease' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--accent-teal)' }}>New Preview</span>
-                          <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '2px solid var(--accent-teal)', overflow: 'hidden', background: 'var(--bg-primary)' }}>
-                            <img src={photoPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)' }}>New Preview</span>
-                          <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '1px dashed var(--border-color)', display: 'grid', placeItems: 'center', background: 'var(--bg-primary)' }}>
-                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'center', padding: '4px' }}>No image chosen</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Action Area */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '160px' }}>
-                        <input 
-                          ref={fileInputRef}
-                          id="custom-file-upload-input"
-                          type="file" 
-                          accept="image/jpeg, image/png, image/jpg"
-                          onChange={handlePhotoFileChange} 
-                          style={{ display: 'none' }}
+                  <form onSubmit={handlePhotoUploadSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                    {/* Single Large Photo Container */}
+                    <div style={{ position: 'relative', width: '140px', height: '175px', borderRadius: '12px', border: photoPreview ? '2px solid var(--accent-teal)' : '1px solid var(--border-color)', overflow: 'visible', background: 'var(--bg-primary)', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
+                      <div style={{ width: '100%', height: '100%', borderRadius: '10px', overflow: 'hidden' }}>
+                        <img 
+                          src={photoPreview || getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          alt="Profile photo"
                         />
-
-                        {!photoPreview ? (
-                          <label 
-                            htmlFor="custom-file-upload-input" 
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              padding: '10px 16px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--accent-teal)',
-                              background: 'rgba(20, 184, 166, 0.05)',
-                              color: 'var(--accent-teal)',
-                              cursor: 'pointer',
-                              fontWeight: 800,
-                              fontSize: '12px',
-                              textAlign: 'center',
-                              transition: 'all 0.2s ease',
-                              width: 'fit-content'
-                            }}
-                          >
-                            <Camera style={{ width: '16px', height: '16px' }} />
-                            <span>Select Photo from Device</span>
-                          </label>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {photoFile && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ fontSize: '10px', color: 'var(--text-primary)', fontWeight: 'bold', wordBreak: 'break-all' }}>
-                                  {photoFile.name}
-                                </span>
-                                <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>
-                                  Original: {(photoFile.size / 1024).toFixed(1)} KB
-                                </span>
-                              </div>
-                            )}
-                            <label 
-                              htmlFor="custom-file-upload-input" 
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-color)',
-                                background: 'var(--bg-primary)',
-                                color: 'var(--text-primary)',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                                fontSize: '11px',
-                                width: 'fit-content',
-                                transition: 'all 0.2s ease'
-                              }}
-                            >
-                              Choose Another Photo
-                            </label>
-                          </div>
-                        )}
                       </div>
+                      
+                      {/* Pencil button (blue) to upload/edit image */}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          position: 'absolute',
+                          bottom: '-8px',
+                          right: '-8px',
+                          background: '#2563eb',
+                          border: '2px solid #ffffff',
+                          borderRadius: '50%',
+                          width: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: '#ffffff',
+                          boxShadow: '0 4px 6px rgba(37, 99, 235, 0.25)',
+                          transition: 'all 0.2s ease',
+                          zIndex: 10
+                        }}
+                        title="Upload Photo"
+                      >
+                        <Pencil style={{ width: '14px', height: '14px' }} />
+                      </button>
                     </div>
+
+                    <input 
+                      ref={fileInputRef}
+                      id="custom-file-upload-input"
+                      type="file" 
+                      accept="image/jpeg, image/jpg"
+                      onChange={handlePhotoFileChange} 
+                      style={{ display: 'none' }}
+                    />
+
+                    {/* Brief Instruction */}
+                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '300px', lineHeight: '1.4', margin: '0' }}>
+                      Please upload JPG, JPEG file types. Maximum size allowed for the attachment is 100KB.
+                    </p>
 
                     {photoError && <div style={{ color: 'var(--danger)', fontSize: '11px', animation: 'fadeIn 0.2s' }}>{photoError}</div>}
 
-                    {/* Submit Button (Hidden unless user has chosen/cropped a photo) */}
+                    {/* Once cropped, ask to save and upload */}
                     {photoPreview && (
-                      <button 
-                        type="submit" 
-                        disabled={photoLoading} 
-                        style={{ 
-                          width: 'fit-content', 
-                          padding: '10px 24px', 
-                          border: 'none', 
-                          borderRadius: '8px', 
-                          background: 'var(--accent-teal)', 
-                          color: '#ffffff', 
-                          fontWeight: 800, 
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          boxShadow: '0 4px 12px rgba(20, 184, 166, 0.2)'
-                        }}
-                      >
-                        {photoLoading ? (
-                          <>
-                            <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                            <span>Saving...</span>
-                          </>
-                        ) : 'Save Picture'}
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%', animation: 'fadeIn 0.25s ease' }}>
+                        <span style={{ fontSize: '11.5px', color: 'var(--accent-teal)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Check style={{ width: '14px', height: '14px' }} />
+                          <span>Photo cropped successfully! Click save to upload.</span>
+                        </span>
+                        
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setPhotoPreview('');
+                              setPhotoFile(null);
+                            }}
+                            style={{
+                              padding: '10px 20px', 
+                              border: '1px solid var(--border-color)', 
+                              borderRadius: '8px', 
+                              background: 'var(--bg-primary)', 
+                              color: 'var(--text-primary)', 
+                              fontWeight: 700, 
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          
+                          <button 
+                            type="submit" 
+                            disabled={photoLoading} 
+                            style={{ 
+                              padding: '10px 24px', 
+                              border: 'none', 
+                              borderRadius: '8px', 
+                              background: 'var(--accent-teal)', 
+                              color: '#ffffff', 
+                              fontWeight: 800, 
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '12px',
+                              boxShadow: '0 4px 12px rgba(20, 184, 166, 0.2)'
+                            }}
+                          >
+                            {photoLoading ? (
+                              <>
+                                <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                                <span>Saving...</span>
+                              </>
+                            ) : 'Save & Upload'}
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </form>
-
-                  {/* Photo Guidelines wrapped inside a styled card container (always open) */}
-                  <div style={{ 
-                    marginTop: '24px', 
-                    background: 'var(--bg-primary)', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '16px', 
-                    padding: '20px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '16px' 
-                  }}>
-                    <h5 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Check style={{ color: 'var(--success)', width: '16px', height: '16px' }} />
-                      <span>Official ABHA Photo Guidelines</span>
-                    </h5>
-
-                    {/* Side-by-side Valid/Invalid examples using actual generated images */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      {/* Valid Example */}
-                      <div style={{
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        background: 'rgba(16, 185, 129, 0.03)',
-                        borderRadius: '12px',
-                        padding: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', border: '2px solid var(--success)', overflow: 'hidden', position: 'relative' }}>
-                          <img src="/assets/valid_photo.png" alt="Valid" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'var(--success)', borderRadius: '50%', width: '16px', height: '16px', display: 'grid', placeItems: 'center' }}>
-                            <Check style={{ width: '10px', height: '10px', color: '#fff' }} />
-                          </div>
-                        </div>
-                        <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: 'var(--success)' }}>Valid Photo</span>
-                        <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Plain background, clear front view face, eyes visible.</span>
-                      </div>
-
-                      {/* Invalid Example */}
-                      <div style={{
-                        border: '1px solid rgba(239, 68, 68, 0.25)',
-                        background: 'rgba(239, 68, 68, 0.03)',
-                        borderRadius: '12px',
-                        padding: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', border: '2px solid var(--danger)', overflow: 'hidden', position: 'relative' }}>
-                          <img src="/assets/invalid_photo.png" alt="Invalid" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'var(--danger)', borderRadius: '50%', width: '16px', height: '16px', display: 'grid', placeItems: 'center' }}>
-                            <X style={{ width: '10px', height: '10px', color: '#fff' }} />
-                          </div>
-                        </div>
-                        <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: 'var(--danger)' }}>Invalid Photo</span>
-                        <span style={{ fontSize: '9.5px', color: 'var(--text-secondary)', lineHeight: '1.3' }}>Dark sunglasses, tilted head, busy background, shadows.</span>
-                      </div>
-                    </div>
-
-                    <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                      <li>Recent passport-size photo.</li>
-                      <li>Face should be clearly visible & centered.</li>
-                      <li>No sunglasses, masks, or heavy filters.</li>
-                      <li>Good lighting and plain/neutral background preferred.</li>
-                      <li>Supported formats: JPG, JPEG, PNG (automatic compression to &lt; 100 KB).</li>
-                    </ul>
-                  </div>
                 </div>
               )}
 
@@ -2552,33 +2622,98 @@ export default function ProfilePage() {
           id="abha-card-pvc-back"
           className="pvc-back-card"
           style={{
-            width: '440px',
-            height: '277px',
+            width: '580px',
+            minHeight: '270px',
             borderRadius: '16px',
             overflow: 'hidden',
             border: '1px solid #cbd5e1',
             boxShadow: 'none',
             background: 'radial-gradient(circle, #ffffff 0%, #f8fafc 100%)',
-            fontFamily: "'Inter', sans-serif"
+            fontFamily: "'Inter', sans-serif",
+            display: 'flex',
+            flexDirection: 'column'
           }}
         >
-          <div className="pvc-back-header" style={{ background: '#273890', color: '#ffffff', padding: '10px', fontSize: '9px', fontWeight: 'bold', borderBottom: '2px solid #10b981', textAlign: 'center', letterSpacing: '0.5px' }}>
-            Ayushman Bharat Digital Mission (ABDM)
-          </div>
-          <div className="pvc-back-body" style={{ padding: '14px', display: 'flex', flexDirection: 'row', gap: '14px', alignItems: 'center', height: 'calc(100% - 35px)', boxSizing: 'border-box' }}>
-            <ul className="pvc-instructions" style={{ flex: 1, fontSize: '8.5px', lineHeight: '1.4', color: '#334155', textAlign: 'left', margin: 0, paddingLeft: '14px' }}>
-              <li style={{ marginBottom: '4px' }}>This card is a digital identity for your healthcare records.</li>
-              <li style={{ marginBottom: '4px' }}>यह कार्ड आपके स्वास्थ्य रिकॉर्ड के लिए एक डिजिटल पहचान है।</li>
-              <li style={{ marginBottom: '4px' }}>Show this card at hospital reception to share records.</li>
-              <li style={{ marginBottom: '4px' }}>रिकॉर्ड साझा करने के लिए अस्पताल के रिसेप्शन पर यह कार्ड दिखाएं।</li>
-              <li>ABDM Helpdesk Helpline / हेल्पलाइन: 14477</li>
-            </ul>
-            <div className="pvc-back-qr" style={{ padding: '4px', background: '#ffffff', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+          {/* Back Card Header identical to Front Card Header */}
+          <div 
+            className="setu-abha-card-header" 
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              background: '#264488', 
+              borderBottom: '2px solid #10b981',
+              padding: '16px',
+              height: '68px',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${abhaProfile.ABHANumber || abhaProfile.abhaNumber};${abhaProfile.preferredAddress || abhaProfile.abhaAddress}`}
-                alt="Verification QR"
-                style={{ width: '60px', height: '60px', display: 'block' }}
+                src="/assets/svg/nha.svg"
+                alt="NHA Logo"
+                className="setu-abha-card-nha-img"
+                style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
               />
+            </div>
+            <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span className="setu-abha-card-header-title" style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+              <span className="setu-abha-card-header-subtitle" style={{ fontSize: '11px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+            </div>
+            <div style={{ height: '56px', width: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }} className="setu-abha-card-abdm-wrapper">
+              <img
+                src="/assets/svg/abdm1.svg"
+                alt="ABDM Logo"
+                style={{ height: '100%', width: '100%', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+
+          {/* Back Card Body */}
+          <div 
+            className="pvc-back-body" 
+            style={{ 
+              padding: '16px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              height: 'calc(100% - 68px)', 
+              boxSizing: 'border-box',
+              justifyContent: 'space-between',
+              color: '#0f172a'
+            }}
+          >
+            {/* Top row with Instructions heading and Toll-Free Number */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', marginBottom: '8px', color: '#0f172a' }}>
+              <span>Instructions</span>
+              <span>Toll-Free Number: 1800 114 477</span>
+            </div>
+
+            {/* Billingual instructions list */}
+            <ul className="pvc-instructions" style={{ margin: 0, paddingLeft: '20px', fontSize: '9.5px', lineHeight: '1.4', color: '#334155', textAlign: 'left', listStyleType: 'disc' }}>
+              <li style={{ marginBottom: '6px' }}>
+                With this ABHA you have become a part of India's digital health ecosystem.
+                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>इस आभा के साथ आप भारत के डिजिटल हेल्थ इकोसिस्टम का हिस्सा बन गए हैं।</div>
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                ABHA provides you a unique identification and helps in storing - safekeeping all your digital health records at one place.
+                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>आभा आपको एक विशिष्ट पहचान प्रदान करता है और आपके सभी डिजिटल स्वास्थ्य रिकॉर्ड को सुरक्षित एक ही स्थान पर संग्रहीत रखने में मदद करता है।</div>
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                You can download the ABHA mobile app, Aarogya Setu or other ABDM enabled app to view and share your digital health records with ABDM registered healthcare service providers.
+                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>आप एबीडीएम पंजीकृत स्वास्थ्य सेवा प्रदाताओं के साथ अपने डिजिटल स्वास्थ्य रिकॉर्ड देखने और साझा करने के लिए आभा मोबाइल ऐप, आरोग्य सेतु या अन्य एबीडीएम सक्षम ऐप डाउनलोड कर सकते हैं।</div>
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                If this card is lost kindly download it from www.abha.abdm.gov.in, it is digitally acceptable.
+                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>यदि यह कार्ड खो जाता है तो कृपया इसे www.abha.abdm.gov.in से डाउनलोड करें, यह डिजिटल रूप से स्वीकार्य है।</div>
+              </li>
+            </ul>
+
+            {/* Divider line and footer */}
+            <div style={{ width: '100%', marginTop: '6px' }}>
+              <hr style={{ border: 'none', borderTop: '1px solid #cbd5e1', margin: '4px 0' }} />
+              <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold', color: '#334155' }}>
+                Issued on: 30-11-2022
+              </div>
             </div>
           </div>
         </article>
@@ -2676,87 +2811,235 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', maxHeight: '420px', overflowY: 'auto', padding: '10px 0' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Front Side / सामने का भाग</span>
-              {/* Copy of card Front */}
-              <div style={{ transform: 'scale(0.85)', margin: '-20px 0' }}>
-                <article 
-                  className="setu-abha-card" 
-                  style={{ 
-                    width: '440px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #cbd5e1',
-                    fontFamily: "'Inter', sans-serif"
-                  }}
-                >
-                  <div className="setu-abha-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#273890', borderBottom: '2px solid #10b981' }}>
-                    <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <img src="/nha.png" alt="NHA" style={{ height: '100%', filter: 'brightness(0) invert(1)' }} />
-                    </div>
-                    <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '9px', fontWeight: '800' }}>Ayushman Bharat Health Account</span>
-                      <span style={{ fontSize: '8px', opacity: 0.9 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
-                    </div>
-                    <div style={{ height: '34px', display: 'flex', alignItems: 'center' }}>
-                      <img src="/abdm_new.png" alt="ABDM" style={{ height: '100%' }} />
-                    </div>
-                  </div>
-                  <div className="setu-abha-card-body" style={{ display: 'flex', flexDirection: 'row', gap: '12px', padding: '14px', background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', color: '#0f172a' }}>
-                    <div style={{ width: '75px', height: '95px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8' }}>
-                      <img src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left' }}>
-                      <div>
-                        <span style={{ fontSize: '6px', color: '#64748b' }}>Name / नाम</span>
-                        <strong style={{ fontSize: '10px', color: '#0f172a', fontWeight: '800' }}>{abhaProfile.name || currentUser.name}</strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '6px', color: '#64748b' }}>ABHA Number / आभा संख्या</span>
-                        <strong style={{ fontSize: '10px', color: 'var(--accent-blue)', fontFamily: 'monospace' }}>{abhaProfile.ABHANumber || abhaProfile.abhaNumber}</strong>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '6px', color: '#64748b' }}>ABHA Address / आभा पता</span>
-                        <strong style={{ fontSize: '8px', fontFamily: 'monospace' }}>{abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress}</strong>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${abhaProfile.ABHANumber || abhaProfile.abhaNumber}`} style={{ width: '60px', height: '60px' }} />
-                    </div>
-                  </div>
-                </article>
-              </div>
+            {/* Tabs Header */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', margin: '0 -24px' }}>
+              <button 
+                onClick={() => setPvcTab('front')} 
+                style={{ 
+                  flex: 1, 
+                  padding: '12px', 
+                  background: pvcTab === 'front' ? 'transparent' : 'var(--bg-secondary)', 
+                  border: 'none',
+                  borderBottom: pvcTab === 'front' ? '2.5px solid var(--accent-teal)' : '2.5px solid transparent',
+                  color: pvcTab === 'front' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: 700, 
+                  fontSize: '13px', 
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                Front View Of PVC Card
+              </button>
+              <button 
+                onClick={() => setPvcTab('back')} 
+                style={{ 
+                  flex: 1, 
+                  padding: '12px', 
+                  background: pvcTab === 'back' ? 'transparent' : 'var(--bg-secondary)', 
+                  border: 'none',
+                  borderBottom: pvcTab === 'back' ? '2.5px solid var(--accent-teal)' : '2.5px solid transparent',
+                  color: pvcTab === 'back' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: 700, 
+                  fontSize: '13px', 
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                Back View Of PVC Card
+              </button>
+            </div>
 
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '10px' }}>Back Side / पीछे का भाग</span>
-              {/* Copy of Back Side */}
-              <div style={{ transform: 'scale(0.85)', margin: '-20px 0' }}>
-                <article 
-                  className="pvc-back-card"
-                  style={{
-                    width: '440px', height: '168px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #cbd5e1',
-                    background: 'radial-gradient(circle, #ffffff 0%, #f8fafc 100%)', fontFamily: "'Inter', sans-serif"
-                  }}
-                >
-                  <div style={{ background: '#273890', color: '#ffffff', padding: '6px', fontSize: '8px', fontWeight: 'bold', borderBottom: '2px solid #10b981', textAlign: 'center' }}>
-                    Ayushman Bharat Digital Mission (ABDM)
-                  </div>
-                  <div style={{ padding: '10px', display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                    <ul style={{ flex: 1, fontSize: '7.5px', lineHeight: '1.3', color: '#334155', textAlign: 'left', margin: 0, paddingLeft: '10px' }}>
-                      <li>This card is a digital identity for your healthcare records.</li>
-                      <li>यह कार्ड आपके स्वास्थ्य रिकॉर्ड के लिए एक डिजिटल पहचान है।</li>
-                      <li>ABDM Helpdesk Helpline / हेल्पलाइन: 14477</li>
-                    </ul>
-                    <div style={{ padding: '2px', background: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
-                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${abhaProfile.ABHANumber || abhaProfile.abhaNumber}`} style={{ width: '50px', height: '50px' }} />
+            {/* Modal Body / Previews */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', minHeight: '300px', justifyContent: 'center', padding: '10px 0' }}>
+              {pvcTab === 'front' ? (
+                /* FRONT PREVIEW */
+                <div style={{ width: '100%', maxWidth: '440px' }}>
+                  <article 
+                    className="setu-abha-card" 
+                    style={{ 
+                      width: '100%', borderRadius: '16px', overflow: 'hidden', border: '1px solid #cbd5e1',
+                      fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minHeight: '277px', background: '#ffffff'
+                    }}
+                  >
+                    {/* Header */}
+                    <div className="setu-abha-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#264488', borderBottom: '2px solid #10b981', height: '56px', boxSizing: 'border-box' }}>
+                      <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <img src="/assets/svg/nha.svg" alt="NHA Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
+                      </div>
+                      <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        <span style={{ fontSize: '9px', fontWeight: '800', letterSpacing: '0.2px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+                        <span style={{ fontSize: '8px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+                      </div>
+                      <div style={{ height: '42px', width: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }}>
+                        <img src="/assets/svg/abdm1.svg" alt="ABDM Logo" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
+                      </div>
                     </div>
-                  </div>
-                </article>
-              </div>
+                    
+                    {/* Body */}
+                    <div className="setu-abha-card-body" style={{ display: 'grid', gridTemplateColumns: '85px 1fr 75px', gap: '12px', padding: '12px', background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', color: '#0f172a', alignItems: 'center', height: 'calc(100% - 56px)', boxSizing: 'border-box' }}>
+                      <div style={{ width: '85px', height: '110px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', flexShrink: 0 }}>
+                        <img src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left', minWidth: 0 }}>
+                        <div>
+                          <span style={{ fontSize: '6px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
+                          <strong style={{ fontSize: '10px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {abhaProfile.name || [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') || currentUser.name}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '6px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
+                          <strong style={{ fontSize: '9.5px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>
+                            {abhaProfile.ABHANumber || abhaProfile.abhaNumber}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '6px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
+                          <strong style={{ fontSize: '8px', color: '#0f172a', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>
+                            {abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId}
+                          </strong>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '2px' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: '5px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
+                            <span style={{ fontSize: '8px', fontWeight: 600, color: '#0f172a' }}>{getGenderDisplay(abhaProfile.gender)}</span>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: '5px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
+                            <span style={{ fontSize: '8px', fontWeight: 600, color: '#0f172a' }}>{abhaProfile.dob}</span>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: '5px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
+                            <span style={{ fontSize: '8px', fontWeight: 600, color: '#0f172a' }}>{abhaProfile.mobile}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({
+                            district_name: (abhaProfile.districtName || "JABALPUR").toUpperCase(),
+                            hid: abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId,
+                            address: abhaProfile.address || "1787, Nagpur Road, In Front Of Sai Niwas, Medical, Jabalpur, Jabalpur, Madhya Pradesh",
+                            gender: abhaProfile.gender ? (['male', 'm'].includes(abhaProfile.gender.toLowerCase()) ? 'M' : ['female', 'f'].includes(abhaProfile.gender.toLowerCase()) ? 'F' : abhaProfile.gender) : 'M',
+                            distlgd: abhaProfile.distLgd || abhaProfile.distlgd || "411",
+                            dob: abhaProfile.dob || "24-09-1992",
+                            name: abhaProfile.name || [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') || currentUser?.name || "Ashish Patel",
+                            mobile: abhaProfile.mobile || "9981435702",
+                            statelgd: abhaProfile.stateLgd || abhaProfile.statelgd || "23",
+                            hidn: abhaProfile.ABHANumber || abhaProfile.abhaNumber || "91-6005-4602-2077",
+                            "state name": (abhaProfile.stateName || "MADHYA PRADESH").toUpperCase()
+                          }))}`}
+                          style={{ width: '75px', height: '75px', display: 'block' }}
+                        />
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              ) : (
+                /* BACK PREVIEW */
+                <div style={{ width: '100%', maxWidth: '440px' }}>
+                  <article 
+                    className="pvc-back-card"
+                    style={{
+                      width: '100%', borderRadius: '16px', overflow: 'hidden', border: '1px solid #cbd5e1',
+                      fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minHeight: '277px', background: 'radial-gradient(circle, #ffffff 0%, #f8fafc 100%)'
+                    }}
+                  >
+                    {/* Header */}
+                    <div className="setu-abha-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#264488', borderBottom: '2px solid #10b981', height: '56px', boxSizing: 'border-box' }}>
+                      <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <img src="/assets/svg/nha.svg" alt="NHA Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
+                      </div>
+                      <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        <span style={{ fontSize: '9px', fontWeight: '800', letterSpacing: '0.2px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+                        <span style={{ fontSize: '8px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+                      </div>
+                      <div style={{ height: '42px', width: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }}>
+                        <img src="/assets/svg/abdm1.svg" alt="ABDM Logo" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
+                      </div>
+                    </div>
+                    
+                    {/* Body */}
+                    <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', height: 'calc(100% - 56px)', boxSizing: 'border-box', justifyContent: 'space-between', color: '#0f172a' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '9px', marginBottom: '4px', color: '#0f172a' }}>
+                        <span>Instructions</span>
+                        <span>Toll-Free Number: 1800 114 477</span>
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '7.5px', lineHeight: '1.3', color: '#334155', textAlign: 'left', listStyleType: 'disc' }}>
+                        <li style={{ marginBottom: '4px' }}>
+                          With this ABHA you have become a part of India's digital health ecosystem.
+                          <div style={{ color: '#64748b', fontSize: '7px' }}>इस आभा के साथ आप भारत के डिजिटल हेल्थ इकोसिस्टम का हिस्सा बन गए हैं।</div>
+                        </li>
+                        <li style={{ marginBottom: '4px' }}>
+                          ABHA provides you a unique identification and helps in storing - safekeeping all your digital health records at one place.
+                          <div style={{ color: '#64748b', fontSize: '7px' }}>आभा आपको एक विशिष्ट पहचान प्रदान करता है और आपके सभी डिजिटल स्वास्थ्य रिकॉर्ड को सुरक्षित एक ही स्थान पर संग्रहीत रखने में मदद करता है।</div>
+                        </li>
+                        <li style={{ marginBottom: '4px' }}>
+                          You can download the ABHA mobile app, Aarogya Setu or other ABDM enabled app to view and share your digital health records with ABDM registered healthcare service providers.
+                          <div style={{ color: '#64748b', fontSize: '7px' }}>आप एबीडीएम पंजीकृत स्वास्थ्य सेवा प्रदाताओं के साथ अपने डिजिटल स्वास्थ्य रिकॉर्ड देखने और साझा करने के लिए आभा मोबाइल ऐप, आरोग्य सेतु या अन्य एबीडीएम सक्षम ऐप डाउनलोड कर सकते हैं।</div>
+                        </li>
+                        <li style={{ marginBottom: '4px' }}>
+                          If this card is lost kindly download it from www.abha.abdm.gov.in, it is digitally acceptable.
+                          <div style={{ color: '#64748b', fontSize: '7px' }}>यदि यह कार्ड खो जाता है तो कृपया इसे www.abha.abdm.gov.in से डाउनलोड करें, यह डिजिटल रूप से स्वीकार्य है।</div>
+                        </li>
+                      </ul>
+                      
+                      <div style={{ width: '100%', marginTop: '4px' }}>
+                        <hr style={{ border: 'none', borderTop: '1px solid #cbd5e1', margin: '3px 0' }} />
+                        <div style={{ textAlign: 'center', fontSize: '8.5px', fontWeight: 'bold', color: '#334155' }}>
+                          Issued on: 30-11-2022
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setActiveModal(null)} style={{ flex: 1, padding: '10px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer' }}>
-                Cancel
+              <button 
+                onClick={() => setActiveModal(null)} 
+                style={{ 
+                  flex: 1, 
+                  padding: '10px 14px', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  color: 'var(--text-primary)', 
+                  fontWeight: 700, 
+                  cursor: 'pointer', 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '6px' 
+                }}
+              >
+                <X style={{ width: '16px', height: '16px' }} />
+                <span>Close</span>
               </button>
-              <button onClick={handlePrintPvc} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>
-                Print PVC
+              <button 
+                onClick={handlePrintPvc} 
+                style={{ 
+                  flex: 1, 
+                  padding: '10px 14px', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  background: '#c2410c', 
+                  color: '#ffffff', 
+                  fontWeight: 800, 
+                  cursor: 'pointer', 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '6px' 
+                }}
+              >
+                <Printer style={{ width: '16px', height: '16px', color: '#ffffff' }} />
+                <span>Print</span>
               </button>
             </div>
           </div>

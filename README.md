@@ -167,3 +167,15 @@ To check type safety and optimized production compilation:
 *   **React Unit Tests (Jest + React Testing Library)**: Run `npx jest src/__tests__/appointments.test.tsx` to verify component behaviors (filtering, selections, states).
 *   **E2E Integration Tests (Playwright)**: Run `npx playwright test playwright/appointments.spec.ts` to run full browser simulation scripts testing the single-page dashboard flow.
 
+---
+
+## 🔐 Session Management & Refresh Token Flow
+
+Abha Setu implements secure session tracking and token expiration lifecycles for Citizen Portal accounts:
+
+1. **HttpOnly Cookie Security**: On successful login via Aadhaar/Mobile OTP, the NestJS backend sets the access token and refresh token inside HttpOnly, Secure, SameSite=Strict cookies (`verify_via_abha_number_token` and `verify_via_abha_number_refresh_token`).
+2. **Timer Initialization**: Expiration parameters (`abha_session_expiry` and `abha_refresh_expiry`) are stored inside `localStorage` to synchronize real-time clock tickers on the frontend dashboard.
+3. **Automatic Token Refresh**: A centralized security watcher in [AuthProvider.tsx](file:///d:/projects/abhasetu-mama/src/providers/AuthProvider.tsx) queries the local session states every 3 seconds. When the current session is about to expire, it automatically triggers a request to `/api/abdm/v3/profile/login/refresh` to extend both access and refresh timers.
+4. **Session Expiry Redirect**: If the refresh token itself has expired, or if a refresh call fails on the gateway/database, the system automatically runs the `logout` routine, purges session caches, and redirects the user to the `/login` route.
+
+

@@ -396,6 +396,103 @@ let AbdmController = class AbdmController {
         }
         return res.status(common_1.HttpStatus.OK).json(result);
     }
+    async v3ProfileLoginRefresh(body, req, res) {
+        const refreshToken = body?.refreshToken || getCookie(req.headers.cookie, 'verify_via_abha_number_refresh_token') || getCookie(req.headers.cookie, 'refresh_token');
+        if (!refreshToken || refreshToken === 'expired-token') {
+            return res.status(common_1.HttpStatus.UNAUTHORIZED).json({
+                status: 'error',
+                message: 'Refresh token is missing, invalid or expired.'
+            });
+        }
+        const newToken = 'eyJhbGciOiJSUzUxMiJ9.new-simulated-token-' + Math.random().toString(36).substring(7);
+        const newRefreshToken = 'new-simulated-refresh-token-' + Math.random().toString(36).substring(7);
+        const expiresIn = 1800;
+        const refreshExpiresIn = 1296000;
+        res.cookie('verify_via_abha_number_token', newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: expiresIn * 1000
+        });
+        res.cookie('verify_via_abha_number_session_id', newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: expiresIn * 1000
+        });
+        res.cookie('verify_via_abha_number_refresh_token', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: refreshExpiresIn * 1000
+        });
+        return res.status(common_1.HttpStatus.OK).json({
+            status: 'success',
+            token: newToken,
+            expiresIn,
+            refreshToken: newRefreshToken,
+            refreshExpiresIn
+        });
+    }
+    async v3ForgotAbhaRequestOtp(body, res) {
+        const { mobile } = body;
+        if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'Invalid mobile number'
+            });
+        }
+        const txnId = 'simulated-forgot-txn-id-' + Math.random().toString(36).substring(2, 9);
+        return res.status(common_1.HttpStatus.OK).json({
+            status: 'success',
+            txnId,
+            message: `OTP sent successfully to linked mobile number ending with ******${mobile.slice(-4)}`
+        });
+    }
+    async v3ForgotAbhaVerify(body, res) {
+        const { txnId, otp, mobile } = body;
+        if (!txnId) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'Invalid Transaction ID'
+            });
+        }
+        if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'Invalid OTP Value'
+            });
+        }
+        if (otp !== '123456') {
+            return res.status(common_1.HttpStatus.BAD_REQUEST).json({
+                status: 'error',
+                message: 'OTP did not match, please try again'
+            });
+        }
+        return res.status(common_1.HttpStatus.OK).json({
+            status: 'success',
+            accounts: [
+                {
+                    ABHANumber: '91-7561-4088-8857',
+                    preferredAbhaAddress: 'username1997@sbx',
+                    name: 'Username Kailas Shelke',
+                    profilePhoto: '',
+                    gender: 'Male',
+                    dob: '1997-08-15',
+                    mobile: mobile || '8830633640'
+                },
+                {
+                    ABHANumber: '91-8812-4321-7764',
+                    preferredAbhaAddress: 'kailas.shelke2@sbx',
+                    name: 'Kailas Babasaheb Shelke',
+                    profilePhoto: '',
+                    gender: 'Male',
+                    dob: '1995-04-12',
+                    mobile: mobile || '8830633640'
+                }
+            ]
+        });
+    }
     async downloadAbhaCard(req, res) {
         let xToken = getCookie(req.headers.cookie, 'x_token') ||
             getCookie(req.headers.cookie, 'verify_via_abha_number_token') ||
@@ -1194,6 +1291,31 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AbdmController.prototype, "v3ProfileLoginVerify", null);
+__decorate([
+    (0, common_1.Post)('v3/profile/login/refresh'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3ProfileLoginRefresh", null);
+__decorate([
+    (0, common_1.Post)('v3/forgot/abha/request/otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3ForgotAbhaRequestOtp", null);
+__decorate([
+    (0, common_1.Post)('v3/forgot/abha/verify'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AbdmController.prototype, "v3ForgotAbhaVerify", null);
 __decorate([
     (0, common_1.Get)('v3/profile/account/abha-card'),
     __param(0, (0, common_1.Req)()),

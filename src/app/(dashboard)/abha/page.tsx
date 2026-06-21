@@ -73,6 +73,8 @@ import {
   CreditCard,
   Shield,
   Globe,
+  Pencil,
+  Copy,
   X
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
@@ -89,6 +91,11 @@ export default function AbhaPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { addRecord, logSecurityEvent, updateCurrentUser, currentUser, loginWithAbhaAccount } = useAuth();
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    showToast(t(`${fieldName} copied to clipboard!`));
+  };
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<'card' | 'onboard' | 'consent' | 'hiplink' | 'nhpr' | 'scanshare' | 'uhi' | 'nhcx' | 'tests'>('onboard');
@@ -1209,8 +1216,11 @@ export default function AbhaPage() {
       setLoading(false);
       if (success) {
         const sessionTtl = 300;
+        const refreshTtl = 1800;
         localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+        localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
         localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+        localStorage.setItem('verify_via_abha_number_refresh_token', 'simulated-refresh-token-preview-xyz');
         localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
         window.dispatchEvent(new Event('setu_state_update'));
 
@@ -1413,6 +1423,7 @@ export default function AbhaPage() {
           localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
           localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
           localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+          localStorage.setItem('verify_via_abha_number_refresh_token', data.refreshToken || data.tokens?.refreshToken || 'simulated-refresh-token-preview-xyz');
           localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
           window.dispatchEvent(new Event('setu_state_update'));
         }
@@ -1642,6 +1653,7 @@ export default function AbhaPage() {
               localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
               localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
               localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('verify_via_abha_number_refresh_token', data.refreshToken || data.tokens?.refreshToken || 'simulated-refresh-token-preview-xyz');
               localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
               window.dispatchEvent(new Event('setu_state_update'));
               
@@ -1676,6 +1688,7 @@ export default function AbhaPage() {
               localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
               localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
               localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('verify_via_abha_number_refresh_token', data.refreshToken || data.tokens?.refreshToken || 'simulated-refresh-token-preview-xyz');
               localStorage.setItem('public_key_expiry', String(Date.now() + 90 * 24 * 3600 * 1000));
               window.dispatchEvent(new Event('setu_state_update'));
               
@@ -2283,7 +2296,6 @@ export default function AbhaPage() {
               className="setu-abha-card" 
               style={{ 
                 width: '100%',
-                maxWidth: '480px',
                 borderRadius: '16px',
                 overflow: 'hidden',
                 border: '1px solid #cbd5e1',
@@ -2297,27 +2309,27 @@ export default function AbhaPage() {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center', 
-                  padding: '10px 14px', 
-                  background: '#273890', 
+                  background: '#264488', 
                   borderBottom: '2px solid #10b981' 
                 }}
               >
-                <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <img
-                    src="/nha.png"
+                    src="/assets/svg/nha.svg"
                     alt="NHA Logo"
-                    style={{ height: '100%', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+                    className="setu-abha-card-nha-img"
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
                   />
                 </div>
                 <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
-                  <span style={{ fontSize: '9px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
+                  <span className="setu-abha-card-header-title" style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
+                  <span className="setu-abha-card-header-subtitle" style={{ fontSize: '11px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
                 </div>
-                <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ height: '56px', width: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }} className="setu-abha-card-abdm-wrapper">
                   <img
-                    src="/abdm_new.png"
+                    src="/assets/svg/abdm1.svg"
                     alt="ABDM Logo"
-                    style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
+                    style={{ height: '100%', width: '100%', objectFit: 'contain' }}
                   />
                 </div>
               </div>
@@ -2330,54 +2342,117 @@ export default function AbhaPage() {
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'stretch',
-                  gap: '12px', 
-                  padding: '14px', 
                   background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', 
                   color: '#0f172a' 
                 }}
               >
                 
-                <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                  <div className="setu-abha-card-avatar" style={{ width: '75px', height: '95px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                <div className="setu-abha-card-avatar-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', position: 'relative' }}>
+                  <div 
+                    className="setu-abha-card-avatar" 
+                    style={{ 
+                      borderRadius: '6px', 
+                      overflow: 'visible', 
+                      border: '1px solid #94a3b8', 
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                      position: 'relative',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => showToast(t('Please go to My Profile page to edit photo.'))}
+                  >
                     <img
                       src={getPhotoSrc(abhaDetails.photo)}
                       alt={abhaDetails.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ width: '100%', height: '100%', borderRadius: '6px', objectFit: 'cover' }}
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=150';
                       }}
                     />
+                    {/* Always visible edit badge */}
+                    <div 
+                      style={{ 
+                        position: 'absolute', 
+                        bottom: '-4px', 
+                        right: '-4px', 
+                        background: '#10b981', 
+                        borderRadius: '50%', 
+                        width: '20px', 
+                        height: '20px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        border: '1.5px solid #ffffff',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                        zIndex: 10
+                      }}
+                    >
+                      <Pencil style={{ width: '10px', height: '10px', color: '#ffffff' }} />
+                    </div>
                   </div>
                 </div>
                 
                 <div className="setu-abha-card-details" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px', textAlign: 'left', minWidth: 0 }}>
                   <div className="setu-abha-card-field">
-                    <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
-                    <strong className="setu-abha-card-value" style={{ fontSize: '11px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{abhaDetails.name}</strong>
+                    <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
+                    <strong className="setu-abha-card-value" style={{ color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{abhaDetails.name}</strong>
                   </div>
                   
                   <div className="setu-abha-card-field">
-                    <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
-                    <strong className="setu-abha-card-value token-num" style={{ fontSize: '11px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>{abhaDetails.abhaNumber}</strong>
+                    <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
+                    <strong className="setu-abha-card-value token-num" style={{ color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{abhaDetails.abhaNumber}</span>
+                      <button 
+                        onClick={() => copyToClipboard(abhaDetails.abhaNumber || '', 'ABHA Number')}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          padding: '2px', 
+                          cursor: 'pointer', 
+                          display: 'inline-flex', 
+                          alignItems: 'center',
+                          color: 'var(--text-muted)'
+                        }}
+                        title="Copy ABHA Number"
+                      >
+                        <Copy style={{ width: '12px', height: '12px' }} />
+                      </button>
+                    </strong>
                   </div>
                   
                   <div className="setu-abha-card-field">
-                    <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
-                    <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>{abhaDetails.abhaId}</strong>
+                    <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
+                    <strong className="setu-abha-card-value token-num" style={{ color: '#0f172a', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{abhaDetails.abhaId}</span>
+                      <button 
+                        onClick={() => copyToClipboard(abhaDetails.abhaId || '', 'ABHA Address')}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          padding: '2px', 
+                          cursor: 'pointer', 
+                          display: 'inline-flex', 
+                          alignItems: 'center',
+                          color: 'var(--text-muted)'
+                        }}
+                        title="Copy ABHA Address"
+                      >
+                        <Copy style={{ width: '12px', height: '12px' }} />
+                      </button>
+                    </strong>
                   </div>
                   
-                  <div className="setu-abha-card-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginTop: '2px' }}>
-                    <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
-                      <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{getGenderDisplay(abhaDetails.gender)}</span>
+                  <div className="setu-abha-card-row" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', width: '100%' }}>
+                    <div className="setu-abha-card-field" style={{ flex: 1, minWidth: 0 }}>
+                      <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
+                      <span className="setu-abha-card-value setu-abha-card-row-value" style={{ fontWeight: 600 }}>{getGenderDisplay(abhaDetails.gender)}</span>
                     </div>
-                    <div className="setu-abha-card-field">
-                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
-                      <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{abhaDetails.dob}</span>
+                    <div className="setu-abha-card-field" style={{ flex: 1, minWidth: 0 }}>
+                      <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
+                      <span className="setu-abha-card-value setu-abha-card-row-value" style={{ fontWeight: 600 }}>{abhaDetails.dob}</span>
                     </div>
-                    <div className="setu-abha-card-field" style={{ gridColumn: 'span 2' }}>
-                      <span className="setu-abha-card-label" style={{ fontSize: '7px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
-                      <span className="setu-abha-card-value" style={{ fontSize: '9px', fontWeight: 600 }}>{abhaDetails.mobile}</span>
+                    <div className="setu-abha-card-field" style={{ flex: 1, minWidth: 0 }}>
+                      <span className="setu-abha-card-label" style={{ color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
+                      <span className="setu-abha-card-value setu-abha-card-row-value" style={{ fontWeight: 600 }}>{abhaDetails.mobile}</span>
                     </div>
                   </div>
                 </div>
@@ -2385,9 +2460,22 @@ export default function AbhaPage() {
                 <div className="setu-abha-card-qr-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div className="setu-abha-card-qr" style={{ padding: '4px', background: '#ffffff', borderRadius: '6px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ABHA:${abhaDetails.abhaNumber};${abhaDetails.abhaId}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+                        district_name: "JABALPUR",
+                        hid: abhaDetails.abhaId || "medibuddy.9981435702@abdm",
+                        address: "1787, Nagpur Road, In Front Of Sai Niwas, Medical, Jabalpur, Jabalpur, Madhya Pradesh",
+                        gender: abhaDetails.gender ? (['male', 'm'].includes(abhaDetails.gender.toLowerCase()) ? 'M' : ['female', 'f'].includes(abhaDetails.gender.toLowerCase()) ? 'F' : abhaDetails.gender) : 'M',
+                        distlgd: "411",
+                        dob: abhaDetails.dob || "24-09-1992",
+                        name: abhaDetails.name || "Ashish Patel",
+                        mobile: abhaDetails.mobile || "9981435702",
+                        statelgd: "23",
+                        hidn: abhaDetails.abhaNumber || "91-6005-4602-2077",
+                        "state name": "MADHYA PRADESH"
+                      }))}`}
                       alt="ABHA QR"
-                      style={{ width: '68px', height: '68px', display: 'block' }}
+                      className="setu-abha-card-qr-img"
+                      style={{ display: 'block' }}
                     />
                   </div>
                 </div>

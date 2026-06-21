@@ -26,6 +26,9 @@ export declare class AbdmController {
     v3AuthByAbdm(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     v3ProfileLoginRequestOtp(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
     v3ProfileLoginVerify(body: any, res: express.Response, req: express.Request): Promise<express.Response<any, Record<string, any>>>;
+    v3ProfileLoginRefresh(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    v3ForgotAbhaRequestOtp(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
+    v3ForgotAbhaVerify(body: any, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     downloadAbhaCard(req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     updateProfileAccount(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;
     updateProfileAccountPatch(body: any, req: express.Request, res: express.Response): Promise<express.Response<any, Record<string, any>>>;

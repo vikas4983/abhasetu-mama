@@ -308,6 +308,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setCurrentUser(null);
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('abha_session_expiry');
+    localStorage.removeItem('abha_refresh_expiry');
+    localStorage.removeItem('x_token_expiry');
+    localStorage.removeItem('verify_via_abha_number_refresh_token');
     syncToLocalStorage({ currentUser: null });
     router.push('/login');
   };
@@ -491,6 +495,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
+
+  // Centralized session timer check and token refresh loop
+  useEffect(() => {
+    // If no user is logged in, do not start monitoring
+    if (!currentUser) return;
+
+    // Local lock to prevent duplicate concurrent refresh requests
+    let isRefreshing = false;
+
+    const checkSessionExpiry = async () => {
+      if (isRefreshing) return;
+
+      const sessionExpiryVal = localStorage.getItem('abha_session_expiry');
+      const refreshExpiryVal = localStorage.getItem('abha_refresh_expiry');
+
+      // Skip checking if session parameters are not initialized (e.g. admin or other logins)
+      if (!sessionExpiryVal || !refreshExpiryVal) return;
+
+      const now = Date.now();
+      const sessionExpiry = Number(sessionExpiryVal);
+      const refreshExpiry = Number(refreshExpiryVal);
+
+      // 1. Check if the refresh token itself has expired
+      if (now >= refreshExpiry) {
+        console.warn('[Session Monitor] Refresh token has expired. Forcing logout...');
+        logSecurityEvent("Session Expired", `Session refresh token has expired. Logging out ${currentUser.name}`);
+        addNotification("Session Expired", "Your secure session has expired. Please log in again.", "security");
+        logout();
+        return;
+      }
+
+      // 2. Check if the session access token has expired (or is about to expire within 5 seconds)
+      if (now >= sessionExpiry - 5000) {
+        isRefreshing = true;
+        console.log('[Session Monitor] Session access token has expired. Attempting token refresh...');
+        logSecurityEvent("Session Refresh Triggered", `Access token expired. Extending session for ${currentUser.name}`);
+        
+        try {
+          const res = await fetch('/api/abdm/v3/profile/login/refresh', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              // Read the refresh token from localStorage as backup (cookies are automatically sent as primary credentials)
+              refreshToken: localStorage.getItem('verify_via_abha_number_refresh_token') || 'simulated-refresh-token-preview-xyz'
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'success') {
+              const sessionTtl = data.expiresIn || 1800;
+              const refreshTtl = data.refreshExpiresIn || 1296000;
+
+              // Update session, refresh, and x-token expiration parameters in localStorage
+              localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
+              localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+              if (data.refreshToken) {
+                localStorage.setItem('verify_via_abha_number_refresh_token', data.refreshToken);
+              }
+
+              // Propagate the change to all other active windows, components, and listeners
+              window.dispatchEvent(new Event('setu_state_update'));
+              
+              logSecurityEvent("Session Refreshed", `Successfully refreshed access token. New session TTL: ${sessionTtl}s`);
+              addNotification("Session Extended", "Your security session has been automatically extended.", "security");
+              console.log('[Session Monitor] Session token refreshed successfully.');
+            } else {
+              throw new Error(data.message || 'Refresh operation failed on server.');
+            }
+          } else {
+            throw new Error(`Server returned HTTP ${res.status}`);
+          }
+        } catch (error: any) {
+          console.error('[Session Monitor] Failed to refresh token:', error.message || error);
+          logSecurityEvent("Session Refresh Failed", `Refresh error: ${error.message || error}. Forcing logout for ${currentUser.name}`);
+          addNotification("Session Expired", "Failed to extend session. Logging out...", "security");
+          logout();
+        } finally {
+          isRefreshing = false;
+        }
+      }
+    };
+
+    // Periodically run check every 3 seconds to monitor expiration states
+    const intervalId = setInterval(checkSessionExpiry, 3000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [currentUser]);
 
   // Route security shield
   useEffect(() => {

@@ -452,6 +452,137 @@ export class AbdmController {
   }
 
   /**
+   * @description Refreshes user session token using a refresh token.
+   * @param {object} body - Request body containing the refreshToken.
+   * @param {express.Request} req - Express request.
+   * @param {express.Response} res - Express response.
+   * @returns {Promise<express.Response>} New session token on success.
+   */
+  @Post('v3/profile/login/refresh')
+  async v3ProfileLoginRefresh(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+    const refreshToken = body?.refreshToken || getCookie(req.headers.cookie, 'verify_via_abha_number_refresh_token') || getCookie(req.headers.cookie, 'refresh_token');
+    
+    if (!refreshToken || refreshToken === 'expired-token') {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        status: 'error',
+        message: 'Refresh token is missing, invalid or expired.'
+      });
+    }
+
+    // Generate new mock tokens with standard TTLs
+    const newToken = 'eyJhbGciOiJSUzUxMiJ9.new-simulated-token-' + Math.random().toString(36).substring(7);
+    const newRefreshToken = 'new-simulated-refresh-token-' + Math.random().toString(36).substring(7);
+    const expiresIn = 1800; // 30 minutes
+    const refreshExpiresIn = 1296000; // 15 days
+
+    res.cookie('verify_via_abha_number_token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: expiresIn * 1000
+    });
+    res.cookie('verify_via_abha_number_session_id', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: expiresIn * 1000
+    });
+    res.cookie('verify_via_abha_number_refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshExpiresIn * 1000
+    });
+
+    return res.status(HttpStatus.OK).json({
+      status: 'success',
+      token: newToken,
+      expiresIn,
+      refreshToken: newRefreshToken,
+      refreshExpiresIn
+    });
+  }
+
+  /**
+   * @description Requests an OTP for finding ABHA details using linked mobile number.
+   * @param {object} body - Request body containing mobile.
+   * @param {express.Response} res - Express response.
+   * @returns {Promise<express.Response>} Express response with transaction ID.
+   */
+  @Post('v3/forgot/abha/request/otp')
+  async v3ForgotAbhaRequestOtp(@Body() body: any, @Res() res: express.Response) {
+    const { mobile } = body;
+    if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'Invalid mobile number'
+      });
+    }
+
+    const txnId = 'simulated-forgot-txn-id-' + Math.random().toString(36).substring(2, 9);
+    return res.status(HttpStatus.OK).json({
+      status: 'success',
+      txnId,
+      message: `OTP sent successfully to linked mobile number ending with ******${mobile.slice(-4)}`
+    });
+  }
+
+  /**
+   * @description Verifies OTP for finding ABHA details and returns associated profiles.
+   * @param {object} body - Request body containing txnId, otp, mobile.
+   * @param {express.Response} res - Express response.
+   * @returns {Promise<express.Response>} Express response with profiles list.
+   */
+  @Post('v3/forgot/abha/verify')
+  async v3ForgotAbhaVerify(@Body() body: any, @Res() res: express.Response) {
+    const { txnId, otp, mobile } = body;
+    if (!txnId) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'Invalid Transaction ID'
+      });
+    }
+    if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'Invalid OTP Value'
+      });
+    }
+
+    if (otp !== '123456') {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'OTP did not match, please try again'
+      });
+    }
+
+    // Return mock profiles matching the structure of verifyProfileLoginOtp
+    return res.status(HttpStatus.OK).json({
+      status: 'success',
+      accounts: [
+        {
+          ABHANumber: '91-7561-4088-8857',
+          preferredAbhaAddress: 'username1997@sbx',
+          name: 'Username Kailas Shelke',
+          profilePhoto: '',
+          gender: 'Male',
+          dob: '1997-08-15',
+          mobile: mobile || '8830633640'
+        },
+        {
+          ABHANumber: '91-8812-4321-7764',
+          preferredAbhaAddress: 'kailas.shelke2@sbx',
+          name: 'Kailas Babasaheb Shelke',
+          profilePhoto: '',
+          gender: 'Male',
+          dob: '1995-04-12',
+          mobile: mobile || '8830633640'
+        }
+      ]
+    });
+  }
+
+  /**
    * @description Proxy endpoint for downloading official ABHA card image buffer from NHA Gateway.
    * @param {express.Request} req - Express request object.
    * @param {express.Response} res - Express response object.
