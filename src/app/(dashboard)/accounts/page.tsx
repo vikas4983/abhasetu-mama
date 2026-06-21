@@ -24,6 +24,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { showToast } from '../../../utils/toast';
+import Badge from '../../../components/common/Badge';
 
 export default function AccountsPage() {
   const router = useRouter();
@@ -190,17 +191,9 @@ export default function AccountsPage() {
                             {account.name}
                           </h4>
                           {isActive && (
-                            <span style={{
-                              fontSize: '9px',
-                              fontWeight: 800,
-                              background: 'rgba(20, 184, 166, 0.12)',
-                              color: 'var(--accent-teal)',
-                              padding: '2px 8px',
-                              borderRadius: '12px',
-                              border: '1.5px solid rgba(20, 184, 166, 0.3)'
-                            }}>
+                            <Badge variant="active">
                               {t('ACTIVE SESSION')}
-                            </span>
+                            </Badge>
                           )}
                         </div>
 
@@ -211,16 +204,10 @@ export default function AccountsPage() {
                           <div>
                             <strong>{t('ABHA Address:')}</strong> {account.preferredAbhaAddress}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                            <span style={{
-                              width: '6px',
-                              height: '6px',
-                              borderRadius: '50%',
-                              backgroundColor: account.status === 'ACTIVE' ? 'var(--success)' : 'var(--danger)'
-                            }} />
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: account.status === 'ACTIVE' ? 'var(--success)' : 'var(--danger)' }}>
+                          <div style={{ marginTop: '6px' }}>
+                            <Badge variant={account.status === 'ACTIVE' || !account.status ? 'success' : 'danger'}>
                               {account.status || 'ACTIVE'}
-                            </span>
+                            </Badge>
                           </div>
                         </div>
                       </div>

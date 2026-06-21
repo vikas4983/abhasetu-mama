@@ -5,6 +5,7 @@ import { AccessibilityProvider } from '../providers/AccessibilityProvider';
 import { LanguageProvider } from '../providers/LanguageProvider';
 import { QueryProvider } from '../providers/QueryProvider';
 import { AuthProvider } from '../providers/AuthProvider';
+import { StoreProvider } from '../providers/StoreProvider';
 
 export const metadata: Metadata = {
   title: 'Abha Setu - National Digital Health Bridge',
@@ -122,17 +123,19 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        <QueryProvider>
-          <LanguageProvider>
-            <ThemeProvider>
-              <AccessibilityProvider>
-                <AuthProvider>
-                  {children}
-                </AuthProvider>
-              </AccessibilityProvider>
-            </ThemeProvider>
-          </LanguageProvider>
-        </QueryProvider>
+        <StoreProvider>
+          <QueryProvider>
+            <LanguageProvider>
+              <ThemeProvider>
+                <AccessibilityProvider>
+                  <AuthProvider>
+                    {children}
+                  </AuthProvider>
+                </AccessibilityProvider>
+              </ThemeProvider>
+            </LanguageProvider>
+          </QueryProvider>
+        </StoreProvider>
       </body>
     </html>
   );

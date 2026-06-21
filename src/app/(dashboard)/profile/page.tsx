@@ -18,6 +18,7 @@ import { useLanguage } from '../../../providers/LanguageProvider';
 import { showToast } from '../../../utils/toast';
 import OtpInput from '../../../components/common/OtpInput';
 import { ImageCropper } from '../../../components/common/ImageCropper';
+import Badge from '../../../components/common/Badge';
 
 import {
   User,
@@ -1848,20 +1849,9 @@ export default function ProfilePage() {
 
                   {/* ABHA Status Active badge if active */}
                   {(abhaProfile.abhaStatus === 'ACTIVE' || abhaProfile.status === 'ACTIVE' || abhaProfile.abhaStatus === undefined) && (
-                    <span 
-                      style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '4px', 
-                        color: 'var(--success)', 
-                        fontWeight: 700, 
-                        fontSize: '10px' 
-                      }} 
-                      title="Abha Status: ACTIVE"
-                    >
-                      <img src="/assets/check_icon.png" alt="Active" style={{ width: '12px', height: '12px' }} />
-                      <span>{t('ACTIVE')}</span>
-                    </span>
+                    <Badge variant="success" icon={<Check style={{ width: '10px', height: '10px' }} />}>
+                      {t('ACTIVE')}
+                    </Badge>
                   )}
                 </button>
 

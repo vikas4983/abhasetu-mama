@@ -167,6 +167,13 @@ To check type safety and optimized production compilation:
 *   **React Unit Tests (Jest + React Testing Library)**: Run `npx jest src/__tests__/appointments.test.tsx` to verify component behaviors (filtering, selections, states).
 *   **E2E Integration Tests (Playwright)**: Run `npx playwright test playwright/appointments.spec.ts` to run full browser simulation scripts testing the single-page dashboard flow.
 
+### 6. Component Workshop (Storybook)
+Launch the isolated component developer sandbox:
+```bash
+npm run storybook
+```
+For detailed templates and Component-Driven Development patterns, consult the [Storybook Integration Guide](file:///d:/projects/abhasetu-mama/STORYBOOK_GUIDE.md).
+
 ---
 
 ## 🔐 Session Management & Refresh Token Flow

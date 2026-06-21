@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { showToast } from "../../../utils/toast";
 import LogoLoader from "../../../components/common/LogoLoader";
+import Badge from "../../../components/common/Badge";
+import Button from "../../../components/common/Button";
 import {
   DRIVING_LICENSE_REGEX,
   ABHA_NUMBER_REGEX,
@@ -2292,78 +2294,23 @@ export default function LoginPage() {
                     width: "100%",
                   }}
                 >
-                  <button
-                    type="button"
+                  <Button
+                    variant="back"
                     onClick={isMobile ? handleMobileGestureBack : handleWebBack}
-                    style={{
-                      flex: 1,
-                      padding: "10px 14px",
-                      background: "rgba(20, 184, 166, 0.05)",
-                      border: "1px solid rgba(20, 184, 166, 0.35)",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      color: "var(--accent-teal)",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "4px",
-                      transition: "all 0.2s",
-                      minHeight: "40px",
-                      outline: "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.08)";
-                      e.currentTarget.style.border =
-                        "1px solid var(--accent-teal)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.05)";
-                      e.currentTarget.style.border =
-                        "1px solid rgba(20, 184, 166, 0.35)";
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "scale(0.97)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    style={{ flex: 1 }}
                   >
-                    <ArrowLeft style={{ width: "13px", height: "13px" }} />
-                    <span>{t("Back")}</span>
-                  </button>
-                  <button
+                    {t("Back")}
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
                     disabled={isSendingOtp}
-                    className="join-btn"
-                    style={{
-                      flex: 1,
-                      minHeight: "40px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      cursor: isSendingOtp ? "not-allowed" : "pointer",
-                    }}
+                    isLoading={isSendingOtp}
+                    icon={<Search style={{ width: "14px", height: "14px" }} />}
+                    style={{ flex: 1 }}
                   >
-                    {isSendingOtp ? (
-                      <>
-                        <Loader2
-                          className="animate-spin"
-                          style={{ width: "14px", height: "14px" }}
-                        />
-                        <span>Requesting OTP...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Search style={{ width: "14px", height: "14px" }} />
-                        <span>Find My ABHA Details</span>
-                      </>
-                    )}
-                  </button>
+                    Find My ABHA Details
+                  </Button>
                 </div>
               </form>
             )}
@@ -2417,78 +2364,23 @@ export default function LoginPage() {
                     width: "100%",
                   }}
                 >
-                  <button
-                    type="button"
+                  <Button
+                    variant="back"
                     onClick={isMobile ? handleMobileGestureBack : handleWebBack}
-                    style={{
-                      flex: 1,
-                      padding: "10px 14px",
-                      background: "rgba(20, 184, 166, 0.05)",
-                      border: "1px solid rgba(20, 184, 166, 0.35)",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      color: "var(--accent-teal)",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "4px",
-                      transition: "all 0.2s",
-                      minHeight: "40px",
-                      outline: "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.08)";
-                      e.currentTarget.style.border =
-                        "1px solid var(--accent-teal)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.05)";
-                      e.currentTarget.style.border =
-                        "1px solid rgba(20, 184, 166, 0.35)";
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "scale(0.97)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    style={{ flex: 1 }}
                   >
-                    <ArrowLeft style={{ width: "13px", height: "13px" }} />
-                    <span>{t("Back")}</span>
-                  </button>
-                  <button
+                    {t("Back")}
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
                     disabled={isSendingOtp}
-                    className="join-btn"
-                    style={{
-                      flex: 1,
-                      minHeight: "40px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      cursor: isSendingOtp ? "not-allowed" : "pointer",
-                    }}
+                    isLoading={isSendingOtp}
+                    icon={<Smartphone style={{ width: "14px", height: "14px" }} />}
+                    style={{ flex: 1 }}
                   >
-                    {isSendingOtp ? (
-                      <>
-                        <Loader2
-                          className="animate-spin"
-                          style={{ width: "14px", height: "14px" }}
-                        />
-                        <span>Requesting OTP...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Smartphone style={{ width: "14px", height: "14px" }} />
-                        <span>{t("Send OTP")}</span>
-                      </>
-                    )}
-                  </button>
+                    {t("Send OTP")}
+                  </Button>
                 </div>
               </form>
             )}
@@ -2808,80 +2700,23 @@ export default function LoginPage() {
                       width: "100%",
                     }}
                   >
-                    <button
-                      type="button"
+                    <Button
+                      variant="back"
                       onClick={isMobile ? handleMobileGestureBack : handleWebBack}
-                      style={{
-                        flex: 1,
-                        padding: "10px 14px",
-                        background: "rgba(20, 184, 166, 0.05)",
-                        border: "1px solid rgba(20, 184, 166, 0.35)",
-                        borderRadius: "12px",
-                        fontSize: "11px",
-                        color: "var(--accent-teal)",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "4px",
-                        transition: "all 0.2s",
-                        minHeight: "40px",
-                        outline: "none",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background =
-                          "rgba(20, 184, 166, 0.08)";
-                        e.currentTarget.style.border =
-                          "1px solid var(--accent-teal)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background =
-                          "rgba(20, 184, 166, 0.05)";
-                        e.currentTarget.style.border =
-                          "1px solid rgba(20, 184, 166, 0.35)";
-                      }}
-                      onMouseDown={(e) => {
-                        e.currentTarget.style.transform = "scale(0.97)";
-                      }}
-                      onMouseUp={(e) => {
-                        e.currentTarget.style.transform = "none";
-                      }}
+                      style={{ flex: 1 }}
                     >
-                      <ArrowLeft style={{ width: "13px", height: "13px" }} />
-                      <span>{t("Back")}</span>
-                    </button>
-                    <button
+                      {t("Back")}
+                    </Button>
+                    <Button
                       type="submit"
+                      variant="primary"
                       disabled={isSendingOtp}
-                      className="join-btn"
-                      style={{
-                        flex: 1,
-                        minHeight: "40px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        cursor: isSendingOtp ? "not-allowed" : "pointer",
-                      }}
+                      isLoading={isSendingOtp}
+                      icon={<Smartphone style={{ width: "14px", height: "14px" }} />}
+                      style={{ flex: 1 }}
                     >
-                      {isSendingOtp ? (
-                        <>
-                          <Loader2
-                            className="animate-spin"
-                            style={{ width: "14px", height: "14px" }}
-                          />
-                          <span>Requesting OTP...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Smartphone
-                            style={{ width: "14px", height: "14px" }}
-                          />
-                          <span>{t("Send OTP")}</span>
-                        </>
-                      )}
-                    </button>
+                      {t("Send OTP")}
+                    </Button>
                   </div>
                 </form>
               )}
@@ -3018,49 +2853,13 @@ export default function LoginPage() {
                   ))}
                 </div>
 
-                <button
-                  type="button"
+                <Button
+                  variant="back"
                   onClick={isMobile ? handleMobileGestureBack : handleWebBack}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    padding: "10px 14px",
-                    background: "rgba(20, 184, 166, 0.05)",
-                    border: "1px solid rgba(20, 184, 166, 0.35)",
-                    borderRadius: "12px",
-                    fontSize: "11px",
-                    color: "var(--accent-teal)",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    transition: "all 0.2s",
-                    width: "100%",
-                    minHeight: "38px",
-                    outline: "none",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background =
-                      "rgba(20, 184, 166, 0.08)";
-                    e.currentTarget.style.border =
-                      "1px solid var(--accent-teal)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      "rgba(20, 184, 166, 0.05)";
-                    e.currentTarget.style.border =
-                      "1px solid rgba(20, 184, 166, 0.35)";
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = "scale(0.97)";
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = "none";
-                  }}
+                  style={{ width: "100%" }}
                 >
-                  <ArrowLeft style={{ width: "13px", height: "13px" }} />
-                  <span>{t("Back to Menu")}</span>
-                </button>
+                  {t("Back to Menu")}
+                </Button>
               </div>
             )}
           </>
@@ -3230,88 +3029,24 @@ export default function LoginPage() {
                 )}
 
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="back"
                     disabled={isVerifying}
                     onClick={isMobile ? handleMobileGestureBack : handleWebBack}
-                    style={{
-                      flex: 1,
-                      padding: "10px 14px",
-                      background: "rgba(20, 184, 166, 0.05)",
-                      border: "1px solid rgba(20, 184, 166, 0.35)",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      color: "var(--accent-teal)",
-                      cursor: isVerifying ? "not-allowed" : "pointer",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "4px",
-                      transition: "all 0.2s",
-                      opacity: isVerifying ? 0.6 : 1,
-                      outline: "none",
-                      minHeight: "40px",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (isVerifying) return;
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.08)";
-                      e.currentTarget.style.border =
-                        "1px solid var(--accent-teal)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.05)";
-                      e.currentTarget.style.border =
-                        "1px solid rgba(20, 184, 166, 0.35)";
-                    }}
-                    onMouseDown={(e) => {
-                      if (!isVerifying)
-                        e.currentTarget.style.transform = "scale(0.97)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    style={{ flex: 1 }}
                   >
-                    <ArrowLeft style={{ width: "13px", height: "13px" }} />
-                    <span>{t("Back")}</span>
-                  </button>
-                  <button
+                    {t("Back")}
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
                     disabled={isVerifying}
-                    className="join-btn"
-                    style={{
-                      flex: 1,
-                      minHeight: "40px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      cursor: isVerifying ? "not-allowed" : "pointer",
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "scale(0.97)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    isLoading={isVerifying}
+                    icon={<Sparkles style={{ width: "14px", height: "14px" }} />}
+                    style={{ flex: 1 }}
                   >
-                    {isVerifying ? (
-                      <>
-                        <Loader2
-                          className="animate-spin"
-                          style={{ width: "14px", height: "14px" }}
-                        />
-                        <span>Verifying...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles style={{ width: "14px", height: "14px" }} />
-                        <span>Verify & Continue</span>
-                      </>
-                    )}
-                  </button>
+                    Verify & Continue
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -3506,88 +3241,24 @@ export default function LoginPage() {
                 )}
 
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="back"
                     disabled={isVerifying}
                     onClick={isMobile ? handleMobileGestureBack : handleWebBack}
-                    style={{
-                      flex: 1,
-                      padding: "10px 14px",
-                      background: "rgba(20, 184, 166, 0.05)",
-                      border: "1px solid rgba(20, 184, 166, 0.35)",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      color: "var(--accent-teal)",
-                      cursor: isVerifying ? "not-allowed" : "pointer",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "4px",
-                      transition: "all 0.2s",
-                      opacity: isVerifying ? 0.6 : 1,
-                      outline: "none",
-                      minHeight: "40px",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (isVerifying) return;
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.08)";
-                      e.currentTarget.style.border =
-                        "1px solid var(--accent-teal)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.05)";
-                      e.currentTarget.style.border =
-                        "1px solid rgba(20, 184, 166, 0.35)";
-                    }}
-                    onMouseDown={(e) => {
-                      if (!isVerifying)
-                        e.currentTarget.style.transform = "scale(0.97)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    style={{ flex: 1 }}
                   >
-                    <ArrowLeft style={{ width: "13px", height: "13px" }} />
-                    <span>{t("Back")}</span>
-                  </button>
-                  <button
+                    {t("Back")}
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
                     disabled={isVerifying}
-                    className="join-btn"
-                    style={{
-                      flex: 1,
-                      minHeight: "40px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      cursor: isVerifying ? "not-allowed" : "pointer",
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "scale(0.97)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    isLoading={isVerifying}
+                    icon={<Sparkles style={{ width: "14px", height: "14px" }} />}
+                    style={{ flex: 1 }}
                   >
-                    {isVerifying ? (
-                      <>
-                        <Loader2
-                          className="animate-spin"
-                          style={{ width: "14px", height: "14px" }}
-                        />
-                        <span>Verifying...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles style={{ width: "14px", height: "14px" }} />
-                        <span>Verify & Continue</span>
-                      </>
-                    )}
-                  </button>
+                    Verify & Continue
+                  </Button>
                 </div>
               </form>
             )}
@@ -4240,52 +3911,13 @@ export default function LoginPage() {
                   </div>
                 </button>
 
-                {/* Web UI back button */}
-                <button
-                  type="button"
+                <Button
+                  variant="back"
                   onClick={handleWebBack}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    padding: "10px 16px",
-                    borderRadius: "12px",
-                    background: "rgba(20, 184, 166, 0.05)",
-                    border: "1px solid rgba(20, 184, 166, 0.35)",
-                    color: "var(--accent-teal)",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    width: "100%",
-                    minHeight: "44px",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    outline: "none",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background =
-                      "rgba(20, 184, 166, 0.08)";
-                    e.currentTarget.style.border =
-                      "1px solid var(--accent-teal)";
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      "rgba(20, 184, 166, 0.05)";
-                    e.currentTarget.style.border =
-                      "1px solid rgba(20, 184, 166, 0.35)";
-                    e.currentTarget.style.transform = "none";
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = "scale(0.97)";
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
+                  style={{ width: "100%" }}
                 >
-                  <ArrowLeft style={{ width: "14px", height: "14px" }} />
-                  <span>{t("Back to Menu")}</span>
-                </button>
+                  {t("Back to Menu")}
+                </Button>
               </div>
             )}
 
@@ -6185,18 +5817,9 @@ export default function LoginPage() {
                         <span style={{ fontSize: "13px", fontWeight: "bold" }}>
                           {acc.name}
                         </span>
-                        <span
-                          style={{
-                            fontSize: "9px",
-                            background: "rgba(20, 184, 166, 0.15)",
-                            color: "var(--accent-teal)",
-                            padding: "1px 6px",
-                            borderRadius: "4px",
-                            fontWeight: "bold",
-                          }}
-                        >
+                        <Badge variant="primary">
                           {acc.verificationType || "VERIFIED"}
-                        </span>
+                        </Badge>
                       </div>
                       <div
                         style={{
@@ -7113,48 +6736,13 @@ export default function LoginPage() {
               {/* Drawer Actions */}
               <div style={{ marginTop: "8px" }}>
                 {drawerType !== "main" && flowState === "menu" && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="back"
                     onClick={handleMobileGestureBack}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      background: "rgba(20, 184, 166, 0.05)",
-                      border: "1px solid rgba(20, 184, 166, 0.35)",
-                      borderRadius: "12px",
-                      fontSize: "13px",
-                      fontWeight: "bold",
-                      color: "var(--accent-teal)",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      transition: "all 0.2s",
-                      outline: "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.08)";
-                      e.currentTarget.style.border =
-                        "1px solid var(--accent-teal)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(20, 184, 166, 0.05)";
-                      e.currentTarget.style.border =
-                        "1px solid rgba(20, 184, 166, 0.35)";
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "scale(0.98)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    style={{ width: "100%" }}
                   >
-                    <ArrowLeft style={{ width: "14px", height: "14px" }} />
-                    <span>{t("Back")}</span>
-                  </button>
+                    {t("Back")}
+                  </Button>
                 )}
               </div>
             </div>
