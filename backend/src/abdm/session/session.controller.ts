@@ -61,6 +61,42 @@ export class SessionController {
   }
 
   /**
+   * @description Force session refresh (called from diagnostics page).
+   * Added to resolve method mismatch on GET/POST /sessions.
+   * @param {express.Response} res - Express response object.
+   * @returns {Promise<express.Response>} The generated fresh session token.
+   */
+  @Post('sessions')
+  async forceRefreshSession(@Res() res: express.Response) {
+    try {
+      const result = await this.sessionService.generateSessionToken();
+      if (result.status === 'success') {
+        res.cookie('session_id', result.tokenPreview, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 3600 * 1000 // 1 hour
+        });
+        try {
+          const config = await this.sessionService.getConfig();
+          res.cookie('public_key', config.ABDM_PUBLIC_KEY || '', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 3600 * 1000
+          });
+        } catch (e) {}
+      }
+      return res.status(HttpStatus.OK).json(result);
+    } catch (error: any) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: error.message || 'Failed to force refresh session.'
+      });
+    }
+  }
+
+  /**
    * @description Clears cached session token and generates a fresh one.
    * @param {express.Response} res - Express response.
    * @returns {Promise<express.Response>} Fresh session token.

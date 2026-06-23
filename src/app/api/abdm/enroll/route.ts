@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://localhost:3001';
+
+/**
+ * Handles forwarding demographic and OTP onboarding enrollments.
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const backendRes = await fetch('http://localhost:3001/api/abdm/enroll', {
+    const backendRes = await fetch(`${BACKEND_URL}/api/abdm/enroll`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

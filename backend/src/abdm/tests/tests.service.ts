@@ -111,6 +111,24 @@ export class TestsService {
           };
         }
       },
+      // 4.5 MILESTONE 1 (Profile session refresh)
+      {
+        id: 'M1-04',
+        name: 'Retrieve profile session tokens via secure Refresh Token',
+        module: 'M1' as const,
+        run: async () => {
+          const res = await this.identityService.requestProfileToken('simulated-refresh-token-preview-xyz', context);
+          return {
+            passed: res.status === 'success' && !!res.token && !!res.refreshToken,
+            assertions: [
+              { name: 'Response is successful', passed: res.status === 'success', got: res.status, expected: 'success' },
+              { name: 'New access token is returned', passed: !!res.token, got: !!res.token, expected: true },
+              { name: 'New refresh token is returned', passed: !!res.refreshToken, got: !!res.refreshToken, expected: true }
+            ],
+            responsePayload: res
+          };
+        }
+      },
       // 5. MILESTONE 2 (HIP Discovery)
       {
         id: 'M2-01',
@@ -313,7 +331,9 @@ export class TestsService {
           id: testCase.id,
           name: testCase.name,
           module: testCase.module,
-          endpoint: testCase.id.startsWith('SESS') ? '/api/abdm/sessions' : `/api/abdm/${testCase.module.toLowerCase().replace('_', '-')}`,
+          endpoint: testCase.id === 'M1-04' 
+            ? '/api/abdm/v3/profile/login/refresh' 
+            : (testCase.id.startsWith('SESS') ? '/api/abdm/sessions' : `/api/abdm/${testCase.module.toLowerCase().replace('_', '-')}`),
           method: testCase.id.startsWith('SESS') ? 'GET' : 'POST',
           passed: result.passed,
           durationMs,

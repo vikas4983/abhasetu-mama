@@ -316,17 +316,20 @@ export class IdentityController {
   async v3ProfileLoginRefresh(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
     const refreshToken = body?.refreshToken || getCookie(req.headers.cookie, 'verify_via_abha_number_refresh_token') || getCookie(req.headers.cookie, 'refresh_token');
     
-    if (!refreshToken || refreshToken === 'expired-token') {
-      return res.status(HttpStatus.UNAUTHORIZED).json({
-        status: 'error',
-        message: 'Refresh token is missing, invalid or expired.'
-      });
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const userAgent = req.headers['user-agent'] || '';
+    const context = { ip, userAgent };
+
+    const result = await this.identityService.requestProfileToken(refreshToken, context);
+    
+    if (result.status === 'error') {
+      return res.status(HttpStatus.UNAUTHORIZED).json(result);
     }
 
-    const newToken = 'eyJhbGciOiJSUzUxMiJ9.new-simulated-token-' + Math.random().toString(36).substring(7);
-    const newRefreshToken = 'new-simulated-refresh-token-' + Math.random().toString(36).substring(7);
-    const expiresIn = 1800; // 30 minutes
-    const refreshExpiresIn = 1296000; // 15 days
+    const newToken = result.token || result.accessToken;
+    const newRefreshToken = result.refreshToken;
+    const expiresIn = result.expiresIn || 1800;
+    const refreshExpiresIn = result.refreshExpiresIn || 1296000;
 
     res.cookie('verify_via_abha_number_token', newToken, {
       httpOnly: true,
@@ -345,6 +348,18 @@ export class IdentityController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: refreshExpiresIn * 1000
+    });
+    res.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshExpiresIn * 1000
+    });
+    res.cookie('session_id', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: expiresIn * 1000
     });
 
     return res.status(HttpStatus.OK).json({

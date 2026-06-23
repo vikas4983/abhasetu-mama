@@ -37,6 +37,7 @@ export const ABDM_ENDPOINTS = {
   ABHA_REKYC_VERIFY: '/api/v3/profile/account/verify',
   ABHA_LOGIN_REQUEST_OTP: '/api/v3/profile/login/request/otp',
   ABHA_LOGIN_VERIFY: '/api/v3/profile/login/verify',
+  ABHA_PROFILE_TOKEN_REFRESH: '/api/v3/profile/account/request/token',
   AUTH_FETCH_MODES: '/v0.5/users/auth/fetch-modes',
   AUTH_ON_FETCH_MODES: '/v0.5/users/auth/on-fetch-modes',
   HIP_ADD_CARE_CONTEXT: '/v0.5/links/link/add-contexts',
