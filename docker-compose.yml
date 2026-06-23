@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: abhasetu-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "1234"
+      POSTGRES_DB: abhasetu
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  # 2. Redis Cache Service
+  redis:
+    image: redis:alpine
+    container_name: abhasetu-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. NestJS Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: abhasetu-backend
+    restart: always
+    command: npm run start:dev
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      APP_PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: "1234"
+      DB_NAME: abhasetu
+      REDIS_URL: redis://redis:6379
+      ABDM_ENV: sandbox
+      ABDM_CM_ID: sbx
+      ABDM_CLIENT_ID: SBXID_038320
+      ABDM_CLIENT_SECRET: 0c7fbf47-573a-4f7c-a26f-4188a9533133
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /app/dist
+    depends_on:
+      - db
+      - redis
+
+  # 4. Next.js Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: abhasetu-frontend
+    restart: always
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      BACKEND_INTERNAL_URL: http://backend:3001
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+    driver: local
+  redis_data:
+    driver: local

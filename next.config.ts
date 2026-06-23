@@ -5,10 +5,11 @@ const nextConfig: any = {
     workerThreads: false,
   },
   async rewrites() {
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://localhost:3001';
     return [
       {
         source: '/api/abdm/:path*',
-        destination: 'http://localhost:3001/api/abdm/:path*',
+        destination: `${backendUrl}/api/abdm/:path*`,
       },
     ];
   },

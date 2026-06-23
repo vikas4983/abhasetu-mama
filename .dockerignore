@@ -1,0 +1,11 @@
+node_modules
+.next
+backend/node_modules
+backend/dist
+out
+build
+.git
+.gitignore
+README.md
+DOCKER_GUIDE.md
+docker-compose.yml
