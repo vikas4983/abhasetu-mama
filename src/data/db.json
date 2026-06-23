@@ -6,7 +6,9 @@
     "ABDM_CM_ID": "sbx",
     "ABDM_HIU_ID": "YOUR_HIU_ID",
     "ABDM_HIP_ID": "YOUR_HIP_ID",
-    "sandboxMode": true
+    "sandboxMode": true,
+    "theme": "abdm-sandbox",
+    "selectedLogo": "/assets/logos/logo6.png"
   },
   "products": [
     {
