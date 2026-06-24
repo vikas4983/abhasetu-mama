@@ -129,6 +129,24 @@ export class TestsService {
           };
         }
       },
+      // 4.6 MILESTONE 1 (Profile account fetch)
+      {
+        id: 'M1-05',
+        name: 'Retrieve profile details from ABDM gateway v3/profile/account',
+        module: 'M1' as const,
+        run: async () => {
+          const res = await this.identityService.getProfileAccount('simulated-x-token', 'simulated-gateway-token');
+          return {
+            passed: res.status === 'success' && !!res.data && !!res.data.ABHANumber,
+            assertions: [
+              { name: 'Response is successful', passed: res.status === 'success', got: res.status, expected: 'success' },
+              { name: 'ABHA Number is returned', passed: !!res.data?.ABHANumber, got: res.data?.ABHANumber, expected: '91-7561-4088-XXXX' },
+              { name: 'Localized details are returned', passed: !!res.data?.localizedDetails, got: !!res.data?.localizedDetails, expected: true }
+            ],
+            responsePayload: res
+          };
+        }
+      },
       // 5. MILESTONE 2 (HIP Discovery)
       {
         id: 'M2-01',
@@ -333,8 +351,10 @@ export class TestsService {
           module: testCase.module,
           endpoint: testCase.id === 'M1-04' 
             ? '/api/abdm/v3/profile/login/refresh' 
+            : testCase.id === 'M1-05'
+            ? '/api/abdm/v3/profile/account'
             : (testCase.id.startsWith('SESS') ? '/api/abdm/sessions' : `/api/abdm/${testCase.module.toLowerCase().replace('_', '-')}`),
-          method: testCase.id.startsWith('SESS') ? 'GET' : 'POST',
+          method: (testCase.id.startsWith('SESS') || testCase.id === 'M1-05') ? 'GET' : 'POST',
           passed: result.passed,
           durationMs,
           assertions: result.assertions,

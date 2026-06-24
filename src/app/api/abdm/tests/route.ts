@@ -133,6 +133,68 @@ export async function GET() {
         return { passed: assertions.every(a => a.passed), assertions, responsePayload: data };
       }
     },
+    {
+      id: 'M1-04',
+      name: 'Retrieve profile session tokens via secure Refresh Token',
+      module: 'M1',
+      endpoint: '/api/abdm/v3/profile/login/refresh',
+      method: 'POST',
+      run: async () => {
+        const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://localhost:3001';
+        try {
+          const res = await fetch(`${backendUrl}/api/abdm/v3/profile/login/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: 'simulated-refresh-token' }),
+          });
+          const data = await res.json();
+          const assertions = [
+            { name: 'HTTP Status is 200', passed: res.status === 200, got: res.status, expected: 200 },
+            { name: 'Response is successful', passed: data.status === 'success', got: data.status, expected: 'success' },
+            { name: 'New access token is returned', passed: !!data.token, got: !!data.token, expected: true },
+            { name: 'New refresh token is returned', passed: !!data.refreshToken, got: !!data.refreshToken, expected: true }
+          ];
+          return { passed: assertions.every(a => a.passed), assertions, responsePayload: data };
+        } catch (e: any) {
+          return {
+            passed: false,
+            assertions: [{ name: 'Token refresh executed without error', passed: false, got: e.message || e, expected: 'success' }],
+            responsePayload: { error: e.message }
+          };
+        }
+      }
+    },
+    {
+      id: 'M1-05',
+      name: 'Retrieve profile details from ABDM gateway v3/profile/account',
+      module: 'M1',
+      endpoint: '/api/abdm/v3/profile/account',
+      method: 'GET',
+      run: async () => {
+        const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://localhost:3001';
+        try {
+          const res = await fetch(`${backendUrl}/api/abdm/v3/profile/account`, {
+            method: 'GET',
+            headers: {
+              'Authorization': 'Bearer simulated-x-token'
+            }
+          });
+          const data = await res.json();
+          const assertions = [
+            { name: 'HTTP Status is 200', passed: res.status === 200, got: res.status, expected: 200 },
+            { name: 'ABHA Number is returned', passed: !!data.ABHANumber, got: data.ABHANumber, expected: '91-7561-4088-XXXX' },
+            { name: 'Localized details are returned', passed: !!data.localizedDetails, got: !!data.localizedDetails, expected: true }
+          ];
+          return { passed: assertions.every(a => a.passed), assertions, responsePayload: data };
+        } catch (e: any) {
+          return {
+            passed: false,
+            assertions: [{ name: 'Profile account fetch executed without error', passed: false, got: e.message || e, expected: 'success' }],
+            responsePayload: { error: e.message }
+          };
+        }
+      }
+    },
 
     // ---------------- MILESTONE 2 (HIP CARE CONTEXT) ----------------
     {

@@ -510,6 +510,38 @@ export class IdentityController {
     return res.send(Buffer.from(result.data));
   }
 
+  @Get('v3/profile/account')
+  async getProfileAccount(@Req() req: express.Request, @Res() res: express.Response) {
+    let xToken = getCookie(req.headers.cookie, 'x_token') || 
+                 getCookie(req.headers.cookie, 'verify_via_abha_number_token') ||
+                 getCookie(req.headers.cookie, 'session_id') ||
+                 getCookie(req.headers.cookie, 'verify_via_abha_number_session_id') ||
+                 req.headers.authorization?.replace('Bearer ', '');
+
+    if (!xToken) {
+      xToken = 'mock-x-token';
+    }
+
+    let gatewayToken = '';
+    try {
+      const sessionRes = await this.sessionService.getGatewaySession();
+      gatewayToken = sessionRes.tokenPreview;
+    } catch (err: any) {
+      gatewayToken = 'mock-gateway-token';
+    }
+
+    const result = await this.identityService.getProfileAccount(xToken, gatewayToken);
+    
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result.details || {
+        message: result.message || 'Failed to fetch profile details.',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return res.status(HttpStatus.OK).json(result.data || result);
+  }
+
   @Post('v3/profile/account')
   async updateProfileAccount(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
     return this.updateProfileAccountHandler(body, req, res);
