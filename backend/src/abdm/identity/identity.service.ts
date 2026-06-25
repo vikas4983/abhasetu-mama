@@ -1147,7 +1147,8 @@ export class IdentityService {
             [ABDM_HEADERS.X_TOKEN]: `Bearer ${cleanXToken}`,
             'X-token': `Bearer ${cleanXToken}`,
             [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${gatewayToken}`
-          }
+          },
+          timeout: 4000
         }
       );
       return { status: 'success', data: response.data };

@@ -813,7 +813,7 @@ export default function Header() {
           )}
 
           {/* Theme Toggle */}
-          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'master_admin') && (
+          {currentUser && (
             <button
               className="theme-toggle-btn"
               onClick={cycleTheme}

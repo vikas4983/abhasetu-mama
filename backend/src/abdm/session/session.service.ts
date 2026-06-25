@@ -206,6 +206,7 @@ export class SessionService {
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
           },
+          timeout: 4000,
         },
       );
 
@@ -280,6 +281,7 @@ export class SessionService {
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
           },
+          timeout: 4000,
         },
       );
 

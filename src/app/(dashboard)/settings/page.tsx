@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const [iconStyle, setIconStyle] = React.useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [previewSelection, setPreviewSelection] = React.useState<'glassmorphic' | '3d-gradient' | 'minimalist'>('glassmorphic');
-  const [activeCategory, setActiveCategory] = React.useState<Category>('language');
+  const [activeCategory, setActiveCategory] = React.useState<Category>('visual');
 
   // Notification Toggles state
   const [notifPreferences, setNotifPreferences] = React.useState({
@@ -88,9 +88,9 @@ export default function SettingsPage() {
       const validCategories: Category[] = ['visual', 'branding', 'homepage', 'language', 'accessibility', 'notifications'];
       if (hash && validCategories.includes(hash as Category)) {
         const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'master_admin';
-        if (['visual', 'branding', 'homepage'].includes(hash) && !isAdmin) {
-          setActiveCategory('language');
-          window.location.hash = 'language';
+        if (['branding', 'homepage'].includes(hash) && !isAdmin) {
+          setActiveCategory('visual');
+          window.location.hash = 'visual';
         } else {
           setActiveCategory(hash as Category);
         }
@@ -107,12 +107,9 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (currentUser) {
       const isAdmin = currentUser.role === 'admin' || currentUser.role === 'master_admin';
-      if (!isAdmin && ['visual', 'branding', 'homepage'].includes(activeCategory)) {
-        setActiveCategory('language');
-        window.location.hash = 'language';
-      } else if (isAdmin && activeCategory === 'language' && !window.location.hash) {
-        // Default admin to visual if no hash
+      if (!isAdmin && ['branding', 'homepage'].includes(activeCategory)) {
         setActiveCategory('visual');
+        window.location.hash = 'visual';
       }
     }
   }, [currentUser, activeCategory]);
@@ -225,7 +222,7 @@ export default function SettingsPage() {
     { id: 'language' as Category, name: 'Languages Settings', icon: <Languages style={{ width: '16px', height: '16px' }} /> },
     { id: 'accessibility' as Category, name: 'Accessibility Helpers', icon: <Accessibility style={{ width: '16px', height: '16px' }} /> },
     { id: 'notifications' as Category, name: 'Notifications Channel', icon: <Bell style={{ width: '16px', height: '16px' }} /> }
-  ].filter(cat => !['visual', 'branding', 'homepage'].includes(cat.id) || (currentUser?.role === 'admin' || currentUser?.role === 'master_admin'));
+  ].filter(cat => !['branding', 'homepage'].includes(cat.id) || (currentUser?.role === 'admin' || currentUser?.role === 'master_admin'));
 
   return (
     <>
@@ -263,7 +260,7 @@ export default function SettingsPage() {
         <div className="settings-content-panel">
           
           {/* SECTION 1: VISUAL SETTINGS */}
-          {activeCategory === 'visual' && (currentUser?.role === 'admin' || currentUser?.role === 'master_admin') && (
+          {activeCategory === 'visual' && (
             <article className="route-card" style={{ animation: 'setu-fade-in 0.25s ease-in-out' }}>
               <div className="card-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <Palette style={{ color: 'var(--accent-teal)' }} />

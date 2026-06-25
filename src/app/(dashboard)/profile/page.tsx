@@ -20,13 +20,12 @@ import OtpInput from '../../../components/common/OtpInput';
 import { ImageCropper } from '../../../components/common/ImageCropper';
 import Badge from '../../../components/common/Badge';
 // Import modular profile tab components and modals
-import { MyProfileTab } from './components/MyProfileTab';
-import { GetProfileDetailsTab } from './components/GetProfileDetailsTab';
-import { EditProfileTab } from './components/EditProfileTab';
-import { SetPasswordTab } from './components/SetPasswordTab';
-import { ReKycTab } from './components/ReKycTab';
-import { DeactivateDeleteTab } from './components/DeactivateDeleteTab';
-import { DelinkTab } from './components/DelinkTab';
+import { MyProfileTab } from './components/my_profile/MyProfileTab';
+import { EditProfileTab } from './components/edit_profile/EditProfileTab';
+import { SetPasswordTab } from './components/set_password/SetPasswordTab';
+import { ReKycTab } from './components/re_kyc/ReKycTab';
+import { DeactivateDeleteTab } from './components/deactivate_delete/DeactivateDeleteTab';
+import { DelinkTab } from './components/delink/DelinkTab';
 import { ProfileModals } from './components/ProfileModals';
 
 
@@ -178,7 +177,7 @@ export default function ProfilePage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shakeModal, setShakeModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'my_profile' | 'get_profile_details' | 'edit_profile' | 'set_password' | 're_kyc' | 'deactivate_delete' | 'delink'>('my_profile');
+  const [activeTab, setActiveTab] = useState<'my_profile' | 'edit_profile' | 'set_password' | 're_kyc' | 'deactivate_delete' | 'delink'>('my_profile');
   const [pvcTab, setPvcTab] = useState<'front' | 'back'>('front');
   const [mobileCoolingTimer, setMobileCoolingTimer] = useState(0);
   const [emailCoolingTimer, setEmailCoolingTimer] = useState(0);
@@ -256,10 +255,10 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'get_profile_details' && !profileDetails) {
+    if (activeTab === 'my_profile' && !profileDetails) {
       fetchProfileDetails();
     }
-  }, [activeTab]);
+  }, [activeTab, profileDetails]);
 
   // 1. Mobile Number Update States
   const [newMobile, setNewMobile] = useState('');
@@ -475,6 +474,12 @@ export default function ProfilePage() {
         <head>
           <title>Print ABHA Card</title>
           <style>
+            @media print {
+              body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
             body {
               display: flex;
               flex-direction: column;
@@ -491,61 +496,89 @@ export default function ProfilePage() {
               gap: 20px;
               align-items: center;
             }
-            /* Styling matches setu-abha-card */
-            .setu-abha-card {
-              width: 440px;
+            /* Styling matches printable-abha-card */
+            .printable-abha-card {
+              width: 580px;
               border-radius: 16px;
               overflow: hidden;
-              border: 1px solid #cbd5e1;
+              border: 1px solid rgba(31, 58, 96, 0.15) !important;
               box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            .setu-abha-card-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              padding: 10px 14px;
-              background: #264488;
-              border-bottom: 2px solid #10b981;
+            .printable-abha-card-header {
+              display: flex !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              padding: 12px 16px !important;
+              background: #264488 !important;
+              border-bottom: 2px solid #00d4aa !important;
+              color: #ffffff !important;
+              height: 68px !important;
+              box-sizing: border-box !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            .setu-abha-card-body {
-              position: relative;
-              display: flex;
-              flex-direction: row;
-              justify-content: space-between;
-              align-items: stretch;
-              gap: 12px;
-              padding: 14px;
-              background: radial-gradient(circle, #ffffff 0%, #f1f5f9 100%);
-              color: #0f172a;
+            .printable-abha-card-nha-img {
+              height: 100% !important;
+              width: auto !important;
             }
-            .setu-abha-card-avatar {
-              width: 75px;
-              height: 95px;
-              border-radius: 6px;
-              overflow: hidden;
-              border: 1px solid #94a3b8;
+            .printable-abha-card-abdm-wrapper {
+              height: 52px !important;
+              width: 52px !important;
+              border-radius: 50% !important;
+              border: 1px solid #cbd5e1 !important;
+              overflow: hidden !important;
+              background: #ffffff !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
             }
-            .setu-abha-card-details {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              gap: 5px;
-              text-align: left;
+            .printable-abha-card-body {
+              position: relative !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              padding: 14px !important;
+              background: radial-gradient(circle, #ffffff 0%, #f1f5f9 100%) !important;
+              color: #0f172a !important;
+              flex: 1 !important;
+              box-sizing: border-box !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            .setu-abha-card-label {
-              font-size: 7px;
-              color: #64748b;
-              display: block;
-              font-weight: 700;
+            .printable-abha-card-avatar {
+              width: 95px !important;
+              height: 120px !important;
+              border-radius: 8px !important;
+              overflow: hidden !important;
+              border: 1.5px solid #cbd5e1 !important;
             }
-            .setu-abha-card-value {
-              font-size: 11px;
-              color: #0f172a;
-              font-weight: 800;
-              display: block;
+            .printable-abha-card-details {
+              flex: 1 !important;
+              display: flex !important;
+              flex-direction: column !important;
+              gap: 6px !important;
+              text-align: left !important;
+            }
+            .printable-abha-card-label {
+              font-size: 8px !important;
+              color: #64748b !important;
+              display: block !important;
+              font-weight: 750 !important;
+            }
+            .printable-abha-card-value {
+              font-size: 13.5px !important;
+              color: #0f172a !important;
+              font-weight: 800 !important;
+              display: block !important;
             }
             .token-num {
-              font-family: monospace;
+              font-family: monospace !important;
+            }
+            .printable-abha-card-qr-img {
+              width: 100% !important;
+              height: 100% !important;
             }
           </style>
         </head>
@@ -1372,7 +1405,6 @@ export default function ProfilePage() {
   // Submenu configuration
   const submenus = [
     { id: 'my_profile', label: t('My Profile'), icon: User },
-    { id: 'get_profile_details', label: t('Get Profile Details'), icon: Eye },
     { id: 'edit_profile', label: t('Edit Profile'), icon: Camera },
     { id: 'set_password', label: t('Set Password'), icon: Key },
     { id: 're_kyc', label: t('Re-KYC Verification'), icon: RefreshCw },
@@ -1574,21 +1606,11 @@ export default function ProfilePage() {
               triggerPhotoSelect={triggerPhotoSelect}
               triggerMobileEdit={triggerMobileEdit}
               setActiveModal={setActiveModal}
-            />
-          )}
-
-          {/* TAB 2: Get Profile Details */}
-          {activeTab === 'get_profile_details' && (
-            <GetProfileDetailsTab
               profileDetails={profileDetails}
               profileDetailsLoading={profileDetailsLoading}
               profileDetailsError={profileDetailsError}
               fetchProfileDetails={fetchProfileDetails}
-              isFlipped={isFlipped}
-              setIsFlipped={setIsFlipped}
-              copyToClipboard={copyToClipboard}
               getDobString={getDobString}
-              t={t}
             />
           )}
 
