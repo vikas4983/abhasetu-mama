@@ -10,15 +10,19 @@ exports.AbdmModule = void 0;
 const common_1 = require("@nestjs/common");
 const crypto_module_1 = require("./crypto/crypto.module");
 const session_module_1 = require("./session/session.module");
+const common_module_1 = require("./common/common.module");
 const identity_module_1 = require("./identity/identity.module");
 const hip_linking_module_1 = require("./hip-linking/hip-linking.module");
 const consent_hiu_module_1 = require("./consent-hiu/consent-hiu.module");
+const health_records_module_1 = require("./health-records/health-records.module");
+const callbacks_module_1 = require("./callbacks/callbacks.module");
 const uhi_module_1 = require("./uhi/uhi.module");
 const nhcx_module_1 = require("./nhcx/nhcx.module");
 const hpr_module_1 = require("./hpr/hpr.module");
 const clinical_module_1 = require("./clinical/clinical.module");
 const admin_module_1 = require("./admin/admin.module");
 const tests_module_1 = require("./tests/tests.module");
+const phr_module_1 = require("./phr/phr.module");
 let AbdmModule = class AbdmModule {
 };
 exports.AbdmModule = AbdmModule;
@@ -27,6 +31,9 @@ exports.AbdmModule = AbdmModule = __decorate([
         imports: [
             crypto_module_1.CryptoModule,
             session_module_1.SessionModule,
+            common_module_1.AbdmCommonModule,
+            callbacks_module_1.CallbacksModule,
+            health_records_module_1.HealthRecordsModule,
             identity_module_1.IdentityModule,
             hip_linking_module_1.HipLinkingModule,
             consent_hiu_module_1.ConsentHiuModule,
@@ -36,10 +43,14 @@ exports.AbdmModule = AbdmModule = __decorate([
             clinical_module_1.ClinicalModule,
             admin_module_1.AdminModule,
             tests_module_1.TestsModule,
+            phr_module_1.PhrModule,
         ],
         exports: [
             crypto_module_1.CryptoModule,
             session_module_1.SessionModule,
+            common_module_1.AbdmCommonModule,
+            callbacks_module_1.CallbacksModule,
+            health_records_module_1.HealthRecordsModule,
             identity_module_1.IdentityModule,
             hip_linking_module_1.HipLinkingModule,
             consent_hiu_module_1.ConsentHiuModule,
@@ -49,6 +60,7 @@ exports.AbdmModule = AbdmModule = __decorate([
             clinical_module_1.ClinicalModule,
             admin_module_1.AdminModule,
             tests_module_1.TestsModule,
+            phr_module_1.PhrModule,
         ],
     })
 ], AbdmModule);

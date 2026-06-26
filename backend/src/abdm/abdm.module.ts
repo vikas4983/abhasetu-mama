@@ -11,20 +11,27 @@
 import { Module } from '@nestjs/common';
 import { CryptoModule } from './crypto/crypto.module';
 import { SessionModule } from './session/session.module';
+import { AbdmCommonModule } from './common/common.module';
 import { IdentityModule } from './identity/identity.module';
 import { HipLinkingModule } from './hip-linking/hip-linking.module';
 import { ConsentHiuModule } from './consent-hiu/consent-hiu.module';
+import { HealthRecordsModule } from './health-records/health-records.module';
+import { CallbacksModule } from './callbacks/callbacks.module';
 import { UhiModule } from './uhi/uhi.module';
 import { NhcxModule } from './nhcx/nhcx.module';
 import { HprModule } from './hpr/hpr.module';
 import { ClinicalModule } from './clinical/clinical.module';
 import { AdminModule } from './admin/admin.module';
 import { TestsModule } from './tests/tests.module';
+import { PhrModule } from './phr/phr.module';
 
 @Module({
   imports: [
     CryptoModule,
     SessionModule,
+    AbdmCommonModule,
+    CallbacksModule,
+    HealthRecordsModule,
     IdentityModule,
     HipLinkingModule,
     ConsentHiuModule,
@@ -34,10 +41,14 @@ import { TestsModule } from './tests/tests.module';
     ClinicalModule,
     AdminModule,
     TestsModule,
+    PhrModule,
   ],
   exports: [
     CryptoModule,
     SessionModule,
+    AbdmCommonModule,
+    CallbacksModule,
+    HealthRecordsModule,
     IdentityModule,
     HipLinkingModule,
     ConsentHiuModule,
@@ -47,6 +58,7 @@ import { TestsModule } from './tests/tests.module';
     ClinicalModule,
     AdminModule,
     TestsModule,
+    PhrModule,
   ],
 })
 export class AbdmModule {}

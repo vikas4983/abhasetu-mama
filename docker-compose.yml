@@ -1,21 +1,24 @@
 version: '3.8'
 
 services:
-  # 1. PostgreSQL Database Service
   db:
     image: postgres:15-alpine
     container_name: abhasetu-db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "1234"
-      POSTGRES_DB: abhasetu
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
+      POSTGRES_DB: ${DB_NAME:-abhasetu}
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 2. Redis Cache Service
   redis:
     image: redis:alpine
     container_name: abhasetu-redis
@@ -24,8 +27,12 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 3. NestJS Backend Service
   backend:
     build:
       context: ./backend
@@ -35,28 +42,21 @@ services:
     command: npm run start:dev
     ports:
       - "3001:3001"
+    env_file:
+      - ./backend/.env
     environment:
-      NODE_ENV: development
-      APP_PORT: 3001
       DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: "1234"
-      DB_NAME: abhasetu
       REDIS_URL: redis://redis:6379
-      ABDM_ENV: sandbox
-      ABDM_CM_ID: sbx
-      ABDM_CLIENT_ID: SBXID_038320
-      ABDM_CLIENT_SECRET: 0c7fbf47-573a-4f7c-a26f-4188a9533133
     volumes:
       - ./backend:/app
       - /app/node_modules
       - /app/dist
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-  # 4. Next.js Frontend Service
   frontend:
     build:
       context: .
@@ -66,8 +66,9 @@ services:
     command: npm run dev
     ports:
       - "3000:3000"
+    env_file:
+      - ./.env
     environment:
-      NODE_ENV: development
       BACKEND_INTERNAL_URL: http://backend:3001
     volumes:
       - .:/app

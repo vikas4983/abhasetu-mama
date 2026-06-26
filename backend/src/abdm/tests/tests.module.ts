@@ -18,6 +18,8 @@ import { HprModule } from '../hpr/hpr.module';
 import { UhiModule } from '../uhi/uhi.module';
 import { NhcxModule } from '../nhcx/nhcx.module';
 import { SessionModule } from '../session/session.module';
+import { PhrModule } from '../phr/phr.module';
+import { PhrComplianceService } from './phr-compliance.service';
 
 @Module({
   imports: [
@@ -28,9 +30,10 @@ import { SessionModule } from '../session/session.module';
     UhiModule,
     NhcxModule,
     SessionModule,
+    PhrModule,
   ],
   controllers: [TestsController],
-  providers: [TestsService],
-  exports: [TestsService],
+  providers: [TestsService, PhrComplianceService],
+  exports: [TestsService, PhrComplianceService],
 })
 export class TestsModule {}

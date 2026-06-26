@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 export class RequestOtpDto {
   @IsString()
@@ -16,4 +16,12 @@ export class RequestOtpDto {
   @IsString()
   @IsOptional()
   txnId?: string;
+
+  @IsArray()
+  @IsOptional()
+  scope?: string[];
+
+  @IsString()
+  @IsOptional()
+  otpSystem?: string;
 }

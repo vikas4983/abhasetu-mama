@@ -10,9 +10,11 @@
 import { Injectable } from '@nestjs/common';
 import { DbService } from '../../db/db.service';
 import { CryptoService } from '../crypto/crypto.service';
+import { RedisService } from '../../redis/redis.service';
 import axios from 'axios';
 import * as crypto from 'crypto';
 import { ABDM_ENDPOINTS, ABDM_HEADERS } from '../../constants/abdm.constants';
+import { CACHE_KEYS, CACHE_TTL } from '../../constants/cache.constants';
 
 @Injectable()
 export class SessionService {
@@ -21,7 +23,8 @@ export class SessionService {
 
   constructor(
     private readonly db: DbService,
-    private readonly cryptoService: CryptoService
+    private readonly cryptoService: CryptoService,
+    private readonly redis: RedisService,
   ) {}
 
   /**
@@ -50,6 +53,38 @@ export class SessionService {
       return process.env.ABDM_ABHA_BASE_URL_PROD || 'https://abha.abdm.gov.in/abha';
     }
     return process.env.ABDM_ABHA_BASE_URL_SANDBOX || 'https://abhasbx.abdm.gov.in/abha';
+  }
+
+  /**
+   * @description Resolves PHR Consent Manager base URL for consent PIN and locker APIs.
+   * @returns {Promise<string>} CM base URL (sandbox or production)
+   */
+  async getPhrCmBaseUrl(): Promise<string> {
+    const config = await this.getConfig();
+    if (config.ABDM_PHR_CM_URL) {
+      return config.ABDM_PHR_CM_URL;
+    }
+    const env = process.env.ABDM_ENV || 'sandbox';
+    if (env === 'production') {
+      return process.env.ABDM_PHR_CM_BASE_URL_PROD || 'https://live.abdm.gov.in/cm';
+    }
+    return process.env.ABDM_PHR_CM_BASE_URL_SANDBOX || 'https://dev.abdm.gov.in/cm';
+  }
+
+  /**
+   * @description Legacy Health ID API base (Postman PHR Registration/Login/Profile collections)
+   * @returns {Promise<string>} healthidsbx base URL
+   */
+  async getPhrHidBaseUrl(): Promise<string> {
+    const config = await this.getConfig();
+    if (config.ABDM_PHR_HID_URL) {
+      return config.ABDM_PHR_HID_URL;
+    }
+    const env = process.env.ABDM_ENV || 'sandbox';
+    if (env === 'production') {
+      return process.env.ABDM_PHR_HID_BASE_URL_PROD || 'https://healthid.ndhm.gov.in/api';
+    }
+    return process.env.ABDM_PHR_HID_BASE_URL_SANDBOX || 'https://healthidsbx.abdm.gov.in/api';
   }
 
   /**
@@ -168,7 +203,7 @@ export class SessionService {
     const clientSecret = config.ABDM_CLIENT_SECRET || process.env.ABDM_CLIENT_SECRET || '';
 
     if (!clientId || !clientSecret) {
-      console.warn('ABDM Gateway credentials (Client ID / Secret) are not configured in database or environment. Falling back to simulated session token.');
+      console.warn('ABDM Gateway credentials not configured. Using simulated session token.');
       return {
         status: 'success',
         tokenPreview: 'simulated-session-token',
@@ -178,8 +213,22 @@ export class SessionService {
       };
     }
 
-    // Return cached token if valid
-    if (this.cachedToken && Date.now() < this.cachedTokenExpiry) {
+    const SIMULATED_TOKEN = 'simulated-session-token';
+
+    // Return cached token from Redis or memory if valid (never reuse simulated tokens)
+    const redisToken = await this.redis.get(CACHE_KEYS.ABDM_SESSION_TOKEN);
+    if (redisToken && redisToken !== SIMULATED_TOKEN) {
+      const redisCert = (await this.redis.get(CACHE_KEYS.ABDM_RSA_CERT)) || config.ABDM_PUBLIC_KEY || '';
+      return {
+        status: 'success',
+        tokenPreview: redisToken,
+        publicKey: redisCert,
+        expiresIn: CACHE_TTL.SESSION_TOKEN,
+        refreshExpiresIn: CACHE_TTL.SESSION_TOKEN + 600,
+      };
+    }
+
+    if (this.cachedToken && this.cachedToken !== SIMULATED_TOKEN && Date.now() < this.cachedTokenExpiry) {
       const remainingSecs = Math.max(0, Math.round((this.cachedTokenExpiry - Date.now()) / 1000));
       return {
         status: 'success',
@@ -215,6 +264,9 @@ export class SessionService {
       const refreshExpiresIn = response.data.refreshExpiresIn || 1800;
       this.cachedToken = token;
       this.cachedTokenExpiry = Date.now() + (expiresIn - 60) * 1000;
+      if (token && token !== SIMULATED_TOKEN) {
+        await this.redis.set(CACHE_KEYS.ABDM_SESSION_TOKEN, token, CACHE_TTL.SESSION_TOKEN);
+      }
 
       return {
         status: 'success',
@@ -225,6 +277,9 @@ export class SessionService {
       };
     } catch (err: any) {
       console.warn('ABDM Sandbox Gateway authentication failed, falling back to simulated session token:', err.message);
+      await this.redis.del(CACHE_KEYS.ABDM_SESSION_TOKEN);
+      this.cachedToken = '';
+      this.cachedTokenExpiry = 0;
       return {
         status: 'success',
         tokenPreview: 'simulated-session-token',
@@ -242,6 +297,7 @@ export class SessionService {
   async generateSessionToken() {
     this.cachedToken = '';
     this.cachedTokenExpiry = 0;
+    await this.redis.del(CACHE_KEYS.ABDM_SESSION_TOKEN);
     
     const sessionRes = await this.getGatewaySession();
     const token = sessionRes.tokenPreview;
@@ -294,6 +350,7 @@ export class SessionService {
         ABDM_PUBLIC_KEY: publicKey,
         ABDM_PUBLIC_KEY_UPDATED_AT: String(Date.now())
       });
+      await this.redis.set(CACHE_KEYS.ABDM_RSA_CERT, publicKey, CACHE_TTL.RSA_CERT);
       await this.addLog('ABDM Public Key Synchronized', 'SUCCESS', 'Manually synced public key certificate from ABDM Gateway and cached in database.');
       return { status: 'success', publicKey };
     } catch (err: any) {

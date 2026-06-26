@@ -17,6 +17,19 @@ import { HprService } from '../hpr/hpr.service';
 import { UhiService } from '../uhi/uhi.service';
 import { NhcxService } from '../nhcx/nhcx.service';
 
+/** Loose result shape from HIP/HIU handlers for compliance assertions */
+type HipDiscoverResult = {
+  status: string;
+  matchedPatient?: { referenceNumber?: string; careContexts?: Array<{ hiType?: string }> };
+  opdToken?: { tokenNumber?: string };
+  keyMaterial?: { publicKey?: string };
+  securityDetails?: { symmetricAlgorithm?: string };
+  fhirBundle?: { resourceType?: string };
+  consentRequestId?: string;
+  linkingStatus?: string;
+  referenceNumber?: string;
+};
+
 @Injectable()
 export class TestsService {
   constructor(
@@ -159,13 +172,13 @@ export class TestsService {
             patientName: 'Dr. Ayesha Ali',
             contextType: 'Prescription',
             detail: 'Chronic Fever Care'
-          }, context);
+          }, context) as HipDiscoverResult;
           return {
             passed: res.status === 'success' && !!res.matchedPatient,
             assertions: [
               { name: 'Status is success', passed: res.status === 'success', got: res.status, expected: 'success' },
-              { name: 'Matched patient reference exists', passed: res.matchedPatient?.referenceNumber.startsWith('PAT-') || false, got: res.matchedPatient?.referenceNumber, expected: 'starts with "PAT-"' },
-              { name: 'Care context reference matches input', passed: res.matchedPatient?.careContexts[0].hiType === 'Prescription', got: res.matchedPatient?.careContexts[0].hiType, expected: 'Prescription' }
+              { name: 'Matched patient reference exists', passed: res.matchedPatient?.referenceNumber?.startsWith('PAT-') || false, got: res.matchedPatient?.referenceNumber, expected: 'starts with "PAT-"' },
+              { name: 'Care context reference matches input', passed: res.matchedPatient?.careContexts?.[0]?.hiType === 'Prescription', got: res.matchedPatient?.careContexts?.[0]?.hiType, expected: 'Prescription' }
             ],
             responsePayload: res
           };
@@ -193,7 +206,7 @@ export class TestsService {
         name: 'Confirm care context linking with valid OTP code',
         module: 'M2' as const,
         run: async () => {
-          const res = await this.hipLinkingService.handleHip({ action: 'confirm-link', otp: '123456', txnId: 'simulated-txn-uuid' }, context);
+          const res = await this.hipLinkingService.handleHip({ action: 'confirm-link', otp: '123456', txnId: 'simulated-txn-uuid' }, context) as HipDiscoverResult;
           return {
             passed: res.status === 'success' && res.linkingStatus === 'SUCCESS',
             assertions: [
@@ -210,7 +223,7 @@ export class TestsService {
         name: 'Consent Request initiation and Curve25519 key derivation',
         module: 'M3' as const,
         run: async () => {
-          const res = await this.consentHiuService.handleConsent({ action: 'request-consent', abhaAddress: 'ayesha.ali.9981057765@abdm', purpose: 'Clinical Referral' }, context);
+          const res = await this.consentHiuService.handleConsent({ action: 'request-consent', abhaAddress: 'ayesha.ali.9981057765@abdm', purpose: 'Clinical Referral' }, context) as HipDiscoverResult;
           return {
             passed: res.status === 'success' && !!res.consentRequestId && !!res.keyMaterial,
             assertions: [
@@ -228,7 +241,7 @@ export class TestsService {
         name: 'Consent consuming and secure AES-256-GCM Fidelius decryption',
         module: 'M3' as const,
         run: async () => {
-          const res = await this.consentHiuService.handleConsent({ action: 'fetch-records', consentId: 'AR-990812' }, context);
+          const res = await this.consentHiuService.handleConsent({ action: 'fetch-records', consentId: 'AR-990812' }, context) as HipDiscoverResult;
           return {
             passed: res.status === 'success' && res.securityDetails?.symmetricAlgorithm === 'AES-256-GCM',
             assertions: [
@@ -285,12 +298,12 @@ export class TestsService {
             abhaAddress: 'ayesha.ali.9981057765@abdm',
             patientProfile: { name: 'Dr. Ayesha Ali', mobile: '9981057765' },
             facilityCode: 'IN-HFR-100456'
-          }, context);
+          }, context) as HipDiscoverResult;
           return {
-            passed: res.status === 'success' && res.opdToken?.tokenNumber.startsWith('SETU-OPD-'),
+            passed: res.status === 'success' && (res.opdToken?.tokenNumber?.startsWith('SETU-OPD-') ?? false),
             assertions: [
               { name: 'Token created successfully', passed: res.status === 'success', got: res.status, expected: 'success' },
-              { name: 'OPD Queue token number matches Setu format', passed: res.opdToken?.tokenNumber.startsWith('SETU-OPD-') || false, got: res.opdToken?.tokenNumber, expected: 'starts with "SETU-OPD-"' }
+              { name: 'OPD Queue token number matches Setu format', passed: res.opdToken?.tokenNumber?.startsWith('SETU-OPD-') || false, got: res.opdToken?.tokenNumber, expected: 'starts with "SETU-OPD-"' }
             ],
             responsePayload: res
           };

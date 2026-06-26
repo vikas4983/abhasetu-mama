@@ -11,9 +11,10 @@ import { Module } from '@nestjs/common';
 import { HipLinkingController } from './hip-linking.controller';
 import { HipLinkingService } from './hip-linking.service';
 import { SessionModule } from '../session/session.module';
+import { HealthRecordsModule } from '../health-records/health-records.module';
 
 @Module({
-  imports: [SessionModule],
+  imports: [SessionModule, HealthRecordsModule],
   controllers: [HipLinkingController],
   providers: [HipLinkingService],
   exports: [HipLinkingService],

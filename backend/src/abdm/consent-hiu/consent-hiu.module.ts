@@ -12,9 +12,10 @@ import { ConsentHiuController } from './consent-hiu.controller';
 import { ConsentHiuService } from './consent-hiu.service';
 import { CryptoModule } from '../crypto/crypto.module';
 import { SessionModule } from '../session/session.module';
+import { HealthRecordsModule } from '../health-records/health-records.module';
 
 @Module({
-  imports: [CryptoModule, SessionModule],
+  imports: [CryptoModule, SessionModule, HealthRecordsModule],
   controllers: [ConsentHiuController],
   providers: [ConsentHiuService],
   exports: [ConsentHiuService],

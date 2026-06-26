@@ -1,8 +1,7 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class EnrollDto {
   @IsString()
-  @IsNotEmpty()
   action: string;
 
   @IsString()
@@ -20,4 +19,7 @@ export class EnrollDto {
   @IsString()
   @IsOptional()
   txnId?: string;
+
+  // Allow document enrollment and other legacy fields through validation
+  [key: string]: unknown;
 }

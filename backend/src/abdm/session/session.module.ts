@@ -8,12 +8,13 @@
  * @modified    2026-06-22
  */
 
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';
 import { CryptoModule } from '../crypto/crypto.module';
 import { AuthModule } from '../../auth/auth.module';
 
+@Global()
 @Module({
   imports: [CryptoModule, AuthModule],
   controllers: [SessionController],

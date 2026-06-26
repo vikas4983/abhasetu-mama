@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useLanguage } from '../../../providers/LanguageProvider';
 import { showToast } from '../../../utils/toast';
+import { abhaService } from '../../../lib/api/services/abha.service';
 import OtpInput from '../../../components/common/OtpInput';
 import { ImageCropper } from '../../../components/common/ImageCropper';
 import Badge from '../../../components/common/Badge';
@@ -1128,17 +1129,18 @@ export default function ProfilePage() {
     setPassError('');
     setPassLoading(true);
     try {
-      const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loginHint: passAuthMethod === 'aadhaar' ? 'aadhaar' : 'mobile',
-          loginId: passAuthMethod === 'aadhaar' ? '919981057765' : abhaProfile.mobile
-        })
+      const loginId = passAuthMethod === 'aadhaar'
+        ? (abhaProfile.aadhaar || abhaProfile.ABHANumber?.replace(/-/g, '') || '')
+        : (abhaProfile.mobile || '');
+      const res = await abhaService.requestAccountActionOtp({
+        scope: ['abha-profile', 'password'],
+        loginHint: passAuthMethod === 'aadhaar' ? 'aadhaar' : 'mobile',
+        loginId,
+        otpSystem: passAuthMethod === 'aadhaar' ? 'aadhaar' : 'abdm',
       });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setPassTxnId(data.txnId);
+      const data = res.data;
+      if (data.status === 'success' || data.txnId) {
+        setPassTxnId(data.txnId || '');
         setPassOtpStep(true);
         setResendTimer(60);
         setOtpExpiryTimer(600);
@@ -1147,8 +1149,8 @@ export default function ProfilePage() {
         setPassError(data.message || t('Failed to send OTP code.'));
         triggerModalShake();
       }
-    } catch (err: any) {
-      setPassError(t('Network error.'));
+    } catch (err: unknown) {
+      setPassError(err instanceof Error ? err.message : t('Network error.'));
       triggerModalShake();
     } finally {
       setPassLoading(false);
@@ -1164,25 +1166,27 @@ export default function ProfilePage() {
     setPassLoading(true);
     setPassError('');
     try {
-      setTimeout(() => {
-        if (passOtp === '123456') {
-          showToast(t('ABHA secure password set successfully!'));
-          setPassSuccess(true);
-          setPassLoading(false);
-          setTimeout(() => {
-            setActiveModal(null);
-            resetAllForms();
-          }, 1500);
-        } else {
-          setPassError(t('Invalid OTP. Use simulated code: 123456'));
-          setPassLoading(false);
-          triggerModalShake();
-        }
-      }, 1200);
-    } catch (err) {
-      setPassError(t('Verification failed.'));
-      setPassLoading(false);
+      const res = await abhaService.setPassword({
+        txnId: passTxnId,
+        otp: passOtp,
+        password: newPassword,
+      });
+      if (res.data.status === 'success') {
+        showToast(t('ABHA secure password set successfully!'));
+        setPassSuccess(true);
+        setTimeout(() => {
+          setActiveModal(null);
+          resetAllForms();
+        }, 1500);
+      } else {
+        setPassError(res.data.message || t('Failed to set password.'));
+        triggerModalShake();
+      }
+    } catch (err: unknown) {
+      setPassError(err instanceof Error ? err.message : t('Verification failed.'));
       triggerModalShake();
+    } finally {
+      setPassLoading(false);
     }
   };
 
@@ -1278,17 +1282,21 @@ export default function ProfilePage() {
     setDeactivateLoading(true);
     setDeactivateError('');
     try {
-      const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loginHint: deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'mobile',
-          loginId: deactivateAuthMethod === 'aadhaar' ? '919981057765' : abhaProfile.mobile
-        })
+      const scope = deactivateOption === 'deactivate'
+        ? ['abha-address-login', 'deactivate']
+        : ['abha-address-login', 'delete'];
+      const loginId = deactivateAuthMethod === 'aadhaar'
+        ? (abhaProfile.aadhaar || abhaProfile.ABHANumber?.replace(/-/g, '') || '')
+        : (abhaProfile.mobile || abhaProfile.ABHANumber || '');
+      const res = await abhaService.requestAccountActionOtp({
+        scope,
+        loginHint: deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'mobile',
+        loginId,
+        otpSystem: deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'abdm',
       });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setDeactivateTxnId(data.txnId);
+      const data = res.data;
+      if (data.status === 'success' || data.txnId) {
+        setDeactivateTxnId(data.txnId || '');
         setDeactivateOtpStep(true);
         setResendTimer(60);
         setOtpExpiryTimer(600);
@@ -1314,27 +1322,30 @@ export default function ProfilePage() {
     setDeactivateLoading(true);
     setDeactivateError('');
     try {
-      setTimeout(() => {
-        if (deactivateOtp === '123456') {
-          setDeactivateConfirmed(true);
-          setDeactivateLoading(false);
-          showToast(deactivateOption === 'deactivate' ? t('ABHA number temporarily deactivated.') : t('ABHA number permanently deleted.'));
-          setTimeout(() => {
-            setActiveModal(null);
-            resetAllForms();
-            logout();
-            router.push('/login');
-          }, 2000);
-        } else {
-          setDeactivateError(t('Invalid OTP. Use simulated code: 123456'));
-          setDeactivateLoading(false);
-          triggerModalShake();
-        }
-      }, 1200);
+      const apiCall = deactivateOption === 'deactivate'
+        ? abhaService.deactivateAbha({ txnId: deactivateTxnId, otp: deactivateOtp })
+        : abhaService.deleteAbha({ txnId: deactivateTxnId, otp: deactivateOtp });
+      const res = await apiCall;
+      if (res.data.status === 'success') {
+        setDeactivateConfirmed(true);
+        showToast(deactivateOption === 'deactivate'
+          ? t('ABHA number temporarily deactivated.')
+          : t('ABHA number permanently deleted.'));
+        setTimeout(() => {
+          setActiveModal(null);
+          resetAllForms();
+          logout();
+          router.push('/login');
+        }, 2000);
+      } else {
+        setDeactivateError(res.data.message || t('Verification failed.'));
+        triggerModalShake();
+      }
     } catch (err) {
       setDeactivateError(t('Action failed.'));
-      setDeactivateLoading(false);
       triggerModalShake();
+    } finally {
+      setDeactivateLoading(false);
     }
   };
 
@@ -1343,17 +1354,15 @@ export default function ProfilePage() {
     setDelinkLoading(true);
     setDelinkError('');
     try {
-      const res = await fetch('/api/abdm/v3/enrollment/request/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loginHint: 'mobile',
-          loginId: abhaProfile.mobile
-        })
+      const res = await abhaService.requestAccountActionOtp({
+        scope: ['mobile-verify', 'de-link'],
+        loginHint: 'mobile',
+        loginId: abhaProfile.mobile || '',
+        otpSystem: 'abdm',
       });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setDelinkTxnId(data.txnId);
+      const data = res.data;
+      if (data.status === 'success' || data.txnId) {
+        setDelinkTxnId(data.txnId || '');
         setDelinkOtpStep(true);
         setResendTimer(60);
         setOtpExpiryTimer(600);
@@ -1379,26 +1388,28 @@ export default function ProfilePage() {
     setDelinkLoading(true);
     setDelinkError('');
     try {
-      setTimeout(() => {
-        if (delinkOtp === '123456') {
-          showToast(t('Mobile number delinked successfully! Logging out.'));
-          setDelinkLoading(false);
-          setTimeout(() => {
-            setActiveModal(null);
-            resetAllForms();
-            logout();
-            router.push('/login');
-          }, 1500);
-        } else {
-          setDelinkError(t('Invalid OTP. Use simulated code: 123456'));
-          setDelinkLoading(false);
-          triggerModalShake();
-        }
-      }, 1200);
+      const res = await abhaService.delinkMobile({
+        abhaNumber: abhaProfile.ABHANumber || abhaProfile.abhaNumber || '',
+        txnId: delinkTxnId,
+        otp: delinkOtp,
+      });
+      if (res.data.status === 'success') {
+        showToast(t('Mobile number delinked successfully! Logging out.'));
+        setTimeout(() => {
+          setActiveModal(null);
+          resetAllForms();
+          logout();
+          router.push('/login');
+        }, 1500);
+      } else {
+        setDelinkError(res.data.message || t('Delink failed.'));
+        triggerModalShake();
+      }
     } catch (err) {
       setDelinkError(t('Delink failed.'));
-      setDelinkLoading(false);
       triggerModalShake();
+    } finally {
+      setDelinkLoading(false);
     }
   };
 

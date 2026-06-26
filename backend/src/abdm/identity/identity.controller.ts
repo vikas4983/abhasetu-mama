@@ -9,6 +9,7 @@
 
 import { Controller, Get, Post, Patch, Body, Query, Param, Res, Req, HttpStatus, UseInterceptors } from '@nestjs/common';
 import { IdentityService } from './identity.service';
+import { AccountManagementService } from './account-management.service';
 import { SessionService } from '../session/session.service';
 import * as express from 'express';
 import * as crypto from 'crypto';
@@ -17,6 +18,7 @@ import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ProfileLoginOtpDto } from './dto/profile-login-otp.dto';
 import { ProfileLoginVerifyDto } from './dto/profile-login-verify.dto';
+import { AccountActionOtpDto } from './dto/account-action-otp.dto';
 
 function getCookie(cookieHeader: string | undefined, name: string): string {
   if (!cookieHeader) return '';
@@ -36,12 +38,19 @@ export class IdentityController {
 
   constructor(
     private readonly identityService: IdentityService,
+    private readonly accountManagement: AccountManagementService,
     private readonly sessionService: SessionService
   ) {}
 
   @Post('enroll')
-  async enroll(@Body() body: EnrollDto, @Res() res: express.Response, @Req() req: express.Request) {
-    const { action, aadhaar, mobile, otp, txnId } = body;
+  async enroll(@Body() body: Record<string, unknown>, @Res() res: express.Response, @Req() req: express.Request) {
+    const { action, aadhaar, mobile, otp, txnId } = body as {
+      action?: string;
+      aadhaar?: string;
+      mobile?: string;
+      otp?: string;
+      txnId?: string;
+    };
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const context = { ip, userAgent };
@@ -373,69 +382,29 @@ export class IdentityController {
   }
 
   @Post('v3/forgot/abha/request/otp')
-  async v3ForgotAbhaRequestOtp(@Body() body: any, @Res() res: express.Response) {
+  async v3ForgotAbhaRequestOtp(@Body() body: { mobile?: string }, @Res() res: express.Response) {
     const { mobile } = body;
     if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        status: 'error',
-        message: 'Invalid mobile number'
-      });
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'Invalid mobile number' });
     }
-
-    const txnId = 'simulated-forgot-txn-id-' + Math.random().toString(36).substring(2, 9);
-    return res.status(HttpStatus.OK).json({
-      status: 'success',
-      txnId,
-      message: `OTP sent successfully to linked mobile number ending with ******${mobile.slice(-4)}`
-    });
+    const result = await this.accountManagement.forgotAbhaRequestOtp(mobile);
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+    return res.status(HttpStatus.OK).json(result);
   }
 
   @Post('v3/forgot/abha/verify')
-  async v3ForgotAbhaVerify(@Body() body: any, @Res() res: express.Response) {
+  async v3ForgotAbhaVerify(@Body() body: { txnId?: string; otp?: string; mobile?: string }, @Res() res: express.Response) {
     const { txnId, otp, mobile } = body;
-    if (!txnId) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        status: 'error',
-        message: 'Invalid Transaction ID'
-      });
+    if (!txnId || !otp || otp.length !== 6) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'Invalid txnId or OTP' });
     }
-    if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        status: 'error',
-        message: 'Invalid OTP Value'
-      });
+    const result = await this.accountManagement.forgotAbhaVerify(txnId, otp, mobile || '');
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
-
-    if (otp !== '123456') {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        status: 'error',
-        message: 'OTP did not match, please try again'
-      });
-    }
-
-    return res.status(HttpStatus.OK).json({
-      status: 'success',
-      accounts: [
-        {
-          ABHANumber: '91-7561-4088-8857',
-          preferredAbhaAddress: 'username1997@sbx',
-          name: 'Username Kailas Shelke',
-          profilePhoto: '',
-          gender: 'Male',
-          dob: '1997-08-15',
-          mobile: mobile || '8830633640'
-        },
-        {
-          ABHANumber: '91-8812-4321-7764',
-          preferredAbhaAddress: 'kailas.shelke2@sbx',
-          name: 'Kailas Babasaheb Shelke',
-          profilePhoto: '',
-          gender: 'Male',
-          dob: '1995-04-12',
-          mobile: mobile || '8830633640'
-        }
-      ]
-    });
+    return res.status(HttpStatus.OK).json({ status: 'success', accounts: result.accounts });
   }
 
   @Get('v3/profile/account/abha-card')
@@ -856,5 +825,145 @@ export class IdentityController {
   @Get('pincode/:pincode')
   async getPincodeDetails(@Param('pincode') pincode: string) {
     return this.identityService.getPincodeDetails(pincode);
+  }
+
+  private extractXToken(req: express.Request): string {
+    return getCookie(req.headers.cookie, 'x_token') ||
+      getCookie(req.headers.cookie, 'verify_via_abha_number_token') ||
+      getCookie(req.headers.cookie, 'session_id') ||
+      req.headers.authorization?.replace('Bearer ', '') || '';
+  }
+
+  @Post('v3/profile/account/set-password')
+  async setPassword(@Body() body: { txnId: string; otp: string; password: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    const result = await this.accountManagement.setPassword(body.txnId, body.otp, body.password, xToken);
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Post('v3/profile/account/deactivate')
+  async deactivateAbha(@Body() body: { txnId: string; otp: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    const result = await this.accountManagement.deactivateAbha(body.txnId, body.otp, xToken);
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Post('v3/profile/account/delete')
+  async deleteAbha(@Body() body: { txnId: string; otp: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    const result = await this.accountManagement.deleteAbha(body.txnId, body.otp, xToken);
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Post('v3/profile/account/delink')
+  async delinkMobile(@Body() body: { abhaNumber: string; txnId?: string; otp?: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    if (body.txnId && body.otp) {
+      const verify = await this.accountManagement.verifyAccountAction({
+        txnId: body.txnId,
+        otp: body.otp,
+        scope: ['mobile-verify', 'de-link'],
+        xToken,
+      });
+      if (verify.status === 'error') {
+        return res.status(HttpStatus.BAD_REQUEST).json(verify);
+      }
+    }
+    const result = await this.accountManagement.delinkMobile(body.abhaNumber, xToken);
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Post('v3/profile/account/action/request-otp')
+  async requestAccountActionOtp(
+    @Body() body: AccountActionOtpDto,
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
+    const xToken = this.extractXToken(req);
+    const result = await this.accountManagement.requestAccountOtp({ ...body, xToken });
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Get('v3/enrollment/enrol/suggestion')
+  async abhaAddressSuggestion(@Query('txnId') txnId: string, @Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    try {
+      const data = await this.accountManagement.getAbhaAddressSuggestions(txnId, xToken);
+      return res.status(HttpStatus.OK).json(data);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to fetch suggestions';
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: msg });
+    }
+  }
+
+  @Post('v3/enrollment/enrol/abha-address')
+  async createAbhaAddress(@Body() body: { txnId: string; abhaAddress: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    try {
+      const data = await this.accountManagement.createAbhaAddress(body.txnId, body.abhaAddress, xToken);
+      return res.status(HttpStatus.OK).json(data);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to create ABHA address';
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: msg });
+    }
+  }
+
+  @Post('v3/profile/login/search')
+  async profileLoginSearch(@Body() body: { ABHANumber?: string; abhaNumber?: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const abhaNumber = body.ABHANumber || body.abhaNumber || '';
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const result = await this.identityService.profileLoginSearch(abhaNumber, { ip, userAgent: req.headers['user-agent'] || '' });
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Post('v3/profile/login/verify/user')
+  async profileLoginVerifyUser(@Body() body: { ABHANumber?: string; abhaNumber?: string; txnId: string }, @Req() req: express.Request, @Res() res: express.Response) {
+    const abhaNumber = body.ABHANumber || body.abhaNumber || '';
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const result = await this.identityService.profileLoginVerifyUser(abhaNumber, body.txnId, { ip, userAgent: req.headers['user-agent'] || '' });
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Get('v3/profile/account/qrCode')
+  async getProfileQrCode(@Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    const result = await this.identityService.getProfileQrCode(xToken);
+    return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
+  }
+
+  @Get('v3/profile/account/request/logout')
+  async profileLogout(@Req() req: express.Request, @Res() res: express.Response) {
+    const xToken = this.extractXToken(req);
+    const result = await this.identityService.profileLogout(xToken);
+    if (result.status === 'error') {
+      return res.status(HttpStatus.BAD_REQUEST).json(result);
+    }
+    res.clearCookie('x_token');
+    res.clearCookie('session_id');
+    res.clearCookie('verify_via_abha_number_token');
+    res.clearCookie('refresh_token');
+    return res.status(HttpStatus.OK).json(result);
+  }
+
+  @Get('v3/profile/account/request/token')
+  async profileTokenRefreshGet(@Req() req: express.Request, @Res() res: express.Response) {
+    const refreshToken = getCookie(req.headers.cookie, 'refresh_token') || getCookie(req.headers.cookie, 'verify_via_abha_number_refresh_token') || '';
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const result = await this.identityService.requestProfileToken(refreshToken, { ip, userAgent: req.headers['user-agent'] || '' });
+    return res.status(result.status === 'error' ? HttpStatus.UNAUTHORIZED : HttpStatus.OK).json(result);
+  }
+
+  @Post('v3/profile/account/abha/search')
+  async searchAbhaByMobile(@Body() body: { mobile?: string; scope?: string[] }, @Res() res: express.Response) {
+    if (!body.mobile || body.mobile.length !== 10) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: 'Valid 10-digit mobile required.' });
+    }
+    try {
+      const data = await this.accountManagement.searchAbhaByMobile(body.mobile);
+      return res.status(HttpStatus.OK).json({ status: 'success', data });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Search failed';
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: msg });
+    }
   }
 }

@@ -12,6 +12,8 @@ export const CACHE_KEYS = {
   ABDM_SESSION_TOKEN: 'abdm:session:token',
   ABDM_RSA_CERT: 'abdm:rsa:cert',
   PATIENT_PROFILE: 'patient:profile:',
+  CALLBACK_PREFIX: 'abdm:callback:',
+  CALLBACK_REQUEST_PREFIX: 'abdm:request:',
 } as const;
 
 export const CACHE_TTL = {

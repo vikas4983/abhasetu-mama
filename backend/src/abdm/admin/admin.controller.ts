@@ -9,6 +9,7 @@
 
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, Res, Req, HttpStatus, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { PincodeDirectoryService } from './pincode-directory.service';
 import { AuthService } from '../../auth/auth.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -20,7 +21,8 @@ import * as path from 'path';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly pincodeDirectory: PincodeDirectoryService,
   ) {}
 
   @Post('admin/login')
@@ -231,5 +233,104 @@ export class AdminController {
     } catch (error: any) {
       return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: error.message });
     }
+  }
+
+  /** @description Admin dashboard KPIs and chart data */
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/dashboard')
+  async getDashboard() {
+    const [pinStats, logs, transactions, facilities] = await Promise.all([
+      this.pincodeDirectory.getStats(),
+      this.adminService.getLogs(),
+      this.adminService.getTransactions(),
+      this.adminService.getFacilities({}),
+    ]);
+
+    const successLogs = logs.filter((l: { status: string }) => l.status === 'SUCCESS').length;
+    const pendingFacilities = facilities.filter((f: { status: string }) => f.status === 'pending').length;
+    const revenue = transactions.reduce((sum: number, t: { total_fee?: number }) => sum + Number(t.total_fee || 0), 0);
+
+    return {
+      status: 'success',
+      kpis: {
+        totalOffices: pinStats.totalOffices,
+        auditEvents: logs.length,
+        successRate: logs.length ? Math.round((successLogs / logs.length) * 100) : 0,
+        transactions: transactions.length,
+        revenue,
+        pendingFacilities,
+        approvedFacilities: facilities.filter((f: { status: string }) => f.status === 'approved').length,
+      },
+      charts: {
+        topStates: pinStats.topStates,
+        recentLogStatuses: logs.slice(0, 20).map((l: { status: string; event: string }) => ({ status: l.status, event: l.event })),
+      },
+    };
+  }
+
+  /** @description Paginated pincode directory (full CSV dataset) */
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/pincode-directory')
+  async listPincodeDirectory(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('search') search: string,
+    @Query('state') state: string,
+    @Query('district') district: string,
+    @Query('pincode') pincode: string,
+  ) {
+    const result = await this.pincodeDirectory.list({
+      page: parseInt(page || '1', 10),
+      limit: parseInt(limit || '25', 10),
+      search,
+      state,
+      district,
+      pincode,
+    });
+    return { status: 'success', ...result };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/pincode-directory')
+  async createPincodeDirectoryRow(@Body() body: Record<string, string>) {
+    return this.pincodeDirectory.create({
+      circle_name: body.circle_name || null,
+      region_name: body.region_name || null,
+      division_name: body.division_name || null,
+      office_name: body.office_name,
+      pincode: body.pincode,
+      office_type: body.office_type || null,
+      delivery: body.delivery || null,
+      district: body.district || null,
+      state_name: body.state_name,
+      latitude: body.latitude || null,
+      longitude: body.longitude || null,
+    } as any);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('admin/pincode-directory/:id')
+  async updatePincodeDirectoryRow(@Param('id') id: string, @Body() body: Record<string, string>) {
+    return this.pincodeDirectory.update(parseInt(id, 10), body as any);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('admin/pincode-directory/:id')
+  async deletePincodeDirectoryRow(@Param('id') id: string) {
+    return this.pincodeDirectory.delete(parseInt(id, 10));
+  }
+
+  /** @description Bulk import from pincode_directory.csv (project root or PINCODE_CSV_PATH) */
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/pincode-directory/import')
+  async importPincodeCsv(@Body() body: { filePath?: string }) {
+    return this.pincodeDirectory.importFromCsv(body?.filePath);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/pincode-directory/stats')
+  async pincodeDirectoryStats() {
+    const stats = await this.pincodeDirectory.getStats();
+    return { status: 'success', stats };
   }
 }

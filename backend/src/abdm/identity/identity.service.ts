@@ -16,6 +16,7 @@ import * as crypto from 'crypto';
 import { ABDM_ENDPOINTS, ABDM_HEADERS } from '../../constants/abdm.constants';
 import { DRIVING_LICENSE_REGEX } from '../../constants/regex.constants';
 import { resolveAxiosError } from '../utils/error-resolver.util';
+import { isSimulationEnabled } from '../utils/simulation.util';
 
 @Injectable()
 export class IdentityService {
@@ -44,6 +45,18 @@ export class IdentityService {
     try {
       publicKey = await this.sessionService.getOrFetchPublicKey(token);
     } catch (e: any) {
+      if (isSimulationEnabled()) {
+        const simulatedTxnId = crypto.randomUUID();
+        await this.sessionService.addDetailedLog('Aadhaar OTP Requested (Simulated - no public key)', 'SUCCESS', 'OTP sent to Aadhaar-linked mobile (Simulated).', {
+          aadhaar,
+          request: { scope: ['abha-enrol'], loginHint: 'aadhaar' },
+          response: { txnId: simulatedTxnId },
+          clientId: config.ABDM_CLIENT_ID,
+          clientIp: context?.ip,
+          userAgent: context?.userAgent,
+        });
+        return { status: 'success', txnId: simulatedTxnId, message: 'OTP sent to Aadhaar-linked mobile (Simulated).' };
+      }
       return { status: 'error', message: e.message || 'Failed to fetch/sync ABDM public key certificate.' };
     }
 
@@ -67,7 +80,7 @@ export class IdentityService {
             [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
-            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`
           },
         },
       );
@@ -167,7 +180,7 @@ export class IdentityService {
             [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
-            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`
           },
         },
       );
@@ -616,7 +629,7 @@ export class IdentityService {
             [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
-            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`
           },
         },
       );
@@ -759,7 +772,7 @@ export class IdentityService {
             [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
-            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`
           },
         },
       );
@@ -957,7 +970,7 @@ export class IdentityService {
             [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
-            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`
           },
         },
       );
@@ -1699,6 +1712,15 @@ export class IdentityService {
    * Leverages local database, and falls back to a public pincode API.
    */
   async getPincodeDetails(pincode: string): Promise<any> {
+    const dirRes = await this.db.query(
+      `SELECT DISTINCT pincode, district, state_name AS state FROM pincode_directory WHERE pincode = $1 LIMIT 1`,
+      [pincode],
+    );
+    if (dirRes.rowCount && dirRes.rowCount > 0) {
+      const row = dirRes.rows[0];
+      return { status: 'success', pincode, district: row.district, state: row.state, source: 'pincode_directory' };
+    }
+
     const res = await this.db.query('SELECT district, state FROM pincodes WHERE pincode = $1', [pincode]);
     if (res.rowCount && res.rowCount > 0) {
       return {
@@ -1749,5 +1771,158 @@ export class IdentityService {
       status: 'error',
       message: 'Pincode not found or invalid format.'
     };
+  }
+
+  /**
+   * @description ABHA login search by ABHA number (M1 Postman: profile/login/search)
+   */
+  async profileLoginSearch(abhaNumber: string, context?: { ip?: string; userAgent?: string }): Promise<Record<string, unknown>> {
+    if (!abhaNumber) {
+      return { status: 'error', message: 'ABHA number is required.' };
+    }
+    const config = await this.sessionService.getConfig();
+    const sessionRes = await this.sessionService.getGatewaySession();
+    const token = sessionRes.tokenPreview;
+    try {
+      const baseUrl = await this.sessionService.getAbhaBaseUrl();
+      const response = await axios.post(
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_LOGIN_SEARCH}`,
+        { ABHANumber: abhaNumber.replace(/-/g, '') },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`,
+          },
+        },
+      );
+      return { status: 'success', ...response.data };
+    } catch (e: unknown) {
+      if (isSimulationEnabled()) {
+        return {
+          status: 'success',
+          txnId: crypto.randomUUID(),
+          authMethods: ['otp'],
+          message: 'Login search successful (simulated)',
+        };
+      }
+      const resolved = resolveAxiosError(e);
+      return { status: 'error', message: resolved.userMessage };
+    }
+  }
+
+  /**
+   * @description Verify ABHA login user after OTP (M1: profile/login/verify/user)
+   */
+  async profileLoginVerifyUser(
+    abhaNumber: string,
+    txnId: string,
+    context?: { ip?: string; userAgent?: string },
+  ): Promise<Record<string, unknown>> {
+    if (!abhaNumber || !txnId) {
+      return { status: 'error', message: 'ABHA number and txnId are required.' };
+    }
+    const config = await this.sessionService.getConfig();
+    const sessionRes = await this.sessionService.getGatewaySession();
+    const token = sessionRes.tokenPreview;
+    try {
+      const baseUrl = await this.sessionService.getAbhaBaseUrl();
+      const response = await axios.post(
+        `${baseUrl}${ABDM_ENDPOINTS.ABHA_LOGIN_VERIFY_USER}`,
+        { ABHANumber: abhaNumber.replace(/-/g, ''), txnId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+            [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+            [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+            [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${token}`,
+          },
+        },
+      );
+      return { status: 'success', ...response.data };
+    } catch (e: unknown) {
+      if (isSimulationEnabled()) {
+        return {
+          status: 'success',
+          authResult: 'success',
+          token: 'simulated-verify-user-token',
+          expiresIn: 1800,
+          message: 'User verified (simulated)',
+        };
+      }
+      const resolved = resolveAxiosError(e);
+      return { status: 'error', message: resolved.userMessage };
+    }
+  }
+
+  /**
+   * @description Fetch ABHA profile QR code (M1: GET profile/account/qrCode)
+   */
+  async getProfileQrCode(xToken: string): Promise<Record<string, unknown>> {
+    const config = await this.sessionService.getConfig();
+    const sessionRes = await this.sessionService.getGatewaySession();
+    const gatewayToken = sessionRes.tokenPreview;
+    const cleanXToken = xToken.startsWith('Bearer ') ? xToken : `Bearer ${xToken}`;
+    try {
+      const baseUrl = await this.sessionService.getAbhaBaseUrl();
+      const response = await axios.get(`${baseUrl}${ABDM_ENDPOINTS.ABHA_QR_CODE}`, {
+        headers: {
+          [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+          [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+          [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+          [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${gatewayToken}`,
+          [ABDM_HEADERS.X_TOKEN]: cleanXToken,
+          'X-token': cleanXToken,
+        },
+        responseType: 'arraybuffer',
+      });
+      const contentType = response.headers['content-type'] || 'image/png';
+      const base64 = Buffer.from(response.data).toString('base64');
+      return { status: 'success', contentType, data: base64 };
+    } catch (e: unknown) {
+      if (isSimulationEnabled()) {
+        return {
+          status: 'success',
+          contentType: 'image/png',
+          data: '',
+          message: 'QR code unavailable in simulation — use profile ABHA address for QR generation',
+        };
+      }
+      const resolved = resolveAxiosError(e);
+      return { status: 'error', message: resolved.userMessage };
+    }
+  }
+
+  /**
+   * @description Logout ABHA profile session (M1: GET profile/account/request/logout)
+   */
+  async profileLogout(xToken: string): Promise<Record<string, unknown>> {
+    const config = await this.sessionService.getConfig();
+    const sessionRes = await this.sessionService.getGatewaySession();
+    const gatewayToken = sessionRes.tokenPreview;
+    const cleanXToken = xToken.startsWith('Bearer ') ? xToken : `Bearer ${xToken}`;
+    try {
+      const baseUrl = await this.sessionService.getAbhaBaseUrl();
+      const response = await axios.get(`${baseUrl}${ABDM_ENDPOINTS.ABHA_PROFILE_LOGOUT}`, {
+        headers: {
+          [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+          [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+          [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
+          [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${gatewayToken}`,
+          [ABDM_HEADERS.X_TOKEN]: cleanXToken,
+          'X-token': cleanXToken,
+        },
+      });
+      return { status: 'success', ...response.data };
+    } catch (e: unknown) {
+      if (isSimulationEnabled()) {
+        return { status: 'success', message: 'Logged out (simulated)' };
+      }
+      const resolved = resolveAxiosError(e);
+      return { status: 'error', message: resolved.userMessage };
+    }
   }
 }

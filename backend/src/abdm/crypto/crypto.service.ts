@@ -208,6 +208,20 @@ export class CryptoService {
   }
 
   /**
+   * @description Encrypts FHIR payload using AES-256-GCM (Fidelius transfer)
+   * @param {string} plainText - FHIR JSON string
+   * @param {Buffer} aesKey - Derived AES key
+   * @param {Buffer} iv - IV/nonce buffer
+   * @returns {string} Base64 ciphertext with auth tag appended
+   */
+  encryptFhirPayload(plainText: string, aesKey: Buffer, iv: Buffer): string {
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+    const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return Buffer.concat([encrypted, tag]).toString('base64');
+  }
+
+  /**
    * @description Decrypt cipher text using RSA private key.
    * Mandated algorithm: RSA/ECB/OAEPWithSHA-1AndMGF1Padding
    * @param {string} privateKeyPem - Standard RSA private key in PEM.

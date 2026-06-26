@@ -10,11 +10,15 @@
 
 import { Controller, Get, Res, Req, HttpStatus } from '@nestjs/common';
 import { TestsService } from './tests.service';
+import { PhrComplianceService } from './phr-compliance.service';
 import * as express from 'express';
 
 @Controller()
 export class TestsController {
-  constructor(private readonly testsService: TestsService) {}
+  constructor(
+    private readonly testsService: TestsService,
+    private readonly phrComplianceService: PhrComplianceService,
+  ) {}
 
   /**
    * @description Triggers the compliance test suite and returns the execution report.
@@ -31,6 +35,17 @@ export class TestsController {
     if (result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
+    return res.status(HttpStatus.OK).json(result);
+  }
+
+  /**
+   * @description Runs PHR-specific ABDM compliance test suite (enrollment, login, PIN, locker, consent)
+   */
+  @Get('tests/phr')
+  async phrTests(@Res() res: express.Response, @Req() req: express.Request) {
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
+    const userAgent = req.headers['user-agent'] || '';
+    const result = await this.phrComplianceService.runPhrComplianceTests({ ip, userAgent });
     return res.status(HttpStatus.OK).json(result);
   }
 }
