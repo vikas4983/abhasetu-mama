@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
+import type { JwtUserPayload } from './auth-user.interface';
 
 @Injectable()
 export class AuthService {
@@ -75,9 +76,9 @@ export class AuthService {
     };
   }
 
-  verifyJwt(token: string) {
+  verifyJwt(token: string): JwtUserPayload {
     try {
-      return jwt.verify(token, this.jwtSecret) as any;
+      return jwt.verify(token, this.jwtSecret) as JwtUserPayload;
     } catch (err) {
       throw new UnauthorizedException('Invalid or expired authentication token.');
     }

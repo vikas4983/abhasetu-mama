@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * @file        AuthProvider.tsx
@@ -10,12 +10,12 @@
  * @modified    2026-06-11
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 export interface User {
   email: string;
-  role: 'admin' | 'doctor' | 'patient' | 'operator' | 'master_admin';
+  role: string;
   name: string;
   abhaId?: string;
   photo?: string;
@@ -45,7 +45,7 @@ export interface Notification {
   title: string;
   message: string;
   time: string;
-  type: 'security' | 'abdm' | 'general';
+  type: "security" | "abdm" | "general";
   unread: boolean;
 }
 
@@ -73,14 +73,26 @@ interface AuthContextType {
   setActiveToken: (token: ActiveToken | null) => void;
   login: (email: string, pass: string) => Promise<boolean>;
   loginWithJwt: (token: string, user: User) => Promise<void>;
-  loginWithOtp: (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string) => Promise<boolean>;
+  loginWithOtp: (
+    role: "patient" | "doctor" | "operator",
+    identifier: string,
+    otp: string,
+  ) => Promise<boolean>;
   loginWithDl: (dlNumber: string, abhaProfile: any) => Promise<boolean>;
-  loginWithAbhaAccount: (role: 'patient' | 'doctor' | 'operator', account: any, linkedAccounts?: any[]) => Promise<boolean>;
-  logout: () => void;
+  loginWithAbhaAccount: (
+    role: "patient" | "doctor" | "operator",
+    account: any,
+    linkedAccounts?: any[],
+  ) => Promise<boolean>;
+  logout: (redirectPath?: string) => void;
   register: (name: string, email: string, mobile: string) => void;
   logSecurityEvent: (event: string, details: string) => void;
-  addNotification: (title: string, message: string, type: 'security' | 'abdm' | 'general') => void;
-  addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
+  addNotification: (
+    title: string,
+    message: string,
+    type: "security" | "abdm" | "general",
+  ) => void;
+  addAppointment: (appointment: Omit<Appointment, "id">) => void;
   addRecord: (record: HealthRecord) => void;
   setAbhaCreated: (created: boolean, card: any) => void;
   updateCurrentUser: (updates: Partial<User>) => void;
@@ -92,41 +104,123 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const demoCredentials = {
-  admin: { email: "admin@abhasetu.com", pass: "Admin@123", name: "System Administrator" },
-  doctor: { email: "doctor@abhasetu.com", pass: "Doctor@123", name: "Dr. Ayesha Ali", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
-  patient: { email: "patient@abhasetu.com", pass: "Patient@123", name: "Dr. Ayesha Ali", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
-  operator: { email: "operator@abhasetu.com", pass: "Operator@123", name: "OPD Desk Operator" }
+  admin: {
+    email: "admin@abhasetu.com",
+    pass: "Admin@123",
+    name: "System Administrator",
+  },
+  doctor: {
+    email: "doctor@abhasetu.com",
+    pass: "Doctor@123",
+    name: "Dr. Ayesha Ali",
+    photo: "/assets/doctors/dr-ayesha-ali.jpeg",
+  },
+  patient: {
+    email: "patient@abhasetu.com",
+    pass: "Patient@123",
+    name: "Dr. Ayesha Ali",
+    photo: "/assets/doctors/dr-ayesha-ali.jpeg",
+  },
+  operator: {
+    email: "operator@abhasetu.com",
+    pass: "Operator@123",
+    name: "OPD Desk Operator",
+  },
 };
 
 export const demoOtpCredentials = {
-  patient: { name: "Aarav Sharma", mobile: "9876543210", aadhaar: "123456789012", abha: "91-1234-5678-9012", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
-  doctor: { name: "Dr. Ayesha Ali", mobile: "9981057765", aadhaar: "987654321098", abha: "91-9876-5432-1098", photo: "/assets/doctors/dr-ayesha-ali.jpeg" },
-  operator: { name: "OPD Desk Operator", mobile: "8888888888", aadhaar: "888888888888", abha: "91-8888-8888-8888", photo: "" }
+  patient: {
+    name: "Aarav Sharma",
+    mobile: "9876543210",
+    aadhaar: "123456789012",
+    abha: "91-1234-5678-9012",
+    photo: "/assets/doctors/dr-ayesha-ali.jpeg",
+  },
+  doctor: {
+    name: "Dr. Ayesha Ali",
+    mobile: "9981057765",
+    aadhaar: "987654321098",
+    abha: "91-9876-5432-1098",
+    photo: "/assets/doctors/dr-ayesha-ali.jpeg",
+  },
+  operator: {
+    name: "OPD Desk Operator",
+    mobile: "8888888888",
+    aadhaar: "888888888888",
+    abha: "91-8888-8888-8888",
+    photo: "",
+  },
 };
 
 const DEFAULT_APPOINTMENTS: Appointment[] = [
-  { id: "SETU-APP-101", title: "Video Consultation", doctor: "Dr. Ayesha Ali", meta: "Today, 4:30 PM", status: "Confirmed", token: "SETU-TKN-304" },
-  { id: "SETU-APP-102", title: "Blood Test Package", doctor: "CityCare Diagnostics", meta: "Tomorrow, 8:00 AM", status: "Sample Pickup", token: "SETU-TKN-912" }
+  {
+    id: "SETU-APP-101",
+    title: "Video Consultation",
+    doctor: "Dr. Ayesha Ali",
+    meta: "Today, 4:30 PM",
+    status: "Confirmed",
+    token: "SETU-TKN-304",
+  },
+  {
+    id: "SETU-APP-102",
+    title: "Blood Test Package",
+    doctor: "CityCare Diagnostics",
+    meta: "Tomorrow, 8:00 AM",
+    status: "Sample Pickup",
+    token: "SETU-TKN-912",
+  },
 ];
 
 const DEFAULT_RECORDS: HealthRecord[] = [
-  { name: "CBC Blood Report", type: "Lab Report", date: "May 14, 2026", source: "Apollo Diagnostics" },
-  { name: "Prescription - Fever Care", type: "Prescription", date: "May 10, 2026", source: "Dr. Ayesha Ali" },
-  { name: "Health ATM Screening", type: "Vitals", date: "May 08, 2026", source: "ABHA SETU Kiosk" }
+  {
+    name: "CBC Blood Report",
+    type: "Lab Report",
+    date: "May 14, 2026",
+    source: "Apollo Diagnostics",
+  },
+  {
+    name: "Prescription - Fever Care",
+    type: "Prescription",
+    date: "May 10, 2026",
+    source: "Dr. Ayesha Ali",
+  },
+  {
+    name: "Health ATM Screening",
+    type: "Vitals",
+    date: "May 08, 2026",
+    source: "ABHA SETU Kiosk",
+  },
 ];
 
 const DEFAULT_NOTIFICATIONS: Notification[] = [
-  { id: 1, title: "Login Successful", message: "Logged in securely from your browser.", time: "Just now", type: "security", unread: true },
-  { id: 2, title: "ABDM Update", message: "Your health records locker is synced and encrypted.", time: "10 mins ago", type: "abdm", unread: true }
+  {
+    id: 1,
+    title: "Login Successful",
+    message: "Logged in securely from your browser.",
+    time: "Just now",
+    type: "security",
+    unread: true,
+  },
+  {
+    id: 2,
+    title: "ABDM Update",
+    message: "Your health records locker is synced and encrypted.",
+    time: "10 mins ago",
+    type: "abdm",
+    unread: true,
+  },
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [abhaCreated, setAbhaCreatedState] = useState(false);
   const [abhaCard, setAbhaCard] = useState<any | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>(DEFAULT_APPOINTMENTS);
+  const [appointments, setAppointments] =
+    useState<Appointment[]>(DEFAULT_APPOINTMENTS);
   const [records, setRecords] = useState<HealthRecord[]>(DEFAULT_RECORDS);
-  const [notifications, setNotifications] = useState<Notification[]>(DEFAULT_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>(
+    DEFAULT_NOTIFICATIONS,
+  );
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
   const [activeToken, setActiveTokenState] = useState<ActiveToken | null>(null);
   const router = useRouter();
@@ -135,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Load state from localStorage on startup
   useEffect(() => {
     try {
-      const data = localStorage.getItem('setu_state');
+      const data = localStorage.getItem("setu_state");
       if (data) {
         const parsed = JSON.parse(data);
         if (parsed.currentUser) setCurrentUser(parsed.currentUser);
@@ -155,12 +249,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           appointments: DEFAULT_APPOINTMENTS,
           records: DEFAULT_RECORDS,
           notifications: DEFAULT_NOTIFICATIONS,
-          securityLogs: [{ event: "Platform Init", details: "ABHA Setu security controller successfully loaded.", time: new Date().toLocaleTimeString() }],
+          securityLogs: [
+            {
+              event: "Platform Init",
+              details: "ABHA Setu security controller successfully loaded.",
+              time: new Date().toLocaleTimeString(),
+            },
+          ],
           activeToken: null,
-          theme: 'dark-teal',
-          iconStyle: 'glassmorphic'
+          theme: "dark-teal",
+          iconStyle: "glassmorphic",
         };
-        localStorage.setItem('setu_state', JSON.stringify(initial));
+        localStorage.setItem("setu_state", JSON.stringify(initial));
         setSecurityLogs(initial.securityLogs);
       }
     } catch (e) {
@@ -172,15 +272,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const syncBranding = async () => {
       try {
-        const res = await fetch('/api/abdm/admin/config');
+        const res = await fetch("/api/abdm/admin/config");
         if (res.ok) {
           const data = await res.json();
-          if (data.status === 'success' && data.config) {
+          if (data.status === "success" && data.config) {
             const serverConfig = data.config;
-            const current = JSON.parse(localStorage.getItem('setu_state') || '{}');
+            const current = JSON.parse(
+              localStorage.getItem("setu_state") || "{}",
+            );
             let updated = false;
 
-            if (serverConfig.selectedLogo && serverConfig.selectedLogo !== current.selectedLogo) {
+            if (
+              serverConfig.selectedLogo &&
+              serverConfig.selectedLogo !== current.selectedLogo
+            ) {
               current.selectedLogo = serverConfig.selectedLogo;
               updated = true;
             }
@@ -188,19 +293,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               current.theme = serverConfig.theme;
               updated = true;
             }
-            if (serverConfig.iconStyle && serverConfig.iconStyle !== current.iconStyle) {
+            if (
+              serverConfig.iconStyle &&
+              serverConfig.iconStyle !== current.iconStyle
+            ) {
               current.iconStyle = serverConfig.iconStyle;
               updated = true;
             }
 
             if (updated) {
-              localStorage.setItem('setu_state', JSON.stringify(current));
-              window.dispatchEvent(new Event('setu_state_update'));
+              localStorage.setItem("setu_state", JSON.stringify(current));
+              window.dispatchEvent(new Event("setu_state_update"));
             }
           }
         }
       } catch (e) {
-        console.error('Failed to sync branding configurations:', e);
+        console.error("Failed to sync branding configurations:", e);
       }
     };
     syncBranding();
@@ -210,36 +318,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!currentUser) return;
-      const sessionExpiry = localStorage.getItem('abha_session_expiry');
-      const isSessionActive = sessionExpiry && Number(sessionExpiry) > Date.now();
-      
+      const sessionExpiry = localStorage.getItem("abha_session_expiry");
+      const isSessionActive =
+        sessionExpiry && Number(sessionExpiry) > Date.now();
+
       if (isSessionActive) {
         e.preventDefault();
-        e.returnValue = 'You have an active secure session. Are you sure you want to navigate away?';
+        e.returnValue =
+          "You have an active secure session. Are you sure you want to navigate away?";
         return e.returnValue;
       }
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [currentUser]);
 
   // Update helper
-  const syncToLocalStorage = (updates: Partial<{
-    currentUser: User | null;
-    abhaCreated: boolean;
-    abhaCard: any;
-    appointments: Appointment[];
-    records: HealthRecord[];
-    notifications: Notification[];
-    securityLogs: SecurityLog[];
-    activeToken: ActiveToken | null;
-  }>) => {
+  const syncToLocalStorage = (
+    updates: Partial<{
+      currentUser: User | null;
+      abhaCreated: boolean;
+      abhaCard: any;
+      appointments: Appointment[];
+      records: HealthRecord[];
+      notifications: Notification[];
+      securityLogs: SecurityLog[];
+      activeToken: ActiveToken | null;
+    }>,
+  ) => {
     try {
-      const current = JSON.parse(localStorage.getItem('setu_state') || '{}');
+      const current = JSON.parse(localStorage.getItem("setu_state") || "{}");
       const next = { ...current, ...updates };
-      localStorage.setItem('setu_state', JSON.stringify(next));
+      localStorage.setItem("setu_state", JSON.stringify(next));
     } catch (e) {
       console.error(e);
     }
@@ -259,10 +371,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newLog: SecurityLog = {
       event,
       details: sanitizedDetails,
-      time: new Date().toLocaleTimeString()
+      time: new Date().toLocaleTimeString(),
     };
 
-    setSecurityLogs(prev => {
+    setSecurityLogs((prev) => {
       const next = [newLog, ...prev].slice(0, 50);
       syncToLocalStorage({ securityLogs: next });
       return next;
@@ -270,7 +382,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, pass: string): Promise<boolean> => {
-    let matchedRole: 'admin' | 'doctor' | 'patient' | 'operator' | null = null;
+    let matchedRole: "admin" | "doctor" | "patient" | "operator" | null = null;
     let name = "";
     let photo = "";
 
@@ -289,12 +401,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: matchedRole,
         name,
         photo,
-        abhaId: matchedRole === 'patient' ? 'ananya@abdm' : undefined
+        abhaId: matchedRole === "patient" ? "ananya@abdm" : undefined,
       };
       setCurrentUser(newUser);
       syncToLocalStorage({ currentUser: newUser });
-      logSecurityEvent("User Login", `Authenticated as ${name} (${matchedRole.toUpperCase()})`);
-      addNotification("Login Successful", "Logged in securely from your browser.", "security");
+      logSecurityEvent(
+        "User Login",
+        `Authenticated as ${name} (${matchedRole.toUpperCase()})`,
+      );
+      addNotification(
+        "Login Successful",
+        "Logged in securely from your browser.",
+        "security",
+      );
       return true;
     } else {
       logSecurityEvent("Login Failed", `Attempted email: ${email}`);
@@ -302,48 +421,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = (redirectPath?: string) => {
+    const role = currentUser?.role;
     if (currentUser) {
-      logSecurityEvent("User Logout", `Signed out session for ${currentUser.name}`);
+      logSecurityEvent(
+        "User Logout",
+        `Signed out session for ${currentUser.name}`,
+      );
     }
     setCurrentUser(null);
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('abha_session_expiry');
-    localStorage.removeItem('abha_refresh_expiry');
-    localStorage.removeItem('x_token_expiry');
-    localStorage.removeItem('verify_via_abha_number_refresh_token');
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("abha_session_expiry");
+    localStorage.removeItem("abha_refresh_expiry");
+    localStorage.removeItem("x_token_expiry");
+    localStorage.removeItem("verify_via_abha_number_refresh_token");
     syncToLocalStorage({ currentUser: null });
-    router.push('/login');
+    if (redirectPath) {
+      router.push(redirectPath);
+    } else if (role === "admin" || role === "master_admin") {
+      router.push("/admin/login");
+    } else if (
+      [
+        "hospital",
+        "clinic",
+        "pharmacy",
+        "lab",
+        "diagnostic_centre",
+        "insurance_org",
+        "individual_doctor",
+        "iqra_alumni",
+      ].includes(role || "")
+    ) {
+      router.push("/staff-login");
+    } else {
+      router.push("/login");
+    }
   };
 
   const loginWithJwt = async (token: string, user: User) => {
     setCurrentUser(user);
-    localStorage.setItem('adminToken', token);
+    localStorage.setItem("adminToken", token);
     syncToLocalStorage({ currentUser: user });
-    logSecurityEvent("JWT Admin Login", `Authenticated via secure JWT as ${user.name} (${user.role.toUpperCase()})`);
-    addNotification("Secure Login", `Logged in as ${user.role === 'master_admin' ? 'Master Admin' : 'Admin'}`, "security");
+    logSecurityEvent(
+      "JWT Admin Login",
+      `Authenticated via secure JWT as ${user.name} (${user.role.toUpperCase()})`,
+    );
+    addNotification(
+      "Secure Login",
+      `Logged in as ${user.role === "master_admin" ? "Master Admin" : "Admin"}`,
+      "security",
+    );
   };
 
-  const loginWithOtp = async (role: 'patient' | 'doctor' | 'operator', identifier: string, otp: string): Promise<boolean> => {
-    if (otp !== '123456') {
-      logSecurityEvent("OTP Login Failed", `Invalid OTP entered for role: ${role.toUpperCase()}`);
+  const loginWithOtp = async (
+    role: "patient" | "doctor" | "operator",
+    identifier: string,
+    otp: string,
+  ): Promise<boolean> => {
+    if (otp !== "123456") {
+      logSecurityEvent(
+        "OTP Login Failed",
+        `Invalid OTP entered for role: ${role.toUpperCase()}`,
+      );
       return false;
     }
 
     const creds = demoOtpCredentials[role];
     if (!creds) return false;
 
-    const cleanedIdentifier = identifier.replace(/[-\s]/g, '');
-    const cleanedMobile = creds.mobile.replace(/[-\s]/g, '');
-    const cleanedAadhaar = creds.aadhaar.replace(/[-\s]/g, '');
-    const cleanedAbha = creds.abha.replace(/[-\s]/g, '');
+    const cleanedIdentifier = identifier.replace(/[-\s]/g, "");
+    const cleanedMobile = creds.mobile.replace(/[-\s]/g, "");
+    const cleanedAadhaar = creds.aadhaar.replace(/[-\s]/g, "");
+    const cleanedAbha = creds.abha.replace(/[-\s]/g, "");
 
     if (
       cleanedIdentifier !== cleanedMobile &&
       cleanedIdentifier !== cleanedAadhaar &&
       cleanedIdentifier !== cleanedAbha
     ) {
-      logSecurityEvent("OTP Login Failed", `Identifier mismatch for role: ${role.toUpperCase()}`);
+      logSecurityEvent(
+        "OTP Login Failed",
+        `Identifier mismatch for role: ${role.toUpperCase()}`,
+      );
       return false;
     }
 
@@ -352,35 +511,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role,
       name: creds.name,
       photo: creds.photo || "",
-      abhaId: role === 'patient' ? 'aarav.sharma@sbx' : undefined
+      abhaId: role === "patient" ? "aarav.sharma@sbx" : undefined,
     };
 
     setCurrentUser(newUser);
     syncToLocalStorage({ currentUser: newUser });
-    logSecurityEvent("User OTP Login", `Authenticated via OTP as ${creds.name} (${role.toUpperCase()})`);
-    addNotification("Login Successful", `OTP verified. Welcomed ${creds.name}.`, "security");
+    logSecurityEvent(
+      "User OTP Login",
+      `Authenticated via OTP as ${creds.name} (${role.toUpperCase()})`,
+    );
+    addNotification(
+      "Login Successful",
+      `OTP verified. Welcomed ${creds.name}.`,
+      "security",
+    );
     return true;
   };
 
-  const loginWithDl = async (dlNumber: string, abhaProfile: any): Promise<boolean> => {
+  const loginWithDl = async (
+    dlNumber: string,
+    abhaProfile: any,
+  ): Promise<boolean> => {
     const profile = abhaProfile || {};
     const newUser: User = {
-      email: 'patient@abhasetu.com',
-      role: 'patient',
-      name: profile.name || 'Aarav Sharma',
-      photo: profile.photo || '/assets/doctors/dr-ayesha-ali.jpeg',
-      abhaId: profile.abhaId || profile.abhaNumber || 'aarav.sharma@sbx',
+      email: "patient@abhasetu.com",
+      role: "patient",
+      name: profile.name || "Aarav Sharma",
+      photo: profile.photo || "/assets/doctors/dr-ayesha-ali.jpeg",
+      abhaId: profile.abhaId || profile.abhaNumber || "aarav.sharma@sbx",
       abhaProfile: profile,
-      mobile: profile.mobile || ''
+      mobile: profile.mobile || "",
     };
     setCurrentUser(newUser);
     syncToLocalStorage({ currentUser: newUser });
-    logSecurityEvent("User DL Login", `Authenticated via Driving License (${dlNumber}) as ${newUser.name}`);
-    addNotification("Login Successful", `DL verified and access granted.`, "security");
+    logSecurityEvent(
+      "User DL Login",
+      `Authenticated via Driving License (${dlNumber}) as ${newUser.name}`,
+    );
+    addNotification(
+      "Login Successful",
+      `DL verified and access granted.`,
+      "security",
+    );
     return true;
   };
 
-  const loginWithAbhaAccount = async (role: 'patient' | 'doctor' | 'operator', account: any, linkedAccounts?: any[]): Promise<boolean> => {
+  const loginWithAbhaAccount = async (
+    role: "patient" | "doctor" | "operator",
+    account: any,
+    linkedAccounts?: any[],
+  ): Promise<boolean> => {
     const newUser: User = {
       email: `${role}@abhasetu.com`,
       role,
@@ -389,54 +569,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       abhaId: account.preferredAbhaAddress || account.ABHANumber,
       abhaProfile: account,
       mobile: account.mobile || "",
-      linkedAccounts: linkedAccounts || [account]
+      linkedAccounts: linkedAccounts || [account],
     };
 
     setCurrentUser(newUser);
     syncToLocalStorage({ currentUser: newUser });
-    logSecurityEvent("User ABHA Account Login", `Authenticated via ABHA account as ${account.name} (${role.toUpperCase()})`);
-    addNotification("Login Successful", `ABHA Verified. Welcomed ${account.name}.`, "security");
+    logSecurityEvent(
+      "User ABHA Account Login",
+      `Authenticated via ABHA account as ${account.name} (${role.toUpperCase()})`,
+    );
+    addNotification(
+      "Login Successful",
+      `ABHA Verified. Welcomed ${account.name}.`,
+      "security",
+    );
     return true;
   };
 
   const register = (name: string, email: string, mobile: string) => {
     const newUser: User = {
       email,
-      role: 'patient',
+      role: "patient",
       name,
-      photo: '/assets/doctors/dr-ayesha-ali.jpeg',
-      abhaId: '',
-      mobile
+      photo: "/assets/doctors/dr-ayesha-ali.jpeg",
+      abhaId: "",
+      mobile,
     };
     setCurrentUser(newUser);
     syncToLocalStorage({ currentUser: newUser });
-    logSecurityEvent("User Registered", `Patient account created: ${name}, ${email}`);
-    addNotification("Account Created", "Welcome to Abha Setu National Digital Health Bridge!", "general");
-    router.push('/');
+    logSecurityEvent(
+      "User Registered",
+      `Patient account created: ${name}, ${email}`,
+    );
+    addNotification(
+      "Account Created",
+      "Welcome to Abha Setu National Digital Health Bridge!",
+      "general",
+    );
+    router.push("/");
   };
 
-  const addNotification = (title: string, message: string, type: 'security' | 'abdm' | 'general') => {
+  const addNotification = (
+    title: string,
+    message: string,
+    type: "security" | "abdm" | "general",
+  ) => {
     const newNotif: Notification = {
       id: Date.now(),
       title,
       message,
       time: "Just now",
       type,
-      unread: true
+      unread: true,
     };
-    setNotifications(prev => {
+    setNotifications((prev) => {
       const next = [newNotif, ...prev].slice(0, 30);
       syncToLocalStorage({ notifications: next });
       return next;
     });
   };
 
-  const addAppointment = (appt: Omit<Appointment, 'id'>) => {
+  const addAppointment = (appt: Omit<Appointment, "id">) => {
     const newAppt: Appointment = {
       ...appt,
-      id: `SETU-APP-${Math.floor(100 + Math.random() * 900)}`
+      id: `SETU-APP-${Math.floor(100 + Math.random() * 900)}`,
     };
-    setAppointments(prev => {
+    setAppointments((prev) => {
       const next = [newAppt, ...prev];
       syncToLocalStorage({ appointments: next });
       return next;
@@ -444,7 +642,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addRecord = (record: HealthRecord) => {
-    setRecords(prev => {
+    setRecords((prev) => {
       const next = [record, ...prev];
       syncToLocalStorage({ records: next });
       return next;
@@ -458,40 +656,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearNotifications = () => {
-    setNotifications(prev => {
-      const next = prev.map(n => ({ ...n, unread: false }));
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, unread: false }));
       syncToLocalStorage({ notifications: next });
       return next;
     });
   };
 
   const deleteNotification = (id: number) => {
-    setNotifications(prev => {
-      const next = prev.filter(n => n.id !== id);
+    setNotifications((prev) => {
+      const next = prev.filter((n) => n.id !== id);
       syncToLocalStorage({ notifications: next });
       return next;
     });
   };
 
   const markNotificationRead = (id: number) => {
-    setNotifications(prev => {
-      const next = prev.map(n => n.id === id ? { ...n, unread: false } : n);
+    setNotifications((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, unread: false } : n));
       syncToLocalStorage({ notifications: next });
       return next;
     });
   };
 
   const updateCurrentUser = (updates: Partial<User>) => {
-    setCurrentUser(prev => {
+    setCurrentUser((prev) => {
       if (!prev) return null;
       const next = { ...prev, ...updates };
       syncToLocalStorage({ currentUser: next });
-      
+
       // Dispatch a custom event to notify other components/tabs in real-time
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('setu_state_update'));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("setu_state_update"));
       }
-      
+
       return next;
     });
   };
@@ -507,8 +705,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkSessionExpiry = async () => {
       if (isRefreshing) return;
 
-      const sessionExpiryVal = localStorage.getItem('abha_session_expiry');
-      const refreshExpiryVal = localStorage.getItem('abha_refresh_expiry');
+      const sessionExpiryVal = localStorage.getItem("abha_session_expiry");
+      const refreshExpiryVal = localStorage.getItem("abha_refresh_expiry");
 
       // Skip checking if session parameters are not initialized (e.g. admin or other logins)
       if (!sessionExpiryVal || !refreshExpiryVal) return;
@@ -519,9 +717,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 1. Check if the refresh token itself has expired
       if (now >= refreshExpiry) {
-        console.warn('[Session Monitor] Refresh token has expired. Forcing logout...');
-        logSecurityEvent("Session Expired", `Session refresh token has expired. Logging out ${currentUser.name}`);
-        addNotification("Session Expired", "Your secure session has expired. Please log in again.", "security");
+        console.warn(
+          "[Session Monitor] Refresh token has expired. Forcing logout...",
+        );
+        logSecurityEvent(
+          "Session Expired",
+          `Session refresh token has expired. Logging out ${currentUser.name}`,
+        );
+        addNotification(
+          "Session Expired",
+          "Your secure session has expired. Please log in again.",
+          "security",
+        );
         logout();
         return;
       }
@@ -529,51 +736,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 2. Check if the session access token has expired (or is about to expire within 5 seconds)
       if (now >= sessionExpiry - 5000) {
         isRefreshing = true;
-        console.log('[Session Monitor] Session access token has expired. Attempting token refresh...');
-        logSecurityEvent("Session Refresh Triggered", `Access token expired. Extending session for ${currentUser.name}`);
-        
+        console.log(
+          "[Session Monitor] Session access token has expired. Attempting token refresh...",
+        );
+        logSecurityEvent(
+          "Session Refresh Triggered",
+          `Access token expired. Extending session for ${currentUser.name}`,
+        );
+
         try {
-          const res = await fetch('/api/abdm/v3/profile/login/refresh', {
-            method: 'POST',
+          const res = await fetch("/api/abdm/v3/profile/login/refresh", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               // Read the refresh token from localStorage as backup (cookies are automatically sent as primary credentials)
-              refreshToken: localStorage.getItem('verify_via_abha_number_refresh_token') || 'simulated-refresh-token-preview-xyz'
+              refreshToken:
+                localStorage.getItem("verify_via_abha_number_refresh_token") ||
+                "simulated-refresh-token-preview-xyz",
             }),
           });
 
           if (res.ok) {
             const data = await res.json();
-            if (data.status === 'success') {
+            if (data.status === "success") {
               const sessionTtl = data.expiresIn || 1800;
               const refreshTtl = data.refreshExpiresIn || 1296000;
 
               // Update session, refresh, and x-token expiration parameters in localStorage
-              localStorage.setItem('abha_session_expiry', String(Date.now() + sessionTtl * 1000));
-              localStorage.setItem('abha_refresh_expiry', String(Date.now() + refreshTtl * 1000));
-              localStorage.setItem('x_token_expiry', String(Date.now() + sessionTtl * 1000));
+              localStorage.setItem(
+                "abha_session_expiry",
+                String(Date.now() + sessionTtl * 1000),
+              );
+              localStorage.setItem(
+                "abha_refresh_expiry",
+                String(Date.now() + refreshTtl * 1000),
+              );
+              localStorage.setItem(
+                "x_token_expiry",
+                String(Date.now() + sessionTtl * 1000),
+              );
               if (data.refreshToken) {
-                localStorage.setItem('verify_via_abha_number_refresh_token', data.refreshToken);
+                localStorage.setItem(
+                  "verify_via_abha_number_refresh_token",
+                  data.refreshToken,
+                );
               }
 
               // Propagate the change to all other active windows, components, and listeners
-              window.dispatchEvent(new Event('setu_state_update'));
-              
-              logSecurityEvent("Session Refreshed", `Successfully refreshed access token. New session TTL: ${sessionTtl}s`);
-              addNotification("Session Extended", "Your security session has been automatically extended.", "security");
-              console.log('[Session Monitor] Session token refreshed successfully.');
+              window.dispatchEvent(new Event("setu_state_update"));
+
+              logSecurityEvent(
+                "Session Refreshed",
+                `Successfully refreshed access token. New session TTL: ${sessionTtl}s`,
+              );
+              addNotification(
+                "Session Extended",
+                "Your security session has been automatically extended.",
+                "security",
+              );
+              console.log(
+                "[Session Monitor] Session token refreshed successfully.",
+              );
             } else {
-              throw new Error(data.message || 'Refresh operation failed on server.');
+              throw new Error(
+                data.message || "Refresh operation failed on server.",
+              );
             }
           } else {
             throw new Error(`Server returned HTTP ${res.status}`);
           }
         } catch (error: any) {
-          console.error('[Session Monitor] Failed to refresh token:', error.message || error);
-          logSecurityEvent("Session Refresh Failed", `Refresh error: ${error.message || error}. Forcing logout for ${currentUser.name}`);
-          addNotification("Session Expired", "Failed to extend session. Logging out...", "security");
+          console.error(
+            "[Session Monitor] Failed to refresh token:",
+            error.message || error,
+          );
+          logSecurityEvent(
+            "Session Refresh Failed",
+            `Refresh error: ${error.message || error}. Forcing logout for ${currentUser.name}`,
+          );
+          addNotification(
+            "Session Expired",
+            "Failed to extend session. Logging out...",
+            "security",
+          );
           logout();
         } finally {
           isRefreshing = false;
@@ -591,54 +838,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Route security shield
   useEffect(() => {
-    const isPublicPath = 
-      pathname === '/login' || 
-      pathname === '/register' || 
-      pathname === '/admin/login' ||
-      pathname === '/staff-login';
+    const isPublicPath =
+      pathname === "/login" ||
+      pathname === "/register" ||
+      pathname === "/admin/login" ||
+      pathname === "/staff-login";
 
     if (!currentUser && !isPublicPath) {
       // Check if we have loaded from localStorage
-      const data = localStorage.getItem('setu_state');
+      const data = localStorage.getItem("setu_state");
       if (data) {
         const parsed = JSON.parse(data);
         if (!parsed.currentUser) {
-          router.push('/login');
+          router.push("/login");
         }
       } else {
-        router.push('/login');
+        router.push("/login");
       }
     }
   }, [currentUser, pathname, router]);
 
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      abhaCreated,
-      abhaCard,
-      appointments,
-      records,
-      notifications,
-      securityLogs,
-      activeToken,
-      setActiveToken,
-      login,
-      loginWithJwt,
-      loginWithOtp,
-      loginWithDl,
-      loginWithAbhaAccount,
-      logout,
-      register,
-      logSecurityEvent,
-      addNotification,
-      addAppointment,
-      addRecord,
-      setAbhaCreated,
-      updateCurrentUser,
-      clearNotifications,
-      deleteNotification,
-      markNotificationRead
-    }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        abhaCreated,
+        abhaCard,
+        appointments,
+        records,
+        notifications,
+        securityLogs,
+        activeToken,
+        setActiveToken,
+        login,
+        loginWithJwt,
+        loginWithOtp,
+        loginWithDl,
+        loginWithAbhaAccount,
+        logout,
+        register,
+        logSecurityEvent,
+        addNotification,
+        addAppointment,
+        addRecord,
+        setAbhaCreated,
+        updateCurrentUser,
+        clearNotifications,
+        deleteNotification,
+        markNotificationRead,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -647,7 +896,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

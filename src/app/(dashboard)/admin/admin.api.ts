@@ -124,6 +124,21 @@ export async function deletePincodeRow(token: string, id: number) {
   return res.json();
 }
 
+export async function removePincodeDuplicates(token: string) {
+  const res = await fetch(`${API}/admin/pincode-directory/remove-duplicates`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  return res.json();
+}
+
+export async function fetchPincodeStats(token: string) {
+  const res = await fetch(`${API}/admin/pincode-directory/stats`, {
+    headers: authHeaders(token),
+  });
+  return res.json();
+}
+
 export async function syncPublicKey(token: string) {
   const res = await fetch(`${API}/admin/fetch-public-key`, {
     method: "POST",

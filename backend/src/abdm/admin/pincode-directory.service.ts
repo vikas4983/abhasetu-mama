@@ -68,6 +68,83 @@ export class PincodeDirectoryService {
       CREATE INDEX IF NOT EXISTS idx_pincode_directory_state ON pincode_directory(state_name);
       CREATE INDEX IF NOT EXISTS idx_pincode_directory_district ON pincode_directory(district);
     `);
+    try {
+      await this.db.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_pincode_directory_office_pin
+          ON pincode_directory (pincode, lower(trim(office_name)))
+      `);
+    } catch {
+      this.logger.warn('Pincode unique index pending — remove duplicates from admin console');
+    }
+  }
+
+  /** @description Normalize pincode to 6 digits */
+  private normalizePincode(pincode: string): string {
+    return (pincode || '').replace(/\D/g, '').slice(0, 6);
+  }
+
+  /** @description Check duplicate by pincode + office name */
+  async isDuplicate(officeName: string, pincode: string, excludeId?: number): Promise<boolean> {
+    await this.ensureSchema();
+    const cleanPin = this.normalizePincode(pincode);
+    if (!cleanPin || cleanPin.length !== 6 || !officeName?.trim()) {
+      return false;
+    }
+    const params: unknown[] = [cleanPin, officeName.trim()];
+    let sql = `SELECT id FROM pincode_directory WHERE pincode = $1 AND lower(trim(office_name)) = lower(trim($2))`;
+    if (excludeId != null) {
+      sql += ` AND id <> $3`;
+      params.push(excludeId);
+    }
+    sql += ' LIMIT 1';
+    const res = await this.db.query(sql, params);
+    return res.rows.length > 0;
+  }
+
+  /** @description Count rows that would be removed as duplicates (keeps lowest id) */
+  async countDuplicates(): Promise<number> {
+    await this.ensureSchema();
+    const res = await this.db.query(`
+      SELECT COUNT(*)::int AS c FROM pincode_directory a
+      WHERE EXISTS (
+        SELECT 1 FROM pincode_directory b
+        WHERE b.pincode = a.pincode
+          AND lower(trim(b.office_name)) = lower(trim(a.office_name))
+          AND b.id < a.id
+      )
+    `);
+    return res.rows[0]?.c ?? 0;
+  }
+
+  /**
+   * @description Remove duplicate post offices — keeps the row with the smallest id
+   */
+  async removeDuplicates(): Promise<{ status: string; removed: number; message: string }> {
+    await this.ensureSchema();
+    const res = await this.db.query(`
+      DELETE FROM pincode_directory a
+      USING pincode_directory b
+      WHERE a.id > b.id
+        AND a.pincode = b.pincode
+        AND lower(trim(a.office_name)) = lower(trim(b.office_name))
+      RETURNING a.id
+    `);
+    const removed = res.rowCount ?? res.rows.length;
+    await this.syncLegacyFromDirectory();
+    try {
+      await this.db.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_pincode_directory_office_pin
+          ON pincode_directory (pincode, lower(trim(office_name)))
+      `);
+    } catch {
+      /* index may already exist */
+    }
+    this.logger.log(`Removed ${removed} duplicate pincode directory rows`);
+    return {
+      status: 'success',
+      removed,
+      message: removed > 0 ? `Removed ${removed} duplicate record(s).` : 'No duplicates found.',
+    };
   }
 
   /**
@@ -122,6 +199,7 @@ export class PincodeDirectoryService {
    */
   async getStats(): Promise<Record<string, unknown>> {
     await this.ensureSchema();
+    const duplicateCount = await this.countDuplicates();
     const [totalRes, stateRes, recentRes, legacyRes] = await Promise.all([
       this.db.query('SELECT COUNT(*)::int AS c FROM pincode_directory'),
       this.db.query(`SELECT state_name, COUNT(*)::int AS count FROM pincode_directory GROUP BY state_name ORDER BY count DESC LIMIT 10`),
@@ -133,6 +211,7 @@ export class PincodeDirectoryService {
       totalOffices: totalRes.rows[0]?.c ?? 0,
       uniquePincodesLegacy: legacyRes.rows[0]?.c ?? 0,
       importedLast7Days: recentRes.rows[0]?.c ?? 0,
+      duplicateRows: duplicateCount,
       topStates: stateRes.rows,
     };
   }
@@ -140,18 +219,28 @@ export class PincodeDirectoryService {
   /**
    * @description Create a single post office row
    */
-  async create(row: Omit<PincodeDirectoryRow, 'id'>): Promise<{ status: string; id: number }> {
+  async create(row: Omit<PincodeDirectoryRow, 'id'>): Promise<{ status: string; id?: number; message?: string }> {
     await this.ensureSchema();
+    const pincode = this.normalizePincode(row.pincode);
+    if (pincode.length !== 6) {
+      return { status: 'error', message: 'Pincode must be exactly 6 digits.' };
+    }
+    if (!row.office_name?.trim()) {
+      return { status: 'error', message: 'Office name is required.' };
+    }
+    if (await this.isDuplicate(row.office_name, pincode)) {
+      return { status: 'error', message: 'Duplicate record: this pincode and office name already exist.' };
+    }
     const res = await this.db.query(
       `INSERT INTO pincode_directory (circle_name, region_name, division_name, office_name, pincode, office_type, delivery, district, state_name, latitude, longitude)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
       [
-        row.circle_name, row.region_name, row.division_name, row.office_name,
-        row.pincode, row.office_type, row.delivery, row.district, row.state_name,
+        row.circle_name, row.region_name, row.division_name, row.office_name.trim(),
+        pincode, row.office_type, row.delivery, row.district, row.state_name,
         row.latitude, row.longitude,
       ],
     );
-    await this.syncLegacyPincode(row.pincode, row.district || '', row.state_name);
+    await this.syncLegacyPincode(pincode, row.district || '', row.state_name);
     return { status: 'success', id: res.rows[0].id };
   }
 
@@ -222,12 +311,16 @@ export class PincodeDirectoryService {
         return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10},$${b + 11})`;
       }).join(',');
       const flat = batch.flat();
-      await this.db.query(
+      const insertRes = await this.db.query(
         `INSERT INTO pincode_directory (circle_name, region_name, division_name, office_name, pincode, office_type, delivery, district, state_name, latitude, longitude)
-         VALUES ${placeholders}`,
+         SELECT v.* FROM (VALUES ${placeholders}) AS v(circle_name, region_name, division_name, office_name, pincode, office_type, delivery, district, state_name, latitude, longitude)
+         WHERE NOT EXISTS (
+           SELECT 1 FROM pincode_directory p
+           WHERE p.pincode = v.pincode AND lower(trim(p.office_name)) = lower(trim(v.office_name))
+         )`,
         flat,
       );
-      imported += batch.length;
+      imported += insertRes.rowCount ?? 0;
       batch.length = 0;
     };
 

@@ -11,7 +11,8 @@
 "use client";
 
 import React, { useCallback, useState } from "react";
-import { phrService } from "../../../lib/api/services/phr.service";
+import type { AxiosResponse } from "axios";
+import { phrService, type PhrApiResponse } from "../../../lib/api/services/phr.service";
 
 type TabId = "enroll" | "login" | "profile" | "pin" | "locker";
 
@@ -38,7 +39,7 @@ export default function PhrPage() {
   const [lockers, setLockers] = useState<unknown>(null);
 
   const run = useCallback(
-    async (fn: () => Promise<{ data: Record<string, unknown> }>) => {
+    async (fn: () => Promise<AxiosResponse<PhrApiResponse>>) => {
       setLoading(true);
       setMessage("");
       try {
@@ -410,7 +411,7 @@ export default function PhrPage() {
               List consents
             </button>
           </div>
-          {(lockers || consents) && (
+          {(lockers != null || consents != null) && (
             <pre
               style={{
                 marginTop: "16px",

@@ -18,6 +18,8 @@ export interface PhrApiResponse<T = unknown> {
   token?: string;
   refreshToken?: string;
   data?: T;
+  consents?: unknown;
+  lockers?: unknown;
   simulated?: boolean;
 }
 

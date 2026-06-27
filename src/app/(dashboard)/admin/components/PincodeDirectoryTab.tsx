@@ -10,9 +10,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Download, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Download, Plus, RefreshCw, Search, Trash2, CopyMinus } from "lucide-react";
 import { motion } from "framer-motion";
 import { showToast } from "../../../../utils/toast";
+import { useConfirmDialog } from "../../../../components/stakeholder/ConfirmDialogProvider";
 import * as api from "../admin.api";
 
 interface Row {
@@ -29,8 +30,10 @@ interface Props {
 }
 
 export default function PincodeDirectoryTab({ token }: Props) {
+  const { confirm: confirmAction } = useConfirmDialog();
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
+  const [duplicateCount, setDuplicateCount] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState("");
@@ -62,29 +65,61 @@ export default function PincodeDirectoryTab({ token }: Props) {
     }
   }, [token, page, search, stateFilter]);
 
+  const loadStats = useCallback(async () => {
+    const data = await api.fetchPincodeStats(token);
+    if (data.status === "success" && data.stats) {
+      setDuplicateCount(data.stats.duplicateRows ?? 0);
+    }
+  }, [token]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadStats();
+  }, [load, loadStats]);
 
   const handleImport = async () => {
-    if (
-      !confirm(
-        "Import ~165k rows from pincode_directory.csv? This may take a few minutes.",
-      )
-    )
-      return;
+    const ok = await confirmAction({
+      title: "Import pincode CSV?",
+      message: "Import ~165k rows from pincode_directory.csv? Duplicates will be skipped automatically.",
+      confirmLabel: "Import",
+      severity: "warning",
+    });
+    if (!ok) return;
     setImporting(true);
     try {
       const data = await api.importPincodeCsv(token);
       showToast(data.message || "Import finished", data.status !== "success");
-      if (data.status === "success") load();
+      if (data.status === "success") {
+        load();
+        loadStats();
+      }
     } finally {
       setImporting(false);
     }
   };
 
+  const handleRemoveDuplicates = async () => {
+    const ok = await confirmAction({
+      title: "Remove duplicate records?",
+      message: `This will delete ${duplicateCount.toLocaleString("en-IN")} duplicate row(s), keeping the oldest entry per pincode + office name.`,
+      confirmLabel: "Remove duplicates",
+      severity: "error",
+    });
+    if (!ok) return;
+    const data = await api.removePincodeDuplicates(token);
+    showToast(data.message || "Done", data.status !== "success");
+    if (data.status === "success") {
+      load();
+      loadStats();
+    }
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^\d{6}$/.test(form.pincode.replace(/\D/g, ""))) {
+      showToast("Pincode must be exactly 6 digits", true);
+      return;
+    }
     const res = await api.createPincodeRow(token, form);
     if (res.status === "success") {
       showToast("Post office added");
@@ -97,7 +132,13 @@ export default function PincodeDirectoryTab({ token }: Props) {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this post office record?")) return;
+    const ok = await confirmAction({
+      title: "Delete record?",
+      message: "This post office row will be permanently removed.",
+      confirmLabel: "Delete",
+      severity: "error",
+    });
+    if (!ok) return;
     await api.deletePincodeRow(token, id);
     load();
   };
@@ -131,6 +172,14 @@ export default function PincodeDirectoryTab({ token }: Props) {
         </button>
         <button
           type="button"
+          onClick={handleRemoveDuplicates}
+          disabled={duplicateCount === 0}
+          style={{ ...btnStyle, color: duplicateCount > 0 ? "#ef4444" : undefined }}
+        >
+          <CopyMinus size={16} aria-hidden /> Remove duplicates ({duplicateCount.toLocaleString("en-IN")})
+        </button>
+        <button
+          type="button"
           onClick={() => setShowAdd(!showAdd)}
           style={btnStyle}
         >
@@ -155,6 +204,11 @@ export default function PincodeDirectoryTab({ token }: Props) {
       >
         Source: <code>pincode_directory.csv</code> at project root. Total
         records: {total.toLocaleString("en-IN")}
+        {duplicateCount > 0 && (
+          <span style={{ color: "#ef4444", marginLeft: 8 }}>
+            · {duplicateCount.toLocaleString("en-IN")} duplicates detected
+          </span>
+        )}
       </p>
 
       <div

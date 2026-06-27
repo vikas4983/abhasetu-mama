@@ -7,12 +7,23 @@ import BottomNav from '../../components/layout/BottomNav';
 import Footer from '../../components/layout/Footer';
 import ActiveTokenBanner from '../../components/layout/ActiveTokenBanner';
 
+/** Routes that use compact stakeholder/admin MUI shell — no patient bottom nav */
+const STAKEHOLDER_SHELL_PREFIXES = ['/admin', '/stakeholder', '/dashboard'];
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const compactShell = STAKEHOLDER_SHELL_PREFIXES.some(
+    (p) => pathname === p || pathname?.startsWith(`${p}/`),
+  );
+
+  if (compactShell) {
+    return <>{children}</>;
+  }
+
   const mainClass = pathname === '/' ? 'home-shell' : 'route-shell';
 
   return (

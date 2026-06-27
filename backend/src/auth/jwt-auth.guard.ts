@@ -6,7 +6,9 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
+import type { JwtUserPayload } from './auth-user.interface';
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: ('admin' | 'master_admin')[]) =>
@@ -20,7 +22,7 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -28,7 +30,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = this.authService.verifyJwt(token);
+    const decoded: JwtUserPayload = this.authService.verifyJwt(token);
 
     // Attach user payload to the request
     request.user = decoded;
