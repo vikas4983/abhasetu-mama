@@ -6,6 +6,7 @@ import { useAuth, User as UserType } from "../../providers/AuthProvider";
 import { useLanguage, LanguageCode } from "../../providers/LanguageProvider";
 import { useTheme } from "../../providers/ThemeProvider";
 import { showToast } from "../../utils/toast";
+import { PatientLogoutDialog } from "@/features/patient-logout";
 import {
   Search,
   Plus,
@@ -1617,33 +1618,35 @@ export default function Header() {
 
                     <hr className="dropdown-divider" />
 
-                    <button
-                      className="dropdown-item logout-btn"
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        setShowLogoutConfirm(true);
-                      }}
-                      role="menuitem"
-                      style={{
-                        border: 0,
-                        background: "transparent",
-                        width: "100%",
-                        textAlign: "left",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <LogOut
-                        className="small-icon"
-                        style={{
-                          color: "var(--danger)",
-                          width: "14px",
-                          height: "14px",
+                    {currentUser?.role === "patient" && (
+                      <button
+                        className="dropdown-item logout-btn"
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          setShowLogoutConfirm(true);
                         }}
-                      />
-                      <span style={{ color: "var(--danger)" }}>
-                        {t("Logout")}
-                      </span>
-                    </button>
+                        role="menuitem"
+                        style={{
+                          border: 0,
+                          background: "transparent",
+                          width: "100%",
+                          textAlign: "left",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <LogOut
+                          className="small-icon"
+                          style={{
+                            color: "var(--danger)",
+                            width: "14px",
+                            height: "14px",
+                          }}
+                        />
+                        <span style={{ color: "var(--danger)" }}>
+                          {t("Logout")}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1653,112 +1656,11 @@ export default function Header() {
       </header>
 
       {showLogoutConfirm && (
-        <div className="logout-modal-overlay">
-          <div className="logout-modal-content">
-            {/* Animated Logout Icon / Pulse ring */}
-            <div
-              style={{
-                position: "relative",
-                width: "80px",
-                height: "80px",
-                margin: "0 auto 20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  borderRadius: "50%",
-                  border: "2px dashed var(--accent-teal)",
-                  animation: "spin 12s linear infinite",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  top: "8px",
-                  left: "8px",
-                  right: "8px",
-                  bottom: "8px",
-                  borderRadius: "50%",
-                  border: "2px solid rgba(239, 68, 68, 0.2)",
-                  background: "rgba(239, 68, 68, 0.1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <LogOut
-                  style={{ width: "32px", height: "32px", color: "#ef4444" }}
-                />
-              </div>
-            </div>
-
-            <h3
-              style={{
-                fontSize: "18px",
-                fontWeight: 800,
-                color: "var(--text-primary)",
-                marginBottom: "8px",
-              }}
-            >
-              {t("Confirm Sign Out")}
-            </h3>
-            <p
-              style={{
-                fontSize: "12.5px",
-                color: "var(--text-secondary)",
-                lineHeight: "1.5",
-                marginBottom: "24px",
-              }}
-            >
-              {t(
-                "Are you sure you want to terminate your secure session? Unsaved transactions might be lost.",
-              )}
-            </p>
-
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="prefill-btn"
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border-color)",
-                  background: "transparent",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {t("Cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  setShowLogoutConfirm(false);
-                  logout();
-                }}
-                className="prefill-btn active"
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  borderRadius: "8px",
-                  background: "var(--danger)",
-                  border: "none",
-                  color: "#fff",
-                  fontWeight: "bold",
-                }}
-              >
-                {t("Sign Out")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PatientLogoutDialog
+          open={showLogoutConfirm}
+          onClose={() => setShowLogoutConfirm(false)}
+          useAbdmLogout={currentUser?.role === "patient"}
+        />
       )}
     </>
   );

@@ -1898,12 +1898,23 @@ export class IdentityService {
 
   /**
    * @description Logout ABHA profile session (M1: GET profile/account/request/logout)
+   * Headers: REQUEST-ID, TIMESTAMP, Authorization (gateway), X-Token (profile JWT)
    */
   async profileLogout(xToken: string): Promise<Record<string, unknown>> {
+    if (!xToken?.trim()) {
+      return {
+        status: 'error',
+        code: 'MISSING_X_TOKEN',
+        message: 'ABHA session token (X-Token) not found. Please log in again.',
+        description: 'Cookie or Authorization header must carry the profile JWT from ABHA login.',
+      };
+    }
+
     const config = await this.sessionService.getConfig();
     const sessionRes = await this.sessionService.getGatewaySession();
     const gatewayToken = sessionRes.tokenPreview;
     const cleanXToken = xToken.startsWith('Bearer ') ? xToken : `Bearer ${xToken}`;
+
     try {
       const baseUrl = await this.sessionService.getAbhaBaseUrl();
       const response = await axios.get(`${baseUrl}${ABDM_ENDPOINTS.ABHA_PROFILE_LOGOUT}`, {
@@ -1913,16 +1924,36 @@ export class IdentityService {
           [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',
           [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${gatewayToken}`,
           [ABDM_HEADERS.X_TOKEN]: cleanXToken,
-          'X-token': cleanXToken,
         },
       });
-      return { status: 'success', ...response.data };
+      const data = response.data as Record<string, unknown>;
+      return {
+        status: 'success',
+        message: (data.message as string) || 'You have been logged out',
+        timestamp: data.timestamp as string | undefined,
+        gatewayResponse: data,
+      };
     } catch (e: unknown) {
+      if (axios.isAxiosError(e) && e.response?.data) {
+        const data = e.response.data as Record<string, unknown>;
+        return {
+          status: 'error',
+          code: data.code as string | undefined,
+          message: (data.message as string) || 'Logout failed',
+          description: data.description as string | undefined,
+          gatewayResponse: data,
+        };
+      }
       if (isSimulationEnabled()) {
-        return { status: 'success', message: 'Logged out (simulated)' };
+        return {
+          status: 'success',
+          message: 'You have been logged out',
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          gatewayResponse: { message: 'Logged out (simulated)', simulated: true },
+        };
       }
       const resolved = resolveAxiosError(e);
-      return { status: 'error', message: resolved.userMessage };
+      return { status: 'error', message: resolved.userMessage, gatewayResponse: { error: resolved.userMessage } };
     }
   }
 }
