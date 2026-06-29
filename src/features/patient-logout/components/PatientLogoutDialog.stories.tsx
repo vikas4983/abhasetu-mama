@@ -18,7 +18,7 @@ function DialogDemo() {
       <button type="button" onClick={() => setOpen(true)}>
         Open logout dialog
       </button>
-      <PatientLogoutDialog open={open} onClose={() => setOpen(false)} useAbdmLogout={false} />
+      <PatientLogoutDialog open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

@@ -23,6 +23,7 @@ const clinical_module_1 = require("./clinical/clinical.module");
 const admin_module_1 = require("./admin/admin.module");
 const tests_module_1 = require("./tests/tests.module");
 const phr_module_1 = require("./phr/phr.module");
+const public_module_1 = require("./public/public.module");
 let AbdmModule = class AbdmModule {
 };
 exports.AbdmModule = AbdmModule;
@@ -44,6 +45,7 @@ exports.AbdmModule = AbdmModule = __decorate([
             admin_module_1.AdminModule,
             tests_module_1.TestsModule,
             phr_module_1.PhrModule,
+            public_module_1.PublicAbdmModule,
         ],
         exports: [
             crypto_module_1.CryptoModule,
@@ -61,6 +63,7 @@ exports.AbdmModule = AbdmModule = __decorate([
             admin_module_1.AdminModule,
             tests_module_1.TestsModule,
             phr_module_1.PhrModule,
+            public_module_1.PublicAbdmModule,
         ],
     })
 ], AbdmModule);

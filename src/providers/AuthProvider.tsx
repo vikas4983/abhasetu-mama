@@ -272,11 +272,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const syncBranding = async () => {
       try {
-        const res = await fetch("/api/abdm/admin/config");
+        const res = await fetch("/api/abdm/public/branding");
         if (res.ok) {
           const data = await res.json();
-          if (data.status === "success" && data.config) {
-            const serverConfig = data.config;
+          if (data.status === "success" && data.branding) {
+            const serverConfig = data.branding;
             const current = JSON.parse(
               localStorage.getItem("setu_state") || "{}",
             );

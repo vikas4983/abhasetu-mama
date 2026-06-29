@@ -2,8 +2,8 @@ import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 export class ProfileLoginOtpDto {
   @IsArray()
-  @IsNotEmpty()
-  scope: string[];
+  @IsOptional()
+  scope?: string[];
 
   @IsString()
   @IsNotEmpty()

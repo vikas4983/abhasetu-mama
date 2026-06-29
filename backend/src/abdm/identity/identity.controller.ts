@@ -19,6 +19,18 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ProfileLoginOtpDto } from './dto/profile-login-otp.dto';
 import { ProfileLoginVerifyDto } from './dto/profile-login-verify.dto';
 import { AccountActionOtpDto } from './dto/account-action-otp.dto';
+import { AccountDeleteService } from './account-delete.service';
+import { AccountDeactivateService } from './account-deactivate.service';
+import { ProfileLoginService } from './profile-login.service';
+import { DeleteAbhaRequestOtpDto } from './dto/delete-abha-request-otp.dto';
+import { DeleteAbhaVerifyDto } from './dto/delete-abha-verify.dto';
+import { ProfileAccountRequestOtpDto } from './dto/profile-account-request-otp.dto';
+import { normalizeAbhaNumberDigits } from './utils/abha-number.util';
+import { toClientAccountActionResult } from './utils/client-response.util';
+import { extractAbhaNumberFromXToken, extractProfileXToken } from './utils/x-token.util';
+
+/** HttpOnly cookie storing full 14-digit ABHA for account lifecycle RSA loginId */
+const ABHA_NUMBER_COOKIE = 'abha_number';
 
 function getCookie(cookieHeader: string | undefined, name: string): string {
   if (!cookieHeader) return '';
@@ -39,6 +51,9 @@ export class IdentityController {
   constructor(
     private readonly identityService: IdentityService,
     private readonly accountManagement: AccountManagementService,
+    private readonly accountDelete: AccountDeleteService,
+    private readonly accountDeactivate: AccountDeactivateService,
+    private readonly profileLogin: ProfileLoginService,
     private readonly sessionService: SessionService
   ) {}
 
@@ -164,6 +179,12 @@ export class IdentityController {
         sameSite: 'strict',
         maxAge: result.tokens.expiresIn * 1000
       });
+      this.setAbhaNumberCookie(res, {
+        abhaRaw: result.abhaNumber || result.data?.abhaNumber,
+        xToken: result.tokens.token,
+        accounts: result.accounts,
+        maxAgeSec: result.tokens.expiresIn,
+      });
     }
     if (result.tokens?.refreshToken) {
       res.cookie('refresh_token', result.tokens.refreshToken, {
@@ -224,6 +245,12 @@ export class IdentityController {
         sameSite: 'strict',
         maxAge: result.tokens.expiresIn * 1000
       });
+      this.setAbhaNumberCookie(res, {
+        abhaRaw: result.abhaNumber || result.data?.abhaNumber,
+        xToken: result.tokens.token,
+        accounts: result.accounts,
+        maxAgeSec: result.tokens.expiresIn,
+      });
     }
     if (result.tokens?.refreshToken) {
       res.cookie('refresh_token', result.tokens.refreshToken, {
@@ -239,52 +266,51 @@ export class IdentityController {
 
   @Post('v3/profile/login/request/otp')
   async v3ProfileLoginRequestOtp(@Body() body: ProfileLoginOtpDto, @Res() res: express.Response, @Req() req: express.Request) {
-    const { scope, loginHint, loginId, otpSystem } = body;
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const context = { ip, userAgent };
 
-    const result = await this.identityService.requestProfileLoginOtp(loginId, scope, loginHint, otpSystem, context);
+    const result = await this.profileLogin.requestLoginOtp(
+      {
+        scope: body.scope,
+        loginHint: body.loginHint,
+        loginId: body.loginId,
+        otpSystem: body.otpSystem as 'aadhaar' | 'abdm' | undefined,
+      },
+      context,
+    );
 
-    if (result.scope === 'Invalid Scope' || result.loginId === 'Invalid LoginId' || result.loginHint === 'Invalid Login Hint') {
-      return res.status(HttpStatus.BAD_REQUEST).json(result);
-    }
+    const httpStatus = result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK;
     if (result.code === '900901') {
       return res.status(HttpStatus.UNAUTHORIZED).json(result);
     }
-
-    if (result.status === 'error') {
-      return res.status(HttpStatus.BAD_REQUEST).json(result);
-    }
-
-    return res.status(HttpStatus.OK).json(result);
+    return res.status(httpStatus).json(result);
   }
 
   @Post('v3/profile/login/verify')
   async v3ProfileLoginVerify(@Body() body: ProfileLoginVerifyDto, @Res() res: express.Response, @Req() req: express.Request) {
-    const { scope, authData } = body;
-    const otp = authData?.otp?.otpValue;
-    const txnId = authData?.otp?.txnId;
-    const authMethods = authData?.authMethods;
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || req.ip;
     const userAgent = req.headers['user-agent'] || '';
     const context = { ip, userAgent };
 
-    const result = await this.identityService.verifyProfileLoginOtp(otp, txnId, scope, authMethods, context);
+    const result = await this.profileLogin.verifyLoginOtp(
+      {
+        scope: body.scope,
+        authData: {
+          authMethods: body.authData?.authMethods ?? ['otp'],
+          otp: body.authData?.otp,
+        },
+      },
+      context,
+    );
 
-    if (result.scope === 'Invalid Scope' || result.authMethods === 'Invalid Auth Method' || result.txnId === 'Invalid Transaction Id' || result.otpValue === 'Invalid OTP Value') {
-      return res.status(HttpStatus.BAD_REQUEST).json(result);
-    }
     if (result.code === '900901') {
       return res.status(HttpStatus.UNAUTHORIZED).json(result);
     }
-    if (result.authResult === 'failed') {
+    if (result.authResult === 'failed' || result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
 
-    if (result.status === 'error') {
-      return res.status(HttpStatus.BAD_REQUEST).json(result);
-    }
     if (result.token) {
       res.cookie('verify_via_abha_number_token', result.token, {
         httpOnly: true,
@@ -297,6 +323,17 @@ export class IdentityController {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: (result.expiresIn || 300) * 1000
+      });
+      res.cookie('x_token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: (result.expiresIn || 1800) * 1000
+      });
+      this.setAbhaNumberCookie(res, {
+        xToken: result.token,
+        accounts: result.accounts,
+        maxAgeSec: result.expiresIn || 1800,
       });
     }
 
@@ -553,7 +590,34 @@ export class IdentityController {
   }
 
   @Post('v3/profile/account/request/otp')
-  async requestReKycOtp(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+  async requestProfileAccountOtp(
+    @Body() body: ProfileAccountRequestOtpDto,
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
+    const scope = Array.isArray(body.scope) ? body.scope : [];
+    if (scope.includes('de-activate')) {
+      if (!body.otpSystem) {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          status: 'error',
+          message: 'otpSystem is required (aadhaar or abdm) for deactivate OTP.',
+        });
+      }
+      return this.deactivateAbhaRequestOtp(
+        { ABHANumber: body.ABHANumber, abhaNumber: body.abhaNumber, otpSystem: body.otpSystem },
+        req,
+        res,
+      );
+    }
+    return this.requestReKycOtpLegacy(body, req, res);
+  }
+
+  /** @description Re-KYC OTP — legacy body { abhaNumber } without scope */
+  private async requestReKycOtpLegacy(
+    body: ProfileAccountRequestOtpDto,
+    req: express.Request,
+    res: express.Response,
+  ) {
     const { abhaNumber } = body;
     
     let xToken = getCookie(req.headers.cookie, 'x_token') || 
@@ -574,7 +638,7 @@ export class IdentityController {
       gatewayToken = 'mock-gateway-token';
     }
 
-    const result = await this.identityService.requestReKycOtp(abhaNumber, xToken, gatewayToken);
+    const result = await this.identityService.requestReKycOtp(abhaNumber || '', xToken, gatewayToken);
     
     if (result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result.details || {
@@ -587,7 +651,20 @@ export class IdentityController {
   }
 
   @Post('v3/profile/account/verify')
-  async verifyReKycOtp(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+  async verifyProfileAccount(@Body() body: any, @Req() req: express.Request, @Res() res: express.Response) {
+    const scope = Array.isArray(body.scope) ? body.scope : [];
+    if (scope.includes('de-activate')) {
+      return this.deactivateAbhaVerify(body as DeleteAbhaVerifyDto, req, res);
+    }
+    return this.verifyReKycOtpLegacy(body, req, res);
+  }
+
+  /** @description Re-KYC verify — legacy body { otp, txnId } without scope */
+  private async verifyReKycOtpLegacy(
+    body: { otp?: string; txnId?: string },
+    req: express.Request,
+    res: express.Response,
+  ) {
     const { otp, txnId } = body;
     
     let xToken = getCookie(req.headers.cookie, 'x_token') || 
@@ -608,7 +685,7 @@ export class IdentityController {
       gatewayToken = 'mock-gateway-token';
     }
 
-    const result = await this.identityService.verifyReKycOtp(otp, txnId, xToken, gatewayToken);
+    const result = await this.identityService.verifyReKycOtp(otp || '', txnId || '', xToken, gatewayToken);
     
     if (result.status === 'error') {
       return res.status(HttpStatus.BAD_REQUEST).json(result.details || {
@@ -828,10 +905,96 @@ export class IdentityController {
   }
 
   private extractXToken(req: express.Request): string {
-    return getCookie(req.headers.cookie, 'x_token') ||
-      getCookie(req.headers.cookie, 'verify_via_abha_number_token') ||
-      getCookie(req.headers.cookie, 'session_id') ||
-      req.headers.authorization?.replace('Bearer ', '') || '';
+    return extractProfileXToken(req.headers.cookie, req.headers.authorization);
+  }
+
+  /** @description Persist full ABHA digits in httpOnly cookie after successful login */
+  private setAbhaNumberCookie(
+    res: express.Response,
+    sources: {
+      abhaRaw?: string;
+      xToken?: string;
+      accounts?: unknown[];
+      maxAgeSec?: number;
+    },
+  ): void {
+    let digits: string | null = null;
+    if (sources.abhaRaw) {
+      digits = normalizeAbhaNumberDigits(sources.abhaRaw);
+    }
+    if (!digits && sources.xToken) {
+      digits = extractAbhaNumberFromXToken(sources.xToken);
+    }
+    if (!digits && Array.isArray(sources.accounts)) {
+      for (const acc of sources.accounts) {
+        const row = acc as Record<string, string>;
+        digits = normalizeAbhaNumberDigits(row.ABHANumber || row.abhaNumber || '');
+        if (digits) break;
+      }
+    }
+    if (!digits) return;
+
+    res.cookie(ABHA_NUMBER_COOKIE, digits, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: (sources.maxAgeSec ?? 1200) * 1000,
+    });
+  }
+
+  /** @description Resolve full 14-digit ABHA for RSA loginId (cookie → JWT → body → profile API) */
+  private async resolveAbhaNumberForAction(
+    bodyAbha: string | undefined,
+    xToken: string,
+    cookieHeader?: string,
+  ): Promise<{ abhaNumber: string } | { error: string }> {
+    const fromCookie = normalizeAbhaNumberDigits(getCookie(cookieHeader, ABHA_NUMBER_COOKIE));
+    if (fromCookie) return { abhaNumber: fromCookie };
+
+    if (xToken) {
+      const fromJwt = extractAbhaNumberFromXToken(xToken);
+      if (fromJwt) return { abhaNumber: fromJwt };
+    }
+
+    const fromBody = bodyAbha ? normalizeAbhaNumberDigits(bodyAbha) : null;
+    if (fromBody) return { abhaNumber: fromBody };
+
+    let gatewayToken = '';
+    try {
+      const sessionRes = await this.sessionService.getGatewaySession();
+      gatewayToken = sessionRes.tokenPreview;
+      if (!gatewayToken || gatewayToken === 'simulated-session-token') {
+        return {
+          error:
+            'ABDM gateway is not configured. Set ABDM_CLIENT_ID and ABDM_CLIENT_SECRET in backend .env.',
+        };
+      }
+    } catch {
+      return { error: 'Gateway session unavailable. Cannot resolve ABHA number.' };
+    }
+
+    const profile = await this.identityService.getProfileAccount(xToken, gatewayToken);
+    if (profile.status === 'error') {
+      return {
+        error:
+          typeof profile.message === 'string'
+            ? profile.message
+            : 'Unable to load ABHA profile. Sign in again and retry.',
+      };
+    }
+    const data = (profile.data ?? profile) as Record<string, unknown>;
+    const raw =
+      (data.ABHANumber as string) ||
+      (data.abhaNumber as string) ||
+      (data.healthIdNumber as string) ||
+      '';
+    const fromProfile = normalizeAbhaNumberDigits(String(raw));
+    if (fromProfile) return { abhaNumber: fromProfile };
+
+    return {
+      error:
+        'Could not resolve your ABHA number for this action. Sign out, log in again with ABHA OTP, then retry.',
+    };
   }
 
   @Post('v3/profile/account/set-password')
@@ -931,6 +1094,183 @@ export class IdentityController {
     return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(result);
   }
 
+  @Post('v3/profile/account/delete/request-otp')
+  async deleteAbhaRequestOtp(
+    @Body() body: DeleteAbhaRequestOtpDto,
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
+    const xToken = this.extractXToken(req);
+    const resolved = await this.resolveAbhaNumberForAction(
+      body.abhaNumber,
+      xToken,
+      req.headers.cookie,
+    );
+    if ('error' in resolved) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ status: 'error', message: resolved.error });
+    }
+    const result = await this.accountDelete.requestDeleteOtp({
+      abhaNumber: resolved.abhaNumber,
+      otpSystem: body.otpSystem,
+      xToken,
+    });
+    return res
+      .status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK)
+      .json(toClientAccountActionResult(result));
+  }
+
+  @Post('v3/profile/account/delete/verify')
+  async deleteAbhaVerify(
+    @Body() body: DeleteAbhaVerifyDto,
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
+    const xToken = this.extractXToken(req);
+    if (body.password) {
+      const result = await this.accountDelete.verifyDeletePassword({
+        password: body.password,
+        reasons: body.reasons,
+        xToken,
+      });
+      if (result.status === 'success') {
+        res.clearCookie('x_token');
+    res.clearCookie(ABHA_NUMBER_COOKIE);
+      res.clearCookie(ABHA_NUMBER_COOKIE);
+        res.clearCookie(ABHA_NUMBER_COOKIE);
+        res.clearCookie('session_id');
+        res.clearCookie('verify_via_abha_number_token');
+        res.clearCookie('refresh_token');
+      }
+      return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(
+        toClientAccountActionResult(result),
+      );
+    }
+    if (!body.txnId || !body.otp) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'txnId and otp are required for OTP verification',
+      });
+    }
+    const result = await this.accountDelete.verifyDeleteOtp({
+      txnId: body.txnId,
+      otp: body.otp,
+      reasons: body.reasons,
+      xToken,
+    });
+    if (result.status === 'success') {
+      res.clearCookie('x_token');
+    res.clearCookie(ABHA_NUMBER_COOKIE);
+      res.clearCookie(ABHA_NUMBER_COOKIE);
+      res.clearCookie('session_id');
+      res.clearCookie('verify_via_abha_number_token');
+      res.clearCookie('refresh_token');
+    }
+    return res
+      .status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK)
+      .json(toClientAccountActionResult(result));
+  }
+
+  @Post('v3/profile/account/deactivate/request-otp')
+  async deactivateAbhaRequestOtpAlias(
+    @Body() body: DeleteAbhaRequestOtpDto,
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
+    return this.deactivateAbhaRequestOtp(body, req, res);
+  }
+
+  /** @description Deactivate OTP — ABHA from profile account API, loginId encrypted server-side */
+  private async deactivateAbhaRequestOtp(
+    body: DeleteAbhaRequestOtpDto,
+    req: express.Request,
+    res: express.Response,
+  ) {
+    const xToken = this.extractXToken(req);
+    if (!xToken) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        status: 'error',
+        message:
+          'Profile session (X-token) is required. Please log in with ABHA OTP and try again.',
+      });
+    }
+
+    const resolved = await this.identityService.resolveAbhaNumberFromProfileAccount(xToken);
+    if ('status' in resolved) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: resolved.message,
+      });
+    }
+
+    const result = await this.accountDeactivate.requestDeactivateOtp({
+      abhaNumber: resolved.abhaNumber,
+      ABHANumber: resolved.ABHANumber,
+      otpSystem: body.otpSystem,
+      xToken,
+    });
+    return res
+      .status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK)
+      .json(toClientAccountActionResult(result));
+  }
+
+  @Post('v3/profile/account/deactivate/verify')
+  async deactivateAbhaVerify(
+    @Body() body: DeleteAbhaVerifyDto,
+    @Req() req: express.Request,
+    @Res() res: express.Response,
+  ) {
+    const xToken = this.extractXToken(req);
+    if (!xToken) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        status: 'error',
+        message:
+          'Profile session (X-token) is required. Please log in with ABHA OTP and try again.',
+      });
+    }
+    if (body.password) {
+      const result = await this.accountDeactivate.verifyDeactivatePassword({
+        password: body.password,
+        reasons: body.reasons,
+        xToken,
+      });
+      if (result.status === 'success') {
+        res.clearCookie('x_token');
+    res.clearCookie(ABHA_NUMBER_COOKIE);
+      res.clearCookie(ABHA_NUMBER_COOKIE);
+        res.clearCookie(ABHA_NUMBER_COOKIE);
+        res.clearCookie('session_id');
+        res.clearCookie('verify_via_abha_number_token');
+        res.clearCookie('refresh_token');
+      }
+      return res.status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK).json(
+        toClientAccountActionResult(result),
+      );
+    }
+    if (!body.txnId || !body.otp) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        status: 'error',
+        message: 'txnId and otp are required for OTP verification',
+      });
+    }
+    const result = await this.accountDeactivate.verifyDeactivateOtp({
+      txnId: body.txnId,
+      otp: body.otp,
+      reasons: body.reasons,
+      xToken,
+    });
+    if (result.status === 'success') {
+      res.clearCookie('x_token');
+    res.clearCookie(ABHA_NUMBER_COOKIE);
+      res.clearCookie(ABHA_NUMBER_COOKIE);
+      res.clearCookie('session_id');
+      res.clearCookie('verify_via_abha_number_token');
+      res.clearCookie('refresh_token');
+    }
+    return res
+      .status(result.status === 'error' ? HttpStatus.BAD_REQUEST : HttpStatus.OK)
+      .json(toClientAccountActionResult(result));
+  }
+
   @Get('v3/profile/account/request/logout')
   async profileLogout(@Req() req: express.Request, @Res() res: express.Response) {
     const xToken = this.extractXToken(req);
@@ -939,6 +1279,7 @@ export class IdentityController {
       return res.status(HttpStatus.BAD_REQUEST).json(result);
     }
     res.clearCookie('x_token');
+    res.clearCookie(ABHA_NUMBER_COOKIE);
     res.clearCookie('session_id');
     res.clearCookie('verify_via_abha_number_token');
     res.clearCookie('refresh_token');

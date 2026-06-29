@@ -1,0 +1,91 @@
+---
+description: ABDM API standards — feature name → BFF path, scopes, tokens. Use when implementing any ABDM feature.
+globs:
+  - backend/src/abdm/**
+  - src/app/**
+  - src/features/**
+  - docs/milestone*.md
+alwaysApply: false
+---
+
+# ABDM API Rulebook
+
+Reference docs: `docs/milestone-api-inventory.md`, `docs/milestone1-api-matrix.md`
+
+## BFF path convention
+
+- Client calls: `/api/abdm` + **same path as Postman** after the gateway host.
+- Example: Postman `POST /api/v3/profile/login/request/otp` → BFF `POST /api/abdm/v3/profile/login/request/otp`
+- Next.js rewrites `/api/abdm/*` to NestJS (`globalPrefix: api/abdm`).
+
+## Token model
+
+| Token | Source | Usage |
+|-------|--------|--------|
+| **Gateway access token** | `POST /gateway/v0.5/sessions` → `{ accessToken, expiresIn, refreshToken, tokenType }` | Server-only. `Authorization: Bearer Token {accessToken}` on all ABDM gateway calls. Never expose to browser. |
+| **X-token** | Profile login/enrollment verify → `{ tokens: { token }, ABHAProfile, txnId, isNew }` | User session JWT. Set as httpOnly `x_token` cookie. Used for profile APIs. |
+| **txnId** | Every OTP request response | Required on verify/confirm for the same transaction. Persist client-side between send-OTP and verify steps. |
+
+## BFF response envelope
+
+All ABDM-proxied routes return:
+
+```json
+{
+  "status": "success|error",
+  "message": "user-facing",
+  "txnId": "...",
+  "abdmResponse": { }
+}
+```
+
+`abdmResponse` is the **full raw ABDM gateway JSON** for Network tab debugging. Never log PHI from it.
+
+## Restrictions
+
+- **No biometrics** (`aadhaar-bio-verify`, `aadhaar-face-verify`, `aadhaar-iris-verify`) — private company sandbox limitation.
+- **Never expose** `ABDM_CLIENT_ID`, `ABDM_CLIENT_SECRET` to the client. Use `GET /api/abdm/public/branding` for UI theme only.
+- **Do not modify** working flows: Aadhaar enrollment, mobile update, email verification, photo update, download ABHA, Re-KYC (unless explicitly requested).
+
+## Feature → API map (Milestone 1 — Profile Login)
+
+| Feature | BFF endpoint | Scope | loginHint | otpSystem |
+|---------|--------------|-------|-----------|-----------|
+| Login — Mobile | `POST /v3/profile/login/request/otp` | `abha-login`, `mobile-verify` | `mobile` | `abdm` |
+| Login — ABHA number + Aadhaar OTP | same | `abha-login`, `aadhaar-verify` | `abha-number` | `aadhaar` |
+| Login — ABHA number + mobile OTP | same | `abha-login`, `mobile-verify` | `abha-number` | `abdm` |
+| Login — ABHA address + Aadhaar OTP | same | `abha-address-login`, `aadhaar-verify` | `abha-address` | `aadhaar` |
+| Login — ABHA address + mobile OTP | same | `abha-address-login`, `mobile-verify` | `abha-address` | `abdm` |
+| Login verify | `POST /v3/profile/login/verify` | same scope as request | — | encrypt OTP server-side |
+| Login refresh X-token | `GET /v3/profile/account/request/token` | — | Header `R-token: Bearer {refresh}` | |
+| Profile account | `GET /v3/profile/account` | — | Header `X-token: Bearer {token}` | |
+
+Implementation: `backend/src/abdm/identity/profile-login.service.ts`
+
+## Feature → API map (Account lifecycle — do not break)
+
+| Feature | BFF endpoint | Scope |
+|---------|--------------|-------|
+| Deactivate OTP | `POST /v3/profile/account/deactivate/request/otp` | `abha-profile`, `de-activate` |
+| Deactivate verify | `POST /v3/profile/account/deactivate/verify` | same |
+| Delete OTP | `POST /v3/profile/account/request/otp` (delete scope) | `abha-profile`, `delete` |
+| Delete verify | `POST /v3/profile/account/verify` | same |
+
+## Milestone 2 / 3
+
+See `docs/milestone-api-inventory.md` for full list. M2/M3 routes are documented; integrate per feature module without changing M1 enrollment/profile flows.
+
+## Running token (Scan & Share adjunct)
+
+| Feature | ABDM path | BFF path |
+|---------|-----------|----------|
+| Token status | `POST /api/hiecm/patient-share/v3/running-token/status` | `POST /api/abdm/hiecm/patient-share/v3/running-token/status` |
+| On status callback | `POST .../on-status` | Callback route under `/api/abdm/callbacks/` |
+
+## When user names a feature
+
+1. Look up feature in this rulebook or `docs/milestone-api-inventory.md`.
+2. Use exact BFF path matching Postman.
+3. Validate scope/loginHint/otpSystem per Postman body.
+4. Encrypt sensitive fields (loginId, OTP, Aadhaar) **server-side only**.
+5. Return `wrapBffAbdmResponse()` from `client-response.util.ts`.

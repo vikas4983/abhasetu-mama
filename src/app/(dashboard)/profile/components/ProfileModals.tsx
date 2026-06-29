@@ -11,6 +11,9 @@ import React from 'react';
 import { CreditCard, X, Printer, Phone, Mail, Camera, Pencil, Check, Key, RefreshCw, EyeOff, Eye, ShieldAlert, UserMinus, AlertCircle } from 'lucide-react';
 import OtpInput from '../../../../components/common/OtpInput';
 import { ImageCropper } from '../../../../components/common/ImageCropper';
+import { AbhaCardComponent } from './common/AbhaCardComponent';
+import { AbhaCardBackComponent } from './common/AbhaCardBackComponent';
+import type { AbdmProfile } from '../page';
 
 interface ProfileModalsProps {
   activeModal: string | null;
@@ -21,6 +24,7 @@ interface ProfileModalsProps {
   pvcTab: 'front' | 'back';
   setPvcTab: (tab: 'front' | 'back') => void;
   getPhotoSrc: (photo: string | undefined) => string;
+  getProfilePhotoSrc: (override?: string) => string;
   getGenderDisplay: (gender: string | undefined) => string;
   handlePrintPvc: () => void;
   shakeModal: boolean;
@@ -79,6 +83,11 @@ interface ProfileModalsProps {
   reKycOtp: string;
   setReKycOtp: (otp: string) => void;
   handleVerifyReKycOtp: () => Promise<void>;
+  handleCloseReKycModal: () => void;
+  reKycOtpMessage: string;
+  reKycSuccessMessage: string;
+  profileDetails: { status: string; data: AbdmProfile } | null;
+  getDobString: (profileData: Partial<AbdmProfile> | undefined) => string;
   deactivateConfirmed: boolean;
   deactivateOtpStep: boolean;
   setDeactivateOtpStep: (step: boolean) => void;
@@ -120,6 +129,7 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
   pvcTab,
   setPvcTab,
   getPhotoSrc,
+  getProfilePhotoSrc,
   getGenderDisplay,
   handlePrintPvc,
   shakeModal,
@@ -178,6 +188,11 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
   reKycOtp,
   setReKycOtp,
   handleVerifyReKycOtp,
+  handleCloseReKycModal,
+  reKycOtpMessage,
+  reKycSuccessMessage,
+  profileDetails,
+  getDobString,
   deactivateConfirmed,
   deactivateOtpStep,
   setDeactivateOtpStep,
@@ -271,152 +286,26 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
             {/* Modal Body / Previews */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', minHeight: '300px', justifyContent: 'center', padding: '10px 0' }}>
               {pvcTab === 'front' ? (
-                /* FRONT PREVIEW */
                 <div style={{ width: '100%', maxWidth: '440px' }}>
-                  <article 
-                    className="setu-abha-card" 
-                    style={{ 
-                      width: '100%', borderRadius: '16px', overflow: 'hidden', border: '1px solid #cbd5e1',
-                      fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minHeight: '277px', background: '#ffffff'
+                  <AbhaCardComponent
+                    abhaProfile={{
+                      ...abhaProfile,
+                      ...(profileDetails?.data || {}),
+                      dob: getDobString(profileDetails?.data),
                     }}
-                  >
-                    {/* Header */}
-                    <div className="setu-abha-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#264488', borderBottom: '2px solid #10b981', height: '56px', boxSizing: 'border-box' }}>
-                      <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <img src="/assets/svg/nha.svg" alt="NHA Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
-                      </div>
-                      <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '800', letterSpacing: '0.2px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
-                        <span style={{ fontSize: '8px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
-                      </div>
-                      <div style={{ height: '42px', width: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }}>
-                        <img src="/assets/svg/abdm1.svg" alt="ABDM Logo" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
-                      </div>
-                    </div>
-                    
-                    {/* Body */}
-                    <div className="setu-abha-card-body" style={{ display: 'grid', gridTemplateColumns: '85px 1fr 75px', gap: '12px', padding: '12px', background: 'radial-gradient(circle, #ffffff 0%, #f1f5f9 100%)', color: '#0f172a', alignItems: 'center', height: 'calc(100% - 56px)', boxSizing: 'border-box' }}>
-                      <div style={{ width: '85px', height: '110px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #94a3b8', flexShrink: 0 }}>
-                        <img src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser?.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left', minWidth: 0 }}>
-                        <div>
-                          <span style={{ fontSize: '6px', color: '#64748b', display: 'block', fontWeight: 700 }}>Name / नाम</span>
-                          <strong style={{ fontSize: '10px', color: '#0f172a', fontWeight: '800', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {abhaProfile.name || [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') || currentUser?.name}
-                          </strong>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '6px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Number / आभा संख्या</span>
-                          <strong style={{ fontSize: '9.5px', color: 'var(--accent-blue)', fontFamily: 'monospace', fontWeight: 800 }}>
-                            {abhaProfile.ABHANumber || abhaProfile.abhaNumber}
-                          </strong>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '6px', color: '#64748b', display: 'block', fontWeight: 700 }}>ABHA Address / आभा पता</span>
-                          <strong style={{ fontSize: '8px', color: '#0f172a', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>
-                            {abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId}
-                          </strong>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '2px' }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: '5px', color: '#64748b', display: 'block', fontWeight: 700 }}>Gender / लिंग</span>
-                            <span style={{ fontSize: '8px', fontWeight: 600, color: '#0f172a' }}>{getGenderDisplay(abhaProfile.gender)}</span>
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: '5px', color: '#64748b', display: 'block', fontWeight: 700 }}>DOB / जन्म तिथि</span>
-                            <span style={{ fontSize: '8px', fontWeight: 600, color: '#0f172a' }}>{abhaProfile.dob}</span>
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: '5px', color: '#64748b', display: 'block', fontWeight: 700 }}>Mobile / मोबाइल</span>
-                            <span style={{ fontSize: '8px', fontWeight: 600, color: '#0f172a' }}>{abhaProfile.mobile}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <img 
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify({
-                            district_name: (abhaProfile.districtName || "JABALPUR").toUpperCase(),
-                            hid: abhaProfile.preferredAbhaAddress || abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.abhaId,
-                            address: abhaProfile.address || "1787, Nagpur Road, In Front Of Sai Niwas, Medical, Jabalpur, Jabalpur, Madhya Pradesh",
-                            gender: abhaProfile.gender ? (['male', 'm'].includes(abhaProfile.gender.toLowerCase()) ? 'M' : ['female', 'f'].includes(abhaProfile.gender.toLowerCase()) ? 'F' : abhaProfile.gender) : 'M',
-                            distlgd: abhaProfile.distLgd || abhaProfile.distlgd || "411",
-                            dob: abhaProfile.dob || "24-09-1992",
-                            name: abhaProfile.name || [abhaProfile.firstName, abhaProfile.middleName, abhaProfile.lastName].filter(Boolean).join(' ') || currentUser?.name || "Ashish Patel",
-                            mobile: abhaProfile.mobile || "9981435702",
-                            statelgd: abhaProfile.stateLgd || abhaProfile.statelgd || "23",
-                            hidn: abhaProfile.ABHANumber || abhaProfile.abhaNumber || "91-6005-4602-2077",
-                            "state name": (abhaProfile.stateName || "MADHYA PRADESH").toUpperCase()
-                          }))}`}
-                          style={{ width: '75px', height: '75px', display: 'block' }}
-                          alt="QR"
-                        />
-                      </div>
-                    </div>
-                  </article>
+                    currentUser={currentUser}
+                    getPhotoSrc={getPhotoSrc}
+                    getGenderDisplay={getGenderDisplay}
+                    copyToClipboard={() => {}}
+                    isEditable={false}
+                  />
                 </div>
               ) : (
-                /* BACK PREVIEW */
                 <div style={{ width: '100%', maxWidth: '440px' }}>
-                  <article 
-                    className="pvc-back-card"
-                    style={{
-                      width: '100%', borderRadius: '16px', overflow: 'hidden', border: '1px solid #cbd5e1',
-                      fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minHeight: '277px', background: 'radial-gradient(circle, #ffffff 0%, #f8fafc 100%)'
-                    }}
-                  >
-                    {/* Header */}
-                    <div className="setu-abha-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#264488', borderBottom: '2px solid #10b981', height: '56px', boxSizing: 'border-box' }}>
-                      <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <img src="/assets/svg/nha.svg" alt="NHA Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
-                      </div>
-                      <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: '800', letterSpacing: '0.2px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
-                        <span style={{ fontSize: '8px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
-                      </div>
-                      <div style={{ height: '42px', width: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }}>
-                        <img src="/assets/svg/abdm1.svg" alt="ABDM Logo" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
-                      </div>
-                    </div>
-                    
-                    {/* Body */}
-                    <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', height: 'calc(100% - 56px)', boxSizing: 'border-box', justifyContent: 'space-between', color: '#0f172a' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '9px', marginBottom: '4px', color: '#0f172a' }}>
-                        <span>Instructions</span>
-                        <span>Toll-Free Number: 1800 114 477</span>
-                      </div>
-                      <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '7.5px', lineHeight: '1.3', color: '#334155', textAlign: 'left', listStyleType: 'disc' }}>
-                        <li style={{ marginBottom: '4px' }}>
-                          With this ABHA you have become a part of India's digital health ecosystem.
-                          <div style={{ color: '#64748b', fontSize: '7px' }}>इस आभा के साथ आप भारत के डिजिटल हेल्थ इकोसिस्टम का हिस्सा बन गए हैं।</div>
-                        </li>
-                        <li style={{ marginBottom: '4px' }}>
-                          ABHA provides you a unique identification and helps in storing - safekeeping all your digital health records at one place.
-                          <div style={{ color: '#64748b', fontSize: '7px' }}>आभा आपको एक विशिष्ट पहचान प्रदान करता है और आपके सभी डिजिटल स्वास्थ्य रिकॉर्ड को सुरक्षित एक ही स्थान पर संग्रहीत रखने में मदद करता है।</div>
-                        </li>
-                        <li style={{ marginBottom: '4px' }}>
-                          You can download the ABHA mobile app, Aarogya Setu or other ABDM enabled app to view and share your digital health records with ABDM registered healthcare service providers.
-                          <div style={{ color: '#64748b', fontSize: '7px' }}>आप एबीडीएम पंजीकृत स्वास्थ्य सेवा प्रदाताओं के साथ अपने डिजिटल स्वास्थ्य रिकॉर्ड देखने और साझा करने के लिए आभा मोबाइल ऐप, आरोग्य सेतु या अन्य एबीडीएम सक्षम ऐप डाउनलोड कर सकते हैं।</div>
-                        </li>
-                        <li style={{ marginBottom: '4px' }}>
-                          If this card is lost kindly download it from www.abha.abdm.gov.in, it is digitally acceptable.
-                          <div style={{ color: '#64748b', fontSize: '7px' }}>यदि यह कार्ड खो जाता है तो कृपया इसे www.abha.abdm.gov.in से डाउनलोड करें, यह डिजिटल रूप से स्वीकार्य है।</div>
-                        </li>
-                      </ul>
-                      
-                      <div style={{ width: '100%', marginTop: '4px' }}>
-                        <hr style={{ border: 'none', borderTop: '1px solid #cbd5e1', margin: '3px 0' }} />
-                        <div style={{ textAlign: 'center', fontSize: '8.5px', fontWeight: 'bold', color: '#334155' }}>
-                          Issued on: 30-11-2022
-                        </div>
-                      </div>
-                    </div>
-                  </article>
+                  <AbhaCardBackComponent
+                    compact
+                    issuedOn={profileDetails?.data?.createdDate?.split(' ')[0]}
+                  />
                 </div>
               )}
             </div>
@@ -462,6 +351,30 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
                 <Printer style={{ width: '16px', height: '16px', color: '#ffffff' }} />
                 <span>Print</span>
               </button>
+            </div>
+
+            {/* Hidden print source — always front + back for PVC print (either tab selected) */}
+            <div id="abha-pvc-print-bundle" style={{ display: 'none' }} aria-hidden="true">
+              <div id="abha-pvc-print-front">
+                <AbhaCardComponent
+                  abhaProfile={{
+                    ...abhaProfile,
+                    ...(profileDetails?.data || {}),
+                    dob: getDobString(profileDetails?.data),
+                  }}
+                  currentUser={currentUser}
+                  getPhotoSrc={getPhotoSrc}
+                  getGenderDisplay={getGenderDisplay}
+                  copyToClipboard={() => {}}
+                  isEditable={false}
+                />
+              </div>
+              <div id="abha-pvc-print-back">
+                <AbhaCardBackComponent
+                  compact
+                  issuedOn={profileDetails?.data?.createdDate?.split(' ')[0]}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -689,7 +602,7 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
             <form onSubmit={handlePhotoUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <div style={{ width: '80px', height: '100px', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-secondary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                  <img src={photoPreview || getPhotoSrc(abhaProfile.photo)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
+                  <img src={photoPreview || getProfilePhotoSrc()} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Upload JPEG/PNG Photo</span>
@@ -911,13 +824,16 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
               display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left',
               animation: shakeModal ? 'otp-shake 0.4s ease' : 'none'
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rekyc-modal-title"
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+              <h3 id="rekyc-modal-title" style={{ margin: 0, fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
                 <RefreshCw style={{ color: 'var(--accent-teal)', width: '18px', height: '18px' }} />
                 <span>Re-KYC Verification</span>
               </h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <button type="button" onClick={handleCloseReKycModal} aria-label="Close" style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X style={{ width: '18px', height: '18px' }} />
               </button>
             </div>
@@ -926,11 +842,18 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
               <div style={{ textAlign: 'center', padding: '20px 10px' }}>
                 <img 
                   src="/assets/check_icon.png" 
-                  style={{ width: '48px', height: '48px', display: 'block', margin: '0 auto 12px' }} 
-                  alt="Verified" 
+                  style={{ width: '56px', height: '56px', display: 'block', margin: '0 auto 12px' }} 
+                  alt="Success" 
                 />
                 <h4 style={{ margin: '0 0 6px', fontWeight: 800 }}>Re-KYC Complete</h4>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>UIDAI verification resolved. Your demographic verification status is now updated to fully compliant.</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 16px' }}>{reKycSuccessMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => { handleCloseReKycModal(); }}
+                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent-teal)', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  Go to ABHA Profile
+                </button>
               </div>
             ) : !reKycOtpStep ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -938,14 +861,14 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
                   Re-KYC verifies your demographic identity against the central UIDAI registry. We will send an OTP confirmation to your registered mobile ending with <strong>******{abhaProfile.mobile?.slice(-4)}</strong>.
                 </p>
                 {reKycError && <div style={{ color: 'var(--danger)', fontSize: '11.5px' }}>{reKycError}</div>}
-                <button onClick={handleRequestReKycOtp} disabled={reKycLoading} style={{ padding: '12px', borderRadius: '8px', border: 'none', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', width: '100%' }}>
+                <button type="button" onClick={handleRequestReKycOtp} disabled={reKycLoading} style={{ padding: '12px', borderRadius: '8px', border: 'none', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer', width: '100%' }}>
                   {reKycLoading ? 'Requesting OTP...' : 'Send Re-KYC verification OTP'}
                 </button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ background: 'rgba(20, 184, 166, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(20, 184, 166, 0.15)', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Re-KYC OTP sent to registered mobile.
+                  {reKycOtpMessage || 'Re-KYC OTP sent to registered mobile.'}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 600 }}>Enter 6-Digit OTP</span>
@@ -953,10 +876,10 @@ export const ProfileModals: React.FC<ProfileModalsProps> = ({
                 </div>
                 {reKycError && <div style={{ color: 'var(--danger)', fontSize: '11.5px' }}>{reKycError}</div>}
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => setReKycOtpStep(false)} style={{ flex: 1, padding: '10px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setReKycOtpStep(false)} style={{ flex: 1, padding: '10px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer' }}>
                     Back
                   </button>
-                  <button onClick={handleVerifyReKycOtp} disabled={reKycLoading || reKycOtp.length !== 6} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={handleVerifyReKycOtp} disabled={reKycLoading || reKycOtp.length !== 6} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--accent-teal)', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>
                     Verify & Confirm
                   </button>
                 </div>

@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { Phone, Mail, Camera, Pencil, Check, X } from 'lucide-react';
+import { Phone, Mail, Camera, Pencil, Check, X, User } from 'lucide-react';
 import { EditProfileTabProps } from './EditProfileTab.types';
 import * as S from './EditProfileTab.styles';
 
@@ -47,7 +47,19 @@ export const EditProfileTab: React.FC<EditProfileTabProps> = ({
   handlePhotoUploadSubmit,
   handlePhotoFileChange,
   getPhotoSrc,
+  getProfilePhotoSrc,
+  profileDetails,
+  getDobString,
+  getGenderDisplay,
 }) => {
+  const data = profileDetails?.data;
+  const displayName =
+    data?.name ||
+    abhaProfile.name ||
+    [data?.firstName, data?.middleName, data?.lastName].filter(Boolean).join(' ') ||
+    currentUser?.name ||
+    '—';
+
   return (
     <S.EditProfileContainer>
       <S.EditProfileCard>
@@ -63,6 +75,14 @@ export const EditProfileTab: React.FC<EditProfileTabProps> = ({
 
         {/* Inner Sub-Tabs for Edit Profile */}
         <S.SubTabContainer>
+          <S.SubTabButton
+            type="button"
+            onClick={() => setEditProfileSubTab('overview')}
+            $active={editProfileSubTab === 'overview'}
+          >
+            <User style={{ width: '13px', height: '13px' }} />
+            {t('Profile')}
+          </S.SubTabButton>
           <S.SubTabButton
             type="button"
             onClick={() => setEditProfileSubTab('mobile')}
@@ -88,6 +108,74 @@ export const EditProfileTab: React.FC<EditProfileTabProps> = ({
             {t('Photo')}
           </S.SubTabButton>
         </S.SubTabContainer>
+
+        {editProfileSubTab === 'overview' && (
+          <S.SubTabSection>
+            <S.SectionTitle>
+              <User style={{ color: 'var(--accent-teal)', width: '16px', height: '16px' }} />
+              <span>{t('Demographic details')}</span>
+            </S.SectionTitle>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <S.PhotoPreviewCard $hasPreview={true} style={{ width: '120px', flexShrink: 0 }}>
+                <S.PhotoImageWrapper>
+                  <S.PhotoPreviewImage
+                    src={getProfilePhotoSrc(data?.profilePhoto)}
+                    alt={t('Profile photo')}
+                  />
+                </S.PhotoImageWrapper>
+                <S.PhotoEditButton
+                  type="button"
+                  onClick={() => setEditProfileSubTab('picture')}
+                  title={t('Edit photo')}
+                >
+                  <Pencil style={{ width: '14px', height: '14px' }} />
+                </S.PhotoEditButton>
+              </S.PhotoPreviewCard>
+              <div style={{ flex: 1, minWidth: '200px', display: 'grid', gap: '10px' }}>
+                {[
+                  { label: t('Name'), value: displayName },
+                  { label: t('Abha number'), value: data?.ABHANumber || abhaProfile.ABHANumber || '—' },
+                  { label: t('Abha address'), value: data?.preferredAbhaAddress || abhaProfile.preferredAbhaAddress || '—' },
+                  { label: t('Gender'), value: getGenderDisplay?.(data?.gender || abhaProfile.gender) || '—' },
+                  { label: t('Date of birth'), value: data ? getDobString(data) : abhaProfile.dob || '—' },
+                ].map((row) => (
+                  <div key={row.label}>
+                    <S.InputLabel>{row.label}</S.InputLabel>
+                    <S.MobileCurrentInput type="text" value={row.value} disabled readOnly />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <S.InputLabel>{t('Mobile number')}</S.InputLabel>
+                    <S.MobileCurrentInput type="text" value={data?.mobile || abhaProfile.mobile || '—'} disabled readOnly />
+                  </div>
+                  <S.PhotoEditButton
+                    type="button"
+                    onClick={() => setEditProfileSubTab('mobile')}
+                    title={t('Edit mobile')}
+                    style={{ position: 'relative', bottom: 0, right: 0, marginBottom: '2px' }}
+                  >
+                    <Pencil style={{ width: '14px', height: '14px' }} />
+                  </S.PhotoEditButton>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <S.InputLabel>{t('Email address')}</S.InputLabel>
+                    <S.MobileCurrentInput type="text" value={data?.email || abhaProfile.email || t('Not linked')} disabled readOnly />
+                  </div>
+                  <S.PhotoEditButton
+                    type="button"
+                    onClick={() => setEditProfileSubTab('email')}
+                    title={t('Edit email')}
+                    style={{ position: 'relative', bottom: 0, right: 0, marginBottom: '2px' }}
+                  >
+                    <Pencil style={{ width: '14px', height: '14px' }} />
+                  </S.PhotoEditButton>
+                </div>
+              </div>
+            </div>
+          </S.SubTabSection>
+        )}
 
         {/* Sub-tab 1: Update Mobile Number */}
         {editProfileSubTab === 'mobile' && (
@@ -226,7 +314,7 @@ export const EditProfileTab: React.FC<EditProfileTabProps> = ({
               <S.PhotoPreviewCard $hasPreview={!!photoPreview}>
                 <S.PhotoImageWrapper>
                   <S.PhotoPreviewImage 
-                    src={photoPreview || getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser?.photo)} 
+                    src={photoPreview || getProfilePhotoSrc()} 
                     alt="Profile photo"
                   />
                 </S.PhotoImageWrapper>

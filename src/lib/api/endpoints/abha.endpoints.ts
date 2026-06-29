@@ -29,8 +29,14 @@ export const ABHA_ENDPOINTS = {
   SCAN_SHARE: '/scan-share',
   HIP_PATIENT_SHARE: '/v3/hip/patient/share',
   PROFILE_SET_PASSWORD: '/v3/profile/account/set-password',
+  /** @deprecated Use PROFILE_DEACTIVATE_VERIFY — legacy OTP-only route */
   PROFILE_DEACTIVATE: '/v3/profile/account/deactivate',
+  /** @deprecated Use PROFILE_DELETE_VERIFY — legacy OTP-only route */
   PROFILE_DELETE: '/v3/profile/account/delete',
+  PROFILE_DELETE_REQUEST_OTP: '/v3/profile/account/delete/request-otp',
+  PROFILE_DELETE_VERIFY: '/v3/profile/account/delete/verify',
+  PROFILE_DEACTIVATE_REQUEST_OTP: '/v3/profile/account/request/otp',
+  PROFILE_DEACTIVATE_VERIFY: '/v3/profile/account/verify',
   PROFILE_DELINK: '/v3/profile/account/delink',
   FORGOT_ABHA_REQUEST_OTP: '/v3/forgot/abha/request/otp',
   FORGOT_ABHA_VERIFY: '/v3/forgot/abha/verify',

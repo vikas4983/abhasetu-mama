@@ -21,6 +21,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { sanitizeAdminConfigForClient } from './utils/admin-config.util';
 
 @Controller()
 export class AdminController {
@@ -42,7 +43,7 @@ export class AdminController {
   @Get('admin/config')
   async getConfig() {
     const config = await this.adminService.getConfig();
-    return { status: 'success', config };
+    return { status: 'success', config: sanitizeAdminConfigForClient(config) };
   }
 
   @UseGuards(JwtAuthGuard)

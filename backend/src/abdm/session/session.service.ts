@@ -332,7 +332,6 @@ export class SessionService {
         `${baseUrl}${ABDM_ENDPOINTS.ABHA_PUBLIC_CERTIFICATE}`,
         {
           headers: {
-            [ABDM_HEADERS.AUTHORIZATION]: `Bearer ${token}`,
             [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
             [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
             [ABDM_HEADERS.CM_ID]: config.ABDM_CM_ID || 'sbx',

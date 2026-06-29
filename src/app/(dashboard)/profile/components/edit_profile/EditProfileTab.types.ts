@@ -14,8 +14,8 @@ export interface EditProfileTabProps {
   currentUser: any;
   t: (key: string) => string;
   setActiveTab: (tab: any) => void;
-  editProfileSubTab: 'mobile' | 'email' | 'picture';
-  setEditProfileSubTab: (subTab: 'mobile' | 'email' | 'picture') => void;
+  editProfileSubTab: 'overview' | 'mobile' | 'email' | 'picture';
+  setEditProfileSubTab: (subTab: 'overview' | 'mobile' | 'email' | 'picture') => void;
   mobileLoading: boolean;
   mobileCoolingTimer: number;
   mobileForm: any;
@@ -38,4 +38,8 @@ export interface EditProfileTabProps {
   handlePhotoUploadSubmit: (e: React.FormEvent) => Promise<void>;
   handlePhotoFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   getPhotoSrc: (photo: string | undefined) => string;
+  getProfilePhotoSrc: (override?: string) => string;
+  profileDetails: { status: string; data: import('../../page').AbdmProfile } | null;
+  getDobString: (profileData: Partial<import('../../page').AbdmProfile> | undefined) => string;
+  getGenderDisplay?: (gender: string | undefined) => string;
 }

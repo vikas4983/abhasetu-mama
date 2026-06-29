@@ -106,7 +106,24 @@ export default function OtpInput({ value, onChange, error, disabled, shake, onEn
   };
 
   return (
-    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', margin: '12px 0' }}>
+    <div
+      className="otp-input-row"
+      style={{
+        display: 'flex',
+        gap: 'clamp(4px, 2vw, 8px)',
+        justifyContent: 'center',
+        margin: '12px 0',
+        width: '100%',
+        maxWidth: '100%',
+      }}
+    >
+      <style>{`
+        .otp-input-row input {
+          width: clamp(36px, 12vw, 48px) !important;
+          height: clamp(44px, 14vw, 54px) !important;
+          font-size: clamp(18px, 5vw, 22px) !important;
+        }
+      `}</style>
       {otpArray.map((digit, idx) => (
         <input
           key={idx}
@@ -137,7 +154,7 @@ export default function OtpInput({ value, onChange, error, disabled, shake, onEn
             fontWeight: 'bold',
             textAlign: 'center',
             outline: 'none',
-            transition: 'border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease',
+            transition: 'border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease',
             boxShadow: error
               ? '0 0 0 3px rgba(239,68,68,0.15)'
               : digit ? '0 0 0 3px rgba(20,184,166,0.12)' : 'none',
@@ -145,8 +162,9 @@ export default function OtpInput({ value, onChange, error, disabled, shake, onEn
             cursor: disabled ? 'not-allowed' : 'auto',
             caretColor: 'transparent',
             animation: (shake && error) ? 'otp-shake 0.4s ease' : 'none',
+            transform: digit ? 'scale(1.02)' : 'scale(1)',
           }}
-          aria-label={`Digit ${idx + 1}`}
+          aria-label={`Digit ${idx + 1} of 6`}
         />
       ))}
     </div>

@@ -1204,6 +1204,10 @@ export default function LoginPage() {
   const [otpParts, setOtpParts] = useState(["", "", "", "", "", ""]);
   const [dlParts, setDlParts] = useState(["", "", "", ""]);
   const [useAbhaAddress, setUseAbhaAddress] = useState(false);
+  /** Aadhaar-linked vs ABHA-mobile OTP for ABHA number / address login (M1 Postman) */
+  const [abhaLoginOtpChannel, setAbhaLoginOtpChannel] = useState<"aadhaar" | "abdm">("aadhaar");
+  /** Scope persisted from Send OTP for matching Verify OTP request */
+  const [loginScope, setLoginScope] = useState<string[]>(["abha-login", "mobile-verify"]);
 
   // Refs for split inputs
   const aadhaarRefs = [
@@ -1615,6 +1619,41 @@ export default function LoginPage() {
   }, [otpParts]);
 
   // Send OTP
+  const buildProfileLoginPayload = () => {
+    if (activeTab === "mobile") {
+      return {
+        scope: ["abha-login", "mobile-verify"],
+        loginHint: "mobile",
+        loginId: identifier.replace(/\D/g, "").trim(),
+        otpSystem: "abdm" as const,
+      };
+    }
+    if (useAbhaAddress) {
+      const otpSystem = abhaLoginOtpChannel;
+      const scope =
+        otpSystem === "aadhaar"
+          ? ["abha-address-login", "aadhaar-verify"]
+          : ["abha-address-login", "mobile-verify"];
+      return {
+        scope,
+        loginHint: "abha-address",
+        loginId: identifier.trim(),
+        otpSystem,
+      };
+    }
+    const otpSystem = abhaLoginOtpChannel;
+    const scope =
+      otpSystem === "aadhaar"
+        ? ["abha-login", "aadhaar-verify"]
+        : ["abha-login", "mobile-verify"];
+    return {
+      scope,
+      loginHint: "abha-number",
+      loginId: identifier.replace(/[-\s]/g, "").trim(),
+      otpSystem,
+    };
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier) {
@@ -1627,33 +1666,27 @@ export default function LoginPage() {
 
     if (activeTab === "mobile" || activeTab === "abha") {
       try {
-        const cleanedId = identifier.replace(/[-\s]/g, "").trim();
-        const hint = activeTab === "mobile" ? "mobile" : "abha-number";
+        const payload = buildProfileLoginPayload();
+        setLoginScope(payload.scope);
 
         const res = await fetch("/api/abdm/v3/profile/login/request/otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scope: ["abha-login", "mobile-verify"],
-            loginHint: hint,
-            loginId: cleanedId,
-            otpSystem: "abdm",
-          }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         setIsSendingOtp(false);
 
-        if (res.ok && data.txnId) {
-          setMobileTxnId(data.txnId);
+        const txnId = data.txnId ?? data.abdmResponse?.txnId;
+        if (res.ok && txnId) {
+          setMobileTxnId(String(txnId));
           setOtpSent(true);
           showToast(t(data.message || "OTP sent successfully!"));
         } else {
           const msg =
-            data.description ||
             data.message ||
-            data.loginId ||
-            data.scope ||
-            data.loginHint ||
+            data.description ||
+            data.abdmResponse?.message ||
             t("Failed to send OTP.");
           setErrorMsg(msg);
           showToast(t("Failed to send OTP."));
@@ -1755,7 +1788,7 @@ export default function LoginPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            scope: ["abha-login", "mobile-verify"],
+            scope: loginScope,
             authData: {
               authMethods: ["otp"],
               otp: {
@@ -1768,18 +1801,23 @@ export default function LoginPage() {
         const data = await res.json();
         setIsVerifying(false);
 
-        if (res.ok && data.authResult === "success") {
+        const authResult = data.authResult ?? data.abdmResponse?.authResult;
+        if (res.ok && authResult === "success") {
           showToast(t("OTP verified successfully!"));
           const rToken =
             data.refreshToken ||
             data.tokens?.refreshToken ||
-            "simulated-refresh-token-preview-xyz";
-          localStorage.setItem("verify_via_abha_number_refresh_token", rToken);
-          if (data.accounts && data.accounts.length > 0) {
-            setLinkedAccounts(data.accounts);
-            setSelectedAccount(data.accounts[0]);
-            if (data.accounts.length === 1) {
-              handleSelectAbhaAccount(data.accounts[0], data.accounts);
+            data.abdmResponse?.refreshToken ||
+            data.abdmResponse?.tokens?.refreshToken;
+          if (rToken) {
+            localStorage.setItem("verify_via_abha_number_refresh_token", rToken);
+          }
+          const accounts = data.accounts ?? data.abdmResponse?.accounts;
+          if (accounts && accounts.length > 0) {
+            setLinkedAccounts(accounts);
+            setSelectedAccount(accounts[0]);
+            if (accounts.length === 1) {
+              handleSelectAbhaAccount(accounts[0], accounts);
             } else {
               setShowAccountSelectModal(true);
             }
@@ -1788,12 +1826,9 @@ export default function LoginPage() {
           }
         } else {
           const msg =
-            data.description ||
             data.message ||
-            data.otpValue ||
-            data.txnId ||
-            data.authMethods ||
-            data.scope ||
+            data.description ||
+            data.abdmResponse?.message ||
             t("Verification failed.");
           setErrorMsg(msg);
           showToast(t("Verification failed."));
@@ -1844,8 +1879,7 @@ export default function LoginPage() {
             name: finalName,
             preferredAbhaAddress: preferredAddr,
             ABHANumber: abhaNum,
-            profilePhoto: profile.photo || "",
-            photo: profile.photo || "",
+            profilePhoto: profile.profilePhoto || profile.photo || "",
             gender:
               profile.gender === "F"
                 ? "Female"
@@ -2431,6 +2465,63 @@ export default function LoginPage() {
                         </button>
                       )}
                     </div>
+                    {activeTab === "abha" && !otpSent && (
+                      <div
+                        role="group"
+                        aria-label={t("OTP delivery method")}
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          flexWrap: "wrap",
+                          marginTop: "4px",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={abhaLoginOtpChannel === "aadhaar"}
+                          onClick={() => setAbhaLoginOtpChannel("aadhaar")}
+                          style={{
+                            padding: "4px 10px",
+                            fontSize: "10px",
+                            borderRadius: "6px",
+                            border: "1px solid var(--border-color)",
+                            background:
+                              abhaLoginOtpChannel === "aadhaar"
+                                ? "var(--accent-teal)"
+                                : "var(--bg-secondary)",
+                            color:
+                              abhaLoginOtpChannel === "aadhaar"
+                                ? "#fff"
+                                : "var(--text-secondary)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {t("Aadhaar OTP")}
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={abhaLoginOtpChannel === "abdm"}
+                          onClick={() => setAbhaLoginOtpChannel("abdm")}
+                          style={{
+                            padding: "4px 10px",
+                            fontSize: "10px",
+                            borderRadius: "6px",
+                            border: "1px solid var(--border-color)",
+                            background:
+                              abhaLoginOtpChannel === "abdm"
+                                ? "var(--accent-teal)"
+                                : "var(--bg-secondary)",
+                            color:
+                              abhaLoginOtpChannel === "abdm"
+                                ? "#fff"
+                                : "var(--text-secondary)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {t("Mobile OTP")}
+                        </button>
+                      </div>
+                    )}
 
                     {activeTab === "mobile" ? (
                       <div

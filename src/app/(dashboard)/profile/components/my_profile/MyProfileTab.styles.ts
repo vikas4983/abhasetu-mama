@@ -247,7 +247,7 @@ export const GridLabel = styled.span`
   color: var(--text-muted);
   display: block;
   font-size: 9px;
-  text-transform: uppercase;
+  text-transform: capitalize;
   font-weight: 700;
 `;
 
@@ -314,7 +314,7 @@ export const PhotosFlex = styled.div`
   flex-wrap: wrap;
 `;
 
-export const PhotoItemCard = styled.div`
+export const PhotoItemCard = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -322,15 +322,91 @@ export const PhotoItemCard = styled.div`
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 4px 8px 4px 4px;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: photo-fade-in 0.5s ease;
+
+  @keyframes photo-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  &:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(20, 184, 166, 0.15);
+    border-color: var(--accent-teal);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+  }
 `;
 
 export const PhotoThumbnail = styled.div`
-  width: 40px;
-  height: 50px;
-  border-radius: 4px;
+  width: 48px;
+  height: 58px;
+  border-radius: 6px;
   border: 1px solid var(--border-color);
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
+  transition: box-shadow 0.25s ease;
+
+  ${PhotoItemCard}:hover & {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  }
+`;
+
+export const PhotoEditBadge = styled.span`
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background: #2563eb;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  z-index: 2;
+  pointer-events: none;
+`;
+
+export const LightboxOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+`;
+
+export const LightboxPanel = styled.div`
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 16px;
+  max-width: 420px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: photo-fade-in 0.3s ease;
+`;
+
+export const LightboxImage = styled.img`
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 `;
 
 export const PhotoItemTextContainer = styled.div`

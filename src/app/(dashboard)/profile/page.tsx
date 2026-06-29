@@ -25,9 +25,19 @@ import { MyProfileTab } from './components/my_profile/MyProfileTab';
 import { EditProfileTab } from './components/edit_profile/EditProfileTab';
 import { SetPasswordTab } from './components/set_password/SetPasswordTab';
 import { ReKycTab } from './components/re_kyc/ReKycTab';
-import { DeactivateDeleteTab } from './components/deactivate_delete/DeactivateDeleteTab';
+import { AbhaCardBackComponent } from './components/common/AbhaCardBackComponent';
 import { DelinkTab } from './components/delink/DelinkTab';
 import { ProfileModals } from './components/ProfileModals';
+import { DeleteAbhaPanel } from '@/features/abha-delete';
+import { DeactivateAbhaPanel } from '@/features/abha-deactivate';
+import { abhaNumberForLifecycleAction } from '@/features/abha-account-lifecycle/shared/utils/abha-number.util';
+import { ReactivateAbhaPanel } from '@/features/abha-reactivate';
+import { RefreshTokenPanel } from '@/features/abha-refresh-token';
+import {
+  ABHA_FULL_PAGE_PRINT_STYLES,
+  ABHA_PVC_PRINT_STYLES,
+  openAbhaPrintWindow,
+} from './utils/abha-print-html';
 
 
 import {
@@ -79,6 +89,28 @@ const getPhotoSrc = (photo: string | undefined): string => {
     return photo;
   }
   return `data:image/jpeg;base64,${photo}`;
+};
+
+/**
+ * Resolves profile photo only — never falls back to KYC/Aadhaar photo.
+ */
+const resolveProfilePhoto = (
+  details: { data?: AbdmProfile } | null,
+  sessionProfile: Partial<AbdmProfile>,
+  userPhoto?: string,
+): string | undefined => {
+  const kyc = details?.data?.kycPhoto || sessionProfile.kycPhoto;
+  const candidates = [
+    details?.data?.profilePhoto,
+    sessionProfile.profilePhoto,
+    userPhoto,
+  ];
+  for (const raw of candidates) {
+    if (!raw || !String(raw).trim()) continue;
+    if (kyc && raw === kyc) continue;
+    return String(raw);
+  }
+  return undefined;
 };
 
 /**
@@ -178,12 +210,23 @@ export default function ProfilePage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shakeModal, setShakeModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'my_profile' | 'edit_profile' | 'set_password' | 're_kyc' | 'deactivate_delete' | 'delink'>('my_profile');
+  const [activeTab, setActiveTab] = useState<
+    | 'my_profile'
+    | 'edit_profile'
+    | 'set_password'
+    | 're_kyc'
+    | 'deactivate_abha'
+    | 'delete_abha'
+    | 'delink'
+    | 'reactivate_abha'
+  >('my_profile');
   const [pvcTab, setPvcTab] = useState<'front' | 'back'>('front');
   const [mobileCoolingTimer, setMobileCoolingTimer] = useState(0);
   const [emailCoolingTimer, setEmailCoolingTimer] = useState(0);
-  const [isDemographicsExpanded, setIsDemographicsExpanded] = useState(false);
-  const [editProfileSubTab, setEditProfileSubTab] = useState<'mobile' | 'email' | 'picture'>('mobile');
+  const [editProfileSubTab, setEditProfileSubTab] = useState<'overview' | 'mobile' | 'email' | 'picture'>('overview');
+  const [reKycReturnTab, setReKycReturnTab] = useState<typeof activeTab>('my_profile');
+  const [reKycOtpMessage, setReKycOtpMessage] = useState('');
+  const [reKycSuccessMessage, setReKycSuccessMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const copyToClipboard = (text: string, fieldName: string) => {
@@ -227,6 +270,9 @@ export default function ProfilePage() {
   const [profileDetailsError, setProfileDetailsError] = useState<string | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
 
+  const getProfilePhotoSrc = (override?: string) =>
+    getPhotoSrc(override || resolveProfilePhoto(profileDetails, abhaProfile, currentUser?.photo));
+
   const fetchProfileDetails = async () => {
     setProfileDetailsLoading(true);
     setProfileDetailsError(null);
@@ -243,6 +289,19 @@ export default function ProfilePage() {
       // so that UI and sub-components can consistently reference profileDetails.data.<field>.
       if (data && data.status === 'success' && data.data) {
         setProfileDetails(data);
+        const apiProfile = data.data as AbdmProfile;
+        if (apiProfile.profilePhoto !== undefined || apiProfile.kycPhoto !== undefined) {
+          updateCurrentUser({
+            abhaProfile: {
+              ...abhaProfile,
+              profilePhoto: apiProfile.profilePhoto ?? abhaProfile.profilePhoto,
+              kycPhoto: apiProfile.kycPhoto ?? abhaProfile.kycPhoto,
+            },
+            photo: apiProfile.profilePhoto
+              ? getPhotoSrc(apiProfile.profilePhoto)
+              : currentUser?.photo,
+          });
+        }
       } else if (data && data.ABHANumber) {
         setProfileDetails({ status: 'success', data: data });
       } else {
@@ -256,10 +315,36 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'my_profile' && !profileDetails) {
+    if ((activeTab === 'my_profile' || activeTab === 'edit_profile') && !profileDetails) {
       fetchProfileDetails();
     }
   }, [activeTab, profileDetails]);
+
+  const handleSubmenuClick = (id: string) => {
+    if (id === 're_kyc') {
+      setReKycReturnTab(activeTab);
+      setReKycOtpStep(false);
+      setReKycOtp('');
+      setReKycError('');
+      setReKycSuccess(false);
+      setReKycOtpMessage('');
+      setReKycSuccessMessage('');
+      setActiveModal('re_kyc');
+      return;
+    }
+    setActiveTab(id as typeof activeTab);
+  };
+
+  const handleCloseReKycModal = () => {
+    setActiveModal(null);
+    setReKycOtpStep(false);
+    setReKycOtp('');
+    setReKycError('');
+    setReKycSuccess(false);
+    setReKycOtpMessage('');
+    setReKycSuccessMessage('');
+    setActiveTab(reKycReturnTab || 'my_profile');
+  };
 
   // 1. Mobile Number Update States
   const [newMobile, setNewMobile] = useState('');
@@ -284,9 +369,10 @@ export default function ProfilePage() {
   const [photoResponseData, setPhotoResponseData] = useState<any>(null);
   const [photoCompressing, setPhotoCompressing] = useState(false);
   const [rawImageToCrop, setRawImageToCrop] = useState('');
-  const hasCustomPhoto = !!(abhaProfile.photo && 
-    !abhaProfile.photo.includes('unsplash.com') && 
-    !abhaProfile.photo.includes('placeholder'));
+  const profilePhotoRaw = resolveProfilePhoto(profileDetails, abhaProfile, currentUser?.photo);
+  const hasCustomPhoto = !!(profilePhotoRaw &&
+    !profilePhotoRaw.includes('unsplash.com') &&
+    !profilePhotoRaw.includes('placeholder'));
 
   // 4. Set Password States
   const [passAuthMethod, setPassAuthMethod] = useState<'aadhaar' | 'abha'>('aadhaar');
@@ -418,25 +504,27 @@ export default function ProfilePage() {
   };
 
   const handleShareCard = async () => {
-    const abhaNo = abhaProfile.ABHANumber || abhaProfile.abhaNumber || '';
-    const shareText = `ABHA Card details:\nName: ${abhaProfile.name || currentUser?.name || ''}\nABHA Number: ${abhaNo}\nABHA Address: ${abhaProfile.preferredAddress || abhaProfile.abhaAddress || abhaProfile.preferredAbhaAddress}`;
+    const payload = profileDetails?.data || abhaProfile;
+    const shareText = JSON.stringify(payload, null, 2);
+    const shareTitle = 'ABHA Profile Details';
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'ABHA Smart Card',
+          title: shareTitle,
           text: shareText,
-          url: window.location.href
         });
-        showToast(t('Shared successfully!'));
+        showToast(t('Profile details shared successfully!'));
       } catch (err) {
-        console.error(err);
+        if ((err as Error)?.name !== 'AbortError') {
+          console.error(err);
+        }
       }
     } else {
       try {
         await navigator.clipboard.writeText(shareText);
-        showToast(t('ABHA card details copied to clipboard!'));
-      } catch (err) {
-        showToast(t('Failed to share card details.'));
+        showToast(t('Profile JSON copied to clipboard!'));
+      } catch {
+        showToast(t('Failed to share profile details.'));
       }
     }
   };
@@ -467,307 +555,32 @@ export default function ProfilePage() {
 
   const handlePrintCard = () => {
     const printContent = document.getElementById('abha-card-capture-profile');
+    const pvcBackContent = document.getElementById('abha-card-pvc-back');
     if (!printContent) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print ABHA Card</title>
-          <style>
-            @media print {
-              body {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-            }
-            body {
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              margin: 0;
-              background: #ffffff;
-              font-family: 'Inter', sans-serif;
-            }
-            .print-wrapper {
-              display: flex;
-              flex-direction: column;
-              gap: 20px;
-              align-items: center;
-            }
-            /* Styling matches printable-abha-card */
-            .printable-abha-card {
-              width: 580px;
-              border-radius: 16px;
-              overflow: hidden;
-              border: 1px solid rgba(31, 58, 96, 0.15) !important;
-              box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .printable-abha-card-header {
-              display: flex !important;
-              justify-content: space-between !important;
-              align-items: center !important;
-              padding: 12px 16px !important;
-              background: #264488 !important;
-              border-bottom: 2px solid #00d4aa !important;
-              color: #ffffff !important;
-              height: 68px !important;
-              box-sizing: border-box !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .printable-abha-card-nha-img {
-              height: 100% !important;
-              width: auto !important;
-            }
-            .printable-abha-card-abdm-wrapper {
-              height: 52px !important;
-              width: 52px !important;
-              border-radius: 50% !important;
-              border: 1px solid #cbd5e1 !important;
-              overflow: hidden !important;
-              background: #ffffff !important;
-              display: flex !important;
-              align-items: center !important;
-              justify-content: center !important;
-            }
-            .printable-abha-card-body {
-              position: relative !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              padding: 14px !important;
-              background: radial-gradient(circle, #ffffff 0%, #f1f5f9 100%) !important;
-              color: #0f172a !important;
-              flex: 1 !important;
-              box-sizing: border-box !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .printable-abha-card-avatar {
-              width: 95px !important;
-              height: 120px !important;
-              border-radius: 8px !important;
-              overflow: hidden !important;
-              border: 1.5px solid #cbd5e1 !important;
-            }
-            .printable-abha-card-details {
-              flex: 1 !important;
-              display: flex !important;
-              flex-direction: column !important;
-              gap: 6px !important;
-              text-align: left !important;
-            }
-            .printable-abha-card-label {
-              font-size: 8px !important;
-              color: #64748b !important;
-              display: block !important;
-              font-weight: 750 !important;
-            }
-            .printable-abha-card-value {
-              font-size: 13.5px !important;
-              color: #0f172a !important;
-              font-weight: 800 !important;
-              display: block !important;
-            }
-            .token-num {
-              font-family: monospace !important;
-            }
-            .printable-abha-card-qr-img {
-              width: 100% !important;
-              height: 100% !important;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-wrapper">
-            ${printContent.outerHTML}
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(() => { window.close(); }, 500);
-            }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    openAbhaPrintWindow({
+      title: 'Print ABHA Card',
+      styles: ABHA_FULL_PAGE_PRINT_STYLES,
+      frontHtml: printContent.outerHTML,
+      backHtml: pvcBackContent ? pvcBackContent.outerHTML : '',
+      wrapperClass: 'print-wrapper',
+    });
   };
 
   const handlePrintPvc = () => {
-    const printContent = document.getElementById('abha-card-capture-profile');
-    const pvcBackContent = document.getElementById('abha-card-pvc-back');
-    if (!printContent || !pvcBackContent) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print PVC ABHA Card</title>
-          <style>
-            @page {
-              size: 85.6mm 54mm;
-              margin: 0;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-              font-family: 'Inter', sans-serif;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .pvc-container {
-              display: flex;
-              flex-direction: column;
-              gap: 15px;
-              page-break-inside: avoid;
-            }
-            .setu-abha-card, .pvc-back-card {
-              width: 85.6mm;
-              height: 54mm;
-              border-radius: 3.2mm;
-              overflow: hidden;
-              border: 0.5px solid #cbd5e1;
-              box-shadow: none;
-              page-break-after: always;
-              box-sizing: border-box;
-            }
-            .setu-abha-card-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              padding: 2.5mm 3mm;
-              background: #264488 !important;
-              border-bottom: 0.5mm solid #10b981;
-              color: #ffffff;
-              height: 13.6mm;
-              box-sizing: border-box;
-            }
-            .setu-abha-card-nha-img {
-              height: 9.6mm !important;
-            }
-            .setu-abha-card-abdm-wrapper {
-              width: 11.2mm !important;
-              height: 11.2mm !important;
-              border-radius: 50%;
-              border: 0.2mm solid #cbd5e1;
-              background: #ffffff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              overflow: hidden;
-            }
-            .setu-abha-card-abdm-wrapper img {
-              width: 100%;
-              height: 100%;
-              object-fit: contain;
-            }
-            .setu-abha-card-body {
-              display: flex;
-              flex-direction: row;
-              gap: 2.5mm;
-              padding: 3mm;
-              background: radial-gradient(circle, #ffffff 0%, #f1f5f9 100%) !important;
-              height: calc(54mm - 13.6mm);
-              box-sizing: border-box;
-            }
-            .setu-abha-card-avatar {
-              width: 16mm;
-              height: 21mm;
-              border-radius: 1mm;
-              border: 0.2mm solid #94a3b8;
-              overflow: hidden;
-            }
-            .setu-abha-card-avatar img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            }
-            .setu-abha-card-details {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              gap: 0.8mm;
-              text-align: left;
-            }
-            .setu-abha-card-label {
-              font-size: 5px;
-              color: #64748b;
-              font-weight: 700;
-              display: block;
-            }
-            .setu-abha-card-value {
-              font-size: 7.5px;
-              color: #0f172a;
-              font-weight: 800;
-              display: block;
-            }
-            .token-num {
-              font-family: monospace;
-            }
-            .setu-abha-card-qr-wrapper img {
-              width: 14mm;
-              height: 14mm;
-            }
-            /* PVC Back Styling */
-            .pvc-back-card {
-              background: radial-gradient(circle, #ffffff 0%, #f8fafc 100%) !important;
-              display: flex;
-              flex-direction: column;
-              color: #0f172a;
-            }
-            .pvc-back-body {
-              padding: 2.5mm 3mm;
-              display: flex;
-              flex-direction: column;
-              height: calc(54mm - 13.6mm);
-              box-sizing: border-box;
-              justify-content: space-between;
-            }
-            .pvc-instructions {
-              list-style-type: disc;
-              margin: 0;
-              padding-left: 3.5mm;
-              font-size: 3.6px;
-              line-height: 1.25;
-              color: #334155;
-              text-align: left;
-            }
-            .pvc-instructions li {
-              margin-bottom: 0.4mm;
-            }
-            .pvc-instructions li div {
-              font-size: 3.2px;
-              color: #64748b;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="pvc-container">
-            ${printContent.outerHTML}
-            ${pvcBackContent.outerHTML}
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(() => { window.close(); }, 500);
-            }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    const printFront =
+      document.getElementById('abha-pvc-print-front') ||
+      document.getElementById('abha-card-capture-profile');
+    const printBack =
+      document.getElementById('abha-pvc-print-back') ||
+      document.getElementById('abha-card-pvc-back');
+    if (!printFront || !printBack) return;
+    openAbhaPrintWindow({
+      title: 'Print PVC ABHA Card',
+      styles: ABHA_PVC_PRINT_STYLES,
+      frontHtml: printFront.innerHTML,
+      backHtml: printBack.innerHTML,
+      wrapperClass: 'pvc-container',
+    });
   };
 
   // Submenu Submit Handlers (Modal Driven)
@@ -1021,10 +834,9 @@ export default function ProfilePage() {
       setPhotoResponseData(data); // Store raw response data for the Response Details modal
 
       if (res.ok) {
-        const returnedPhoto = data.profilePhoto || data.kycPhoto || cleanedBase64;
+        const returnedPhoto = data.profilePhoto || cleanedBase64;
         const updatedProfile = { 
           ...abhaProfile, 
-          photo: returnedPhoto,
           profilePhoto: returnedPhoto,
           name: data.name || abhaProfile.name,
           firstName: data.firstName || abhaProfile.firstName,
@@ -1089,7 +901,6 @@ export default function ProfilePage() {
       if (res.ok) {
         const updatedProfile = { 
           ...abhaProfile, 
-          photo: '',
           profilePhoto: '',
         };
         const state = JSON.parse(localStorage.getItem('setu_state') || '{}');
@@ -1199,29 +1010,30 @@ export default function ProfilePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          abhaNumber: abhaProfile.ABHANumber
-        })
+          abhaNumber: abhaProfile.ABHANumber,
+        }),
       });
       const data = await res.json();
-      if (res.ok && (data.status === 'success' || data.txnId)) {
-        setReKycTxnId(data.txnId);
+      if (res.ok && (data.status === 'success' || data.txnId || data.abdmResponse?.txnId)) {
+        setReKycTxnId(data.txnId || data.abdmResponse?.txnId || '');
+        setReKycOtpMessage(
+          data.message || data.abdmResponse?.message || t('Re-KYC verification OTP sent to your registered mobile number.'),
+        );
         setReKycOtpStep(true);
         setResendTimer(60);
         setOtpExpiryTimer(600);
         showToast(t('Re-KYC verification OTP sent!'));
-        setActiveModal('re_kyc');
       } else {
-        const errMsg = data.scope || 
-                       data.loginId || 
-                       data.loginHint || 
-                       data.message || 
-                       data.description || 
-                       t('Failed to send OTP code.');
+        const errMsg =
+          data.message ||
+          data.abdmResponse?.message ||
+          data.scope ||
+          t('Failed to send OTP code.');
         setReKycError(errMsg);
         showToast(errMsg);
         triggerModalShake();
       }
-    } catch (err: any) {
+    } catch {
       setReKycError(t('Network error.'));
       triggerModalShake();
     } finally {
@@ -1243,60 +1055,71 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           otp: reKycOtp,
-          txnId: reKycTxnId
-        })
+          txnId: reKycTxnId,
+        }),
       });
       const data = await res.json();
-      if (res.ok && (data.authResult === 'success' || data.status === 'success' || data.message === 'Re-kyc done successfully')) {
-        const successMsg = data.message || t('Re-KYC done successfully');
-        showToast(successMsg);
+      const authOk =
+        res.ok &&
+        (data.authResult === 'success' ||
+          data.status === 'success' ||
+          data.message === 'Re-kyc done successfully' ||
+          data.abdmResponse?.authResult === 'success');
+      if (authOk) {
+        const successMsg =
+          data.message || data.abdmResponse?.message || t('Re-KYC done successfully');
+        setReKycSuccessMessage(successMsg);
         setReKycSuccess(true);
-        setReKycLoading(false);
+        showToast(successMsg);
+        fetchProfileDetails();
         setTimeout(() => {
-          setActiveModal(null);
-          resetAllForms();
-        }, 3000);
+          handleCloseReKycModal();
+          setActiveTab('my_profile');
+        }, 2500);
       } else {
-        const errMsg = data.Message || 
-                       data.message || 
-                       (data.txnId && data.txnId.toLowerCase().includes('invalid') ? data.txnId : null) ||
-                       data.otpValue || 
-                       data.authMethods || 
-                       data.scope || 
-                       data.description || 
-                       t('Re-KYC failed.');
+        const errMsg =
+          data.message ||
+          data.abdmResponse?.message ||
+          data.otpValue ||
+          t('Re-KYC failed.');
         setReKycError(errMsg);
         showToast(errMsg);
-        setReKycLoading(false);
         triggerModalShake();
       }
-    } catch (err: any) {
+    } catch {
       setReKycError(t('Network error.'));
-      setReKycLoading(false);
       triggerModalShake();
+    } finally {
+      setReKycLoading(false);
     }
   };
 
-  // 6. Deactivate / Delete ABHA Actions
+  // 6. Deactivate / Delete ABHA Actions (legacy modal — uses isolated deactivate/delete APIs)
   const handleDeactivateRequest = async () => {
     setDeactivateLoading(true);
     setDeactivateError('');
     try {
-      const scope = deactivateOption === 'deactivate'
-        ? ['abha-address-login', 'deactivate']
-        : ['abha-address-login', 'delete'];
-      const loginId = deactivateAuthMethod === 'aadhaar'
-        ? (abhaProfile.aadhaar || abhaProfile.ABHANumber?.replace(/-/g, '') || '')
-        : (abhaProfile.mobile || abhaProfile.ABHANumber || '');
-      const res = await abhaService.requestAccountActionOtp({
-        scope,
-        loginHint: deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'mobile',
-        loginId,
-        otpSystem: deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'abdm',
-      });
-      const data = res.data;
-      if (data.status === 'success' || data.txnId) {
-        setDeactivateTxnId(data.txnId || '');
+      if (deactivateOption === 'deactivate') {
+        const { requestDeactivateAbhaOtp } = await import('@/features/abha-deactivate/api/deactivate-abha.api');
+        const otpSystem = deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'abdm';
+        const data = await requestDeactivateAbhaOtp({ otpSystem });
+        if (data.status === 'success' && data.txnId) {
+          setDeactivateTxnId(data.txnId);
+          setDeactivateOtpStep(true);
+          setResendTimer(60);
+          setOtpExpiryTimer(600);
+          showToast(t('Account change verification OTP sent!'));
+        } else {
+          setDeactivateError(data.message || t('Failed to send OTP code.'));
+          triggerModalShake();
+        }
+        return;
+      }
+      const { requestDeleteAbhaOtp } = await import('@/features/abha-delete/api/delete-abha.api');
+      const otpSystem = deactivateAuthMethod === 'aadhaar' ? 'aadhaar' : 'abdm';
+      const data = await requestDeleteAbhaOtp({ otpSystem });
+      if (data.status === 'success' && data.txnId) {
+        setDeactivateTxnId(data.txnId);
         setDeactivateOtpStep(true);
         setResendTimer(60);
         setOtpExpiryTimer(600);
@@ -1322,15 +1145,37 @@ export default function ProfilePage() {
     setDeactivateLoading(true);
     setDeactivateError('');
     try {
-      const apiCall = deactivateOption === 'deactivate'
-        ? abhaService.deactivateAbha({ txnId: deactivateTxnId, otp: deactivateOtp })
-        : abhaService.deleteAbha({ txnId: deactivateTxnId, otp: deactivateOtp });
-      const res = await apiCall;
-      if (res.data.status === 'success') {
+      if (deactivateOption === 'deactivate') {
+        const { verifyDeactivateAbhaOtp } = await import('@/features/abha-deactivate/api/deactivate-abha.api');
+        const data = await verifyDeactivateAbhaOtp({
+          txnId: deactivateTxnId,
+          otp: deactivateOtp,
+          reasons: ['User requested deactivation via profile modal'],
+        });
+        if (data.status === 'success') {
+          setDeactivateConfirmed(true);
+          showToast(t('ABHA number temporarily deactivated.'));
+          setTimeout(() => {
+            setActiveModal(null);
+            resetAllForms();
+            logout();
+            router.push('/login');
+          }, 2000);
+        } else {
+          setDeactivateError(data.message || t('Verification failed.'));
+          triggerModalShake();
+        }
+        return;
+      }
+      const { verifyDeleteAbhaOtp } = await import('@/features/abha-delete/api/delete-abha.api');
+      const data = await verifyDeleteAbhaOtp({
+        txnId: deactivateTxnId,
+        otp: deactivateOtp,
+        reasons: ['User requested deletion via profile modal'],
+      });
+      if (data.status === 'success') {
         setDeactivateConfirmed(true);
-        showToast(deactivateOption === 'deactivate'
-          ? t('ABHA number temporarily deactivated.')
-          : t('ABHA number permanently deleted.'));
+        showToast(t('ABHA number permanently deleted.'));
         setTimeout(() => {
           setActiveModal(null);
           resetAllForms();
@@ -1338,7 +1183,7 @@ export default function ProfilePage() {
           router.push('/login');
         }, 2000);
       } else {
-        setDeactivateError(res.data.message || t('Verification failed.'));
+        setDeactivateError(data.message || t('Verification failed.'));
         triggerModalShake();
       }
     } catch (err) {
@@ -1413,14 +1258,20 @@ export default function ProfilePage() {
     }
   };
 
-  // Submenu configuration
+  const abhaNumberForActions = abhaNumberForLifecycleAction(
+    abhaProfile.ABHANumber || abhaProfile.abhaNumber || '',
+  );
+
+  // Submenu configuration (8 items)
   const submenus = [
     { id: 'my_profile', label: t('My Profile'), icon: User },
     { id: 'edit_profile', label: t('Edit Profile'), icon: Camera },
     { id: 'set_password', label: t('Set Password'), icon: Key },
     { id: 're_kyc', label: t('Re-KYC Verification'), icon: RefreshCw },
-    { id: 'deactivate_delete', label: t('Deactivate/Delete ABHA'), icon: ShieldAlert },
-    { id: 'delink', label: t('Delink Mobile Number'), icon: UserMinus }
+    { id: 'deactivate_abha', label: t('Deactivate ABHA (Temporarily)'), icon: ShieldAlert },
+    { id: 'delete_abha', label: t('Delete ABHA (Permanently)'), icon: Trash2 },
+    { id: 'delink', label: t('Delink ABHA'), icon: UserMinus },
+    { id: 'reactivate_abha', label: t('Reactivate ABHA'), icon: Unlock },
   ];
 
   if (!currentUser || !currentUser.abhaProfile) {
@@ -1557,7 +1408,7 @@ export default function ProfilePage() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as any)}
+                  onClick={() => handleSubmenuClick(item.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1602,27 +1453,29 @@ export default function ProfilePage() {
           
           {/* TAB 1: My Profile */}
           {activeTab === 'my_profile' && (
-            <MyProfileTab
-              abhaProfile={abhaProfile}
-              currentUser={currentUser}
-              t={t}
-              isDemographicsExpanded={isDemographicsExpanded}
-              setIsDemographicsExpanded={setIsDemographicsExpanded}
-              getPhotoSrc={getPhotoSrc}
-              getGenderDisplay={getGenderDisplay}
-              copyToClipboard={copyToClipboard}
-              handleDownloadCard={handleDownloadCard}
-              handlePrintCard={handlePrintCard}
-              handleShareCard={handleShareCard}
-              triggerPhotoSelect={triggerPhotoSelect}
-              triggerMobileEdit={triggerMobileEdit}
-              setActiveModal={setActiveModal}
-              profileDetails={profileDetails}
-              profileDetailsLoading={profileDetailsLoading}
-              profileDetailsError={profileDetailsError}
-              fetchProfileDetails={fetchProfileDetails}
-              getDobString={getDobString}
-            />
+            <>
+              <MyProfileTab
+                abhaProfile={abhaProfile}
+                currentUser={currentUser}
+                t={t}
+                getPhotoSrc={getPhotoSrc}
+                getProfilePhotoSrc={getProfilePhotoSrc}
+                getGenderDisplay={getGenderDisplay}
+                copyToClipboard={copyToClipboard}
+                handleDownloadCard={handleDownloadCard}
+                handlePrintCard={handlePrintCard}
+                handleShareCard={handleShareCard}
+                triggerPhotoSelect={triggerPhotoSelect}
+                triggerMobileEdit={triggerMobileEdit}
+                setActiveModal={setActiveModal}
+                profileDetails={profileDetails}
+                profileDetailsLoading={profileDetailsLoading}
+                profileDetailsError={profileDetailsError}
+                fetchProfileDetails={fetchProfileDetails}
+                getDobString={getDobString}
+              />
+              <RefreshTokenPanel />
+            </>
           )}
 
           {/* TAB 3: Edit Profile */}
@@ -1656,6 +1509,10 @@ export default function ProfilePage() {
               handlePhotoUploadSubmit={handlePhotoUploadSubmit}
               handlePhotoFileChange={handlePhotoFileChange}
               getPhotoSrc={getPhotoSrc}
+              getProfilePhotoSrc={getProfilePhotoSrc}
+              profileDetails={profileDetails}
+              getDobString={getDobString}
+              getGenderDisplay={getGenderDisplay}
             />
           )}
 
@@ -1678,31 +1535,28 @@ export default function ProfilePage() {
             />
           )}
 
-          {/* TAB 5: Re-KYC Verification */}
+          {/* TAB 5: Re-KYC opens modal from sidebar — no inline tab UI */}
           {activeTab === 're_kyc' && (
             <ReKycTab
               reKycSuccess={reKycSuccess}
               abhaProfile={abhaProfile}
               reKycError={reKycError}
-              handleRequestReKycOtp={handleRequestReKycOtp}
+              handleRequestReKycOtp={() => handleSubmenuClick('re_kyc')}
               reKycLoading={reKycLoading}
             />
           )}
 
-          {/* TAB 6: Deactivate or Delete ABHA */}
-          {activeTab === 'deactivate_delete' && (
-            <DeactivateDeleteTab
-              deactivateOption={deactivateOption}
-              setDeactivateOption={setDeactivateOption}
-              deactivateAuthMethod={deactivateAuthMethod}
-              setDeactivateAuthMethod={setDeactivateAuthMethod}
-              deactivateError={deactivateError}
-              deactivateLoading={deactivateLoading}
-              handleDeactivateRequest={handleDeactivateRequest}
-            />
+          {activeTab === 'deactivate_abha' && (
+            <DeactivateAbhaPanel abhaNumber={abhaNumberForActions} />
           )}
 
-          {/* TAB 7: Delink Mobile Number */}
+          {activeTab === 'delete_abha' && (
+            <DeleteAbhaPanel abhaNumber={abhaNumberForActions} />
+          )}
+
+          {activeTab === 'reactivate_abha' && <ReactivateAbhaPanel />}
+
+          {/* Delink ABHA */}
           {activeTab === 'delink' && (
             <DelinkTab
               delinkError={delinkError}
@@ -1715,107 +1569,12 @@ export default function ProfilePage() {
 
       </div>
 
-      {/* Hidden Back card representation used for PVC print injection */}
-      <div style={{ display: 'none' }}>
-        <article 
+      {/* Hidden back card for print / PVC */}
+      <div style={{ display: 'none' }} aria-hidden="true">
+        <AbhaCardBackComponent
           id="abha-card-pvc-back"
-          className="pvc-back-card"
-          style={{
-            width: '580px',
-            minHeight: '270px',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            border: '1px solid #cbd5e1',
-            boxShadow: 'none',
-            background: 'radial-gradient(circle, #ffffff 0%, #f8fafc 100%)',
-            fontFamily: "'Inter', sans-serif",
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          {/* Back Card Header identical to Front Card Header */}
-          <div 
-            className="setu-abha-card-header" 
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              background: '#264488', 
-              borderBottom: '2px solid #10b981',
-              padding: '16px',
-              height: '68px',
-              boxSizing: 'border-box'
-            }}
-          >
-            <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <img
-                src="/assets/svg/nha.svg"
-                alt="NHA Logo"
-                className="setu-abha-card-nha-img"
-                style={{ height: '100%', width: 'auto', objectFit: 'contain' }}
-              />
-            </div>
-            <div style={{ textAlign: 'center', color: '#ffffff', flex: 1, padding: '0 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span className="setu-abha-card-header-title" style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.3px', textTransform: 'uppercase' }}>Ayushman Bharat Health Account</span>
-              <span className="setu-abha-card-header-subtitle" style={{ fontSize: '11px', opacity: 0.9, fontWeight: 600 }}>आयुष्मान भारत स्वास्थ्य खाता (आभा)</span>
-            </div>
-            <div style={{ height: '56px', width: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', border: '1px solid #cbd5e1', overflow: 'hidden', background: '#ffffff' }} className="setu-abha-card-abdm-wrapper">
-              <img
-                src="/assets/svg/abdm1.svg"
-                alt="ABDM Logo"
-                style={{ height: '100%', width: '100%', objectFit: 'contain' }}
-              />
-            </div>
-          </div>
-
-          {/* Back Card Body */}
-          <div 
-            className="pvc-back-body" 
-            style={{ 
-              padding: '16px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              height: 'calc(100% - 68px)', 
-              boxSizing: 'border-box',
-              justifyContent: 'space-between',
-              color: '#0f172a'
-            }}
-          >
-            {/* Top row with Instructions heading and Toll-Free Number */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', marginBottom: '8px', color: '#0f172a' }}>
-              <span>Instructions</span>
-              <span>Toll-Free Number: 1800 114 477</span>
-            </div>
-
-            {/* Billingual instructions list */}
-            <ul className="pvc-instructions" style={{ margin: 0, paddingLeft: '20px', fontSize: '9.5px', lineHeight: '1.4', color: '#334155', textAlign: 'left', listStyleType: 'disc' }}>
-              <li style={{ marginBottom: '6px' }}>
-                With this ABHA you have become a part of India's digital health ecosystem.
-                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>इस आभा के साथ आप भारत के डिजिटल हेल्थ इकोसिस्टम का हिस्सा बन गए हैं।</div>
-              </li>
-              <li style={{ marginBottom: '6px' }}>
-                ABHA provides you a unique identification and helps in storing - safekeeping all your digital health records at one place.
-                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>आभा आपको एक विशिष्ट पहचान प्रदान करता है और आपके सभी डिजिटल स्वास्थ्य रिकॉर्ड को सुरक्षित एक ही स्थान पर संग्रहीत रखने में मदद करता है।</div>
-              </li>
-              <li style={{ marginBottom: '6px' }}>
-                You can download the ABHA mobile app, Aarogya Setu or other ABDM enabled app to view and share your digital health records with ABDM registered healthcare service providers.
-                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>आप एबीडीएम पंजीकृत स्वास्थ्य सेवा प्रदाताओं के साथ अपने डिजिटल स्वास्थ्य रिकॉर्ड देखने और साझा करने के लिए आभा मोबाइल ऐप, आरोग्य सेतु या अन्य एबीडीएम सक्षम ऐप डाउनलोड कर सकते हैं।</div>
-              </li>
-              <li style={{ marginBottom: '6px' }}>
-                If this card is lost kindly download it from www.abha.abdm.gov.in, it is digitally acceptable.
-                <div style={{ color: '#64748b', fontSize: '9px', fontWeight: 500 }}>यदि यह कार्ड खो जाता है तो कृपया इसे www.abha.abdm.gov.in से डाउनलोड करें, यह डिजिटल रूप से स्वीकार्य है।</div>
-              </li>
-            </ul>
-
-            {/* Divider line and footer */}
-            <div style={{ width: '100%', marginTop: '6px' }}>
-              <hr style={{ border: 'none', borderTop: '1px solid #cbd5e1', margin: '4px 0' }} />
-              <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: 'bold', color: '#334155' }}>
-                Issued on: 30-11-2022
-              </div>
-            </div>
-          </div>
-        </article>
+          issuedOn={profileDetails?.data?.createdDate?.split(' ')[0] || undefined}
+        />
       </div>
 
       {/* ==================== WORKFLOW MODALS ==================== */}
@@ -1860,7 +1619,7 @@ export default function ProfilePage() {
                     key={item.id}
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setActiveTab(item.id as any);
+                      handleSubmenuClick(item.id);
                     }}
                     style={{
                       display: 'flex',
@@ -1898,6 +1657,7 @@ export default function ProfilePage() {
         pvcTab={pvcTab}
         setPvcTab={setPvcTab}
         getPhotoSrc={getPhotoSrc}
+        getProfilePhotoSrc={getProfilePhotoSrc}
         getGenderDisplay={getGenderDisplay}
         handlePrintPvc={handlePrintPvc}
         shakeModal={shakeModal}
@@ -1956,6 +1716,11 @@ export default function ProfilePage() {
         reKycOtp={reKycOtp}
         setReKycOtp={setReKycOtp}
         handleVerifyReKycOtp={handleVerifyReKycOtp}
+        handleCloseReKycModal={handleCloseReKycModal}
+        reKycOtpMessage={reKycOtpMessage}
+        reKycSuccessMessage={reKycSuccessMessage}
+        profileDetails={profileDetails}
+        getDobString={getDobString}
         deactivateConfirmed={deactivateConfirmed}
         deactivateOtpStep={deactivateOtpStep}
         setDeactivateOtpStep={setDeactivateOtpStep}

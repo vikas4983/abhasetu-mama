@@ -1659,7 +1659,6 @@ export default function Header() {
         <PatientLogoutDialog
           open={showLogoutConfirm}
           onClose={() => setShowLogoutConfirm(false)}
-          useAbdmLogout={currentUser?.role === "patient"}
         />
       )}
     </>

@@ -227,9 +227,9 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
   const labelStyle: React.CSSProperties = {
     color: '#64748b',
     fontSize: '8px',
-    fontWeight: 750,
-    textTransform: 'uppercase',
-    letterSpacing: '0.3px',
+    fontWeight: 600,
+    textTransform: 'none',
+    letterSpacing: '0.2px',
     margin: 0,
     whiteSpace: 'nowrap',
   };
@@ -247,6 +247,7 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
     fontFamily: 'monospace',
     color: '#1f3a60',
     fontSize: '14px',
+    fontWeight: 800,
     letterSpacing: '0.3px',
     whiteSpace: 'nowrap',
     display: 'inline-flex',
@@ -258,6 +259,7 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
     fontFamily: 'monospace',
     color: '#0f172a',
     fontSize: '11px',
+    fontWeight: 800,
     wordBreak: 'break-all',
     display: 'inline-flex',
     alignItems: 'center',
@@ -421,7 +423,7 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
               onClick={isEditable ? triggerPhotoSelect : undefined}
             >
               <img
-                src={getPhotoSrc(abhaProfile.photo || abhaProfile.profilePhoto || currentUser?.photo)}
+                src={getPhotoSrc(abhaProfile.profilePhoto || currentUser?.photo)}
                 alt={name}
                 style={{ width: '100%', height: '100%', borderRadius: '6px', objectFit: 'cover' }}
                 onError={(e) => {
@@ -444,11 +446,11 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
             </div>
             
             <div className="printable-abha-card-field" style={fieldStyle}>
-              <span className="printable-abha-card-label" style={labelStyle}>Abha Number/ आभा-संख्या</span>
+              <span className="printable-abha-card-label" style={labelStyle}>Abha number/ आभा-संख्या</span>
               <strong className="printable-abha-card-value token-num" style={valueTokenBlueStyle}>
                 <span>{abhaNumber}</span>
                 <button 
-                  onClick={(e) => { e.stopPropagation(); copyToClipboard(abhaNumber, 'ABHA Number'); }}
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard?.(abhaNumber, 'ABHA Number'); }}
                   style={{ 
                     background: 'none', 
                     border: 'none', 
@@ -466,11 +468,11 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
             </div>
             
             <div className="printable-abha-card-field" style={fieldStyle}>
-              <span className="printable-abha-card-label" style={labelStyle}>Abha Address/ आभा पता</span>
+              <span className="printable-abha-card-label" style={labelStyle}>Abha address/ आभा पता</span>
               <strong className="printable-abha-card-value token-num" style={valueTokenBlackStyle}>
                 <span>{abhaAddress}</span>
                 <button 
-                  onClick={(e) => { e.stopPropagation(); copyToClipboard(abhaAddress, 'ABHA Address'); }}
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard?.(abhaAddress, 'ABHA Address'); }}
                   style={{ 
                     background: 'none', 
                     border: 'none', 
@@ -509,7 +511,7 @@ export const AbhaCardComponent: React.FC<AbhaCardComponentProps> = ({
             <span className="printable-abha-card-value" style={bottomValueStyle}>{gender}</span>
           </div>
           <div className="printable-abha-card-field" style={{ ...bottomFieldStyle, alignItems: 'center', textAlign: 'center' }}>
-            <span className="printable-abha-card-label" style={labelStyle}>Date Of Birth/ जन्मतिथि</span>
+            <span className="printable-abha-card-label" style={labelStyle}>Date of birth/ जन्मतिथि</span>
             <span className="printable-abha-card-value" style={bottomValueStyle}>{dob}</span>
           </div>
           <div className="printable-abha-card-field" style={{ ...bottomFieldStyle, alignItems: 'flex-end', textAlign: 'right' }}>

@@ -14,9 +14,8 @@ export interface MyProfileTabProps {
   abhaProfile: any;
   currentUser: any;
   t: (key: string) => string;
-  isDemographicsExpanded: boolean;
-  setIsDemographicsExpanded: (expanded: boolean) => void;
   getPhotoSrc: (photo: string | undefined) => string;
+  getProfilePhotoSrc: (override?: string) => string;
   getGenderDisplay: (gender: string | undefined) => string;
   copyToClipboard: (text: string, fieldName: string) => void;
   handleDownloadCard: () => void;

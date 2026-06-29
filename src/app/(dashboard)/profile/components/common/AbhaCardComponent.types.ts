@@ -42,7 +42,7 @@ export interface AbhaCardComponentProps {
   };
   getPhotoSrc: (photo: string | undefined) => string;
   getGenderDisplay?: (gender: string | undefined) => string;
-  copyToClipboard: (text: string, fieldName: string) => void;
+  copyToClipboard?: (text: string, fieldName: string) => void;
   triggerPhotoSelect?: () => void;
   triggerMobileEdit?: () => void;
   isEditable?: boolean;

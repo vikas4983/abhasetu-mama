@@ -48,9 +48,9 @@ export class CryptoService {
       );
       
       return encrypted.toString('base64');
-    } catch (e: any) {
-      console.warn('Public key encryption failed, using fallback simulated encryption format:', e.message);
-      return Buffer.from(`simulated-encrypted-${plainText}`).toString('base64');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'RSA encryption failed';
+      throw new Error(`ABDM public key encryption failed: ${msg}`);
     }
   }
 

@@ -24,6 +24,7 @@ import { ClinicalModule } from './clinical/clinical.module';
 import { AdminModule } from './admin/admin.module';
 import { TestsModule } from './tests/tests.module';
 import { PhrModule } from './phr/phr.module';
+import { PublicAbdmModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PhrModule } from './phr/phr.module';
     AdminModule,
     TestsModule,
     PhrModule,
+    PublicAbdmModule,
   ],
   exports: [
     CryptoModule,
@@ -59,6 +61,7 @@ import { PhrModule } from './phr/phr.module';
     AdminModule,
     TestsModule,
     PhrModule,
+    PublicAbdmModule,
   ],
 })
 export class AbdmModule {}

@@ -58,6 +58,38 @@ export class AbdmGatewayService {
   }
 
   /**
+   * @description Profile account V3 — Postman M1 headers (Authorization + X-token, no X-CM-ID)
+   */
+  async requestAbhaProfileV3<T>(options: {
+    path: string;
+    method?: 'GET' | 'POST';
+    body?: unknown;
+    xToken: string;
+  }): Promise<T> {
+    const baseUrl = await this.sessionService.getAbhaBaseUrl();
+    const session = await this.sessionService.getGatewaySession();
+    const cleanXToken = options.xToken.startsWith('Bearer ')
+      ? options.xToken.slice(7).trim()
+      : options.xToken.trim();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      [ABDM_HEADERS.REQUEST_ID]: crypto.randomUUID(),
+      [ABDM_HEADERS.TIMESTAMP]: new Date().toISOString(),
+      [ABDM_HEADERS.X_TOKEN]: `Bearer ${cleanXToken}`,
+      'X-token': `Bearer ${cleanXToken}`,
+      [ABDM_HEADERS.AUTHORIZATION]: `Bearer Token ${session.tokenPreview}`,
+    };
+    const url = `${baseUrl}${options.path}`;
+    const config: AxiosRequestConfig = { headers, timeout: 15000 };
+    const method = options.method ?? 'POST';
+    const response =
+      method === 'GET'
+        ? await axios.get<T>(url, config)
+        : await axios.post<T>(url, options.body, config);
+    return response.data;
+  }
+
+  /**
    * @description Execute an ABDM gateway HTTP request
    */
   async request<T = unknown>(options: AbdmRequestOptions): Promise<T> {
